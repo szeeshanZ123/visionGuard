@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.env
+venv/
+.venv/
+
+# Pytest / Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local data and SQLite databases
+*.db
+*.sqlite3
+data/*.db
+data/uploads/*
+!data/uploads/.gitkeep
+!data/.gitkeep
+!data/sample_road.jpg
+
+# Streamlit
+.streamlit/
