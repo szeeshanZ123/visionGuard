@@ -1,11 +1,11 @@
 """
 Image upload and inspection view for VisionGuard AI.
 
-Phase 1 Scope:
-- Ingests infrastructure and road images.
-- Validates file integrity, dimensions, and metadata.
-- Renders uploaded image cleanly.
-- Displays explicit placeholders for future AI analysis without mock or fake predictions.
+Phase 4 (Image Input) implementation:
+- Validates uploaded images (formats, integrity, dimensions, max file size).
+- Extracts technical metadata.
+- Prepares tensor representation via OpenCV.
+- Displays explicit placeholders for future AI analysis adhering strictly to PRD guardrails (no mock predictions).
 """
 
 import io
@@ -13,7 +13,7 @@ import streamlit as st
 import pandas as pd
 from PIL import Image
 
-from src.utils.image_ops import (
+from ai.preprocessing.image_ops import (
     validate_image_stream,
     load_image_as_opencv,
 )
@@ -33,7 +33,7 @@ def render_upload_section():
             """
             - **Lighting**: Clear natural daylight without heavy shadows or lens glare.
             - **Orientation**: Overhead or 45-degree angle capturing the road surface distress clearly.
-            - **Supported Formats**: JPG, JPEG, PNG, WEBP.
+            - **Supported Formats**: JPG, JPEG, PNG, BMP, WEBP.
             - **Max File Size**: 15 MB.
             """
         )
@@ -41,7 +41,7 @@ def render_upload_section():
     # Image upload widget
     uploaded_file = st.file_uploader(
         "Select Road or Infrastructure Image",
-        type=["jpg", "jpeg", "png", "webp"],
+        type=["jpg", "jpeg", "png", "bmp", "webp"],
         help="Upload an image file to check validity and view metadata.",
     )
 
@@ -52,7 +52,7 @@ def render_upload_section():
     # Read byte stream
     file_bytes = io.BytesIO(uploaded_file.getvalue())
 
-    # Validate image stream
+    # Validate image stream using ai.preprocessing module
     is_valid, error_msg, metadata = validate_image_stream(file_bytes, uploaded_file.name)
 
     if not is_valid:
@@ -66,7 +66,6 @@ def render_upload_section():
 
     with col_img:
         st.subheader("Uploaded Infrastructure Image")
-        # Load verified PIL image for rendering
         file_bytes.seek(0)
         display_img = Image.open(file_bytes)
         st.image(
@@ -75,7 +74,7 @@ def render_upload_section():
             use_container_width=True,
         )
 
-        # Confirm OpenCV decoder compatibility
+        # Confirm OpenCV decoder compatibility for AI preprocessing
         file_bytes.seek(0)
         cv_mat = load_image_as_opencv(file_bytes)
         if cv_mat is not None:
@@ -101,12 +100,12 @@ def render_upload_section():
     st.markdown("---")
 
     # Placeholder for Future AI Analysis
-    st.subheader("🤖 AI Defect Analysis Pipeline (Phase 2)")
+    st.subheader("🤖 AI Defect Analysis Pipeline (Phase 2 & 5)")
 
     st.warning(
         "⚠️ **AI Model Inference Pending**: Defect detection models are not integrated in this phase. "
         "VisionGuard AI strictly prohibits mock or hardcoded AI predictions. "
-        "A genuine deep-learning model will be integrated in Phase 2."
+        "A genuine deep-learning model will be integrated in Phase 2 & 5."
     )
 
     placeholder_col1, placeholder_col2, placeholder_col3 = st.columns(3)
@@ -138,12 +137,12 @@ def render_upload_section():
             )
             st.caption("No mock scores generated")
 
-    with st.expander("🔬 Phase 2 Model Integration Architecture Plan", expanded=True):
+    with st.expander("🔬 Phase 2 Model Research & Phase 5 Integration Architecture Plan", expanded=True):
         st.markdown(
             """
-            When Phase 2 commences, this module will execute:
-            1. **Preprocessing**: Normalization, letterbox resizing, and color space alignment for model input.
-            2. **Model Inference**: Execution of genuine defect detection model (e.g. YOLOv8-Defect / PyTorch Mask R-CNN trained on Road Damage Datasets like RDD2022).
+            When model integration commences, this module will execute:
+            1. **Preprocessing (`ai/preprocessing/`)**: Normalization, letterbox resizing, and color space alignment for model input.
+            2. **Model Inference (`ai/detection/`)**: Execution of genuine defect detection model (e.g. YOLOv8-Defect / PyTorch Mask R-CNN trained on Road Damage Datasets like RDD2022).
             3. **Distress Localization**: Drawing verified bounding boxes and segmentation masks for:
                - Potholes
                - Longitudinal Cracks
