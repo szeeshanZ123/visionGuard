@@ -1,74 +1,52 @@
 # VisionGuard AI --- Development Roadmap
 
-Each phase should be reviewed before the next begins. The current status
-is planning only.
+Each phase should be reviewed before the next begins. The current status is planning only.
 
-  --------------------------------------------------------------------------
-  Phase             Goal              Main deliverable     Exit criteria
-  ----------------- ----------------- -------------------- -----------------
-  1\. Planning      Define scope and  PRD, feature list,   Documents
-                    project docs      architecture and     reviewed and
-                                      roadmap              scope approved
+The project uses a plain **HTML5, CSS3, and JavaScript** frontend paired with a **Python and Flask** backend.
 
-  2\. Model         Compare datasets  Research decision    Dataset licence,
-  research          and models        record               labels, model
-                                                           output and
-                                                           evaluation plan
-                                                           checked
+-----------------------------------------------------------------------------------------------------------------------
+Phase                   Goal                    Main deliverable        Exit criteria
+----------------------- ----------------------- ----------------------- -----------------------------------------------
+1. Planning             Define scope and        PRD, feature list,      Documents reviewed and HTML/CSS/JS + Flask
+                        project docs            architecture, roadmap   scope approved
 
-  3\. Environment   Create            Environment and      Dependencies
-  setup             reproducible      dependency list      install and basic
-                    Python                                 checks pass
-                    environment                            
+2. Model research       Compare datasets and    Research decision       Dataset licence, labels, model output format,
+                        candidate models        record                  and evaluation plan confirmed
 
-  4\. Image input   Upload and        Working image input  Valid files
-                    validate images   workflow             accepted; invalid
-                                                           files handled
+3. Environment setup    Create reproducible     Flask & Python          Dependencies install and basic server checks
+                        Python environment      dependency list         pass cleanly
 
-  5\. AI detection  Integrate         Genuine inference    Outputs come from
-                    selected model    pipeline             the model and
-                                                           baseline is
-                                                           measured
+4. Image input          Upload and validate     Working HTML/JS upload  Valid files accepted; invalid files handled
+                        images via Flask API    and Flask endpoint      gracefully with JSON errors
 
-  6\. Visualisation Display           Annotated image and  Overlays match
-                    detections        result summary       actual output
-                                                           coordinates or
-                                                           masks
+5. AI detection         Integrate selected      Genuine inference       Outputs originate from real model inference
+                        model into backend      pipeline in Flask       and baseline metrics are documented
 
-  7\. Inspection    Persist results   Save/search/detail   Records survive
-  history                             workflow             restart and match
-                                                           source results
+6. Visualisation        Display detections and  Annotated image and     Overlays match actual output coordinates or
+                        metrics on frontend     result view (HTML/JS)   masks; no fabricated detections
 
-  8\. Reports       Generate reports  Downloadable PDF     PDF opens and
-                                                           reflects saved
-                                                           data accurately
+7. Inspection history   Persist results in      SQLite persistence &    Records survive server restart and match source
+                        local database          history view            results
 
-  9\. Analytics     Summarise         Basic charts and     Counts match
-                    inspections       counts               underlying
-                                                           records
+8. Reports              Generate reports        Downloadable PDF        PDF opens and reflects saved inspection data
+                                                via ReportLab           accurately
 
-  10\. Complaints   Track internal    Complaint workflow   Complaints link
-                    complaints                             to inspections
-                                                           and statuses
-                                                           persist
+9. Analytics            Summarise inspections   Dashboard cards and     Counts match underlying SQLite records;
+                        with metrics & charts   Chart.js charts         charts render accurately
 
-  11\. Authority    Review and update Restricted reviewer  Access controls
-  dashboard         complaints        workflow             and status
-                                                           updates work
+10. Complaints          Track internal civic    Complaint management    Complaints link to inspections and statuses
+                        complaints              workflow                persist reliably
 
-  12\. Testing      Evaluate app and  Test and evaluation  Critical issues
-                    model             report               addressed;
-                                                           limitations
-                                                           documented
+11. Authority dashboard Review and update       Restricted reviewer     Access controls and status updates work
+                        defect complaints       view                    as intended
 
-  13\. Deployment   Make a usable     Deployment and setup End-to-end
-                    release           guide                workflow verified
-                                                           in target
-                                                           environment
-  --------------------------------------------------------------------------
+12. Testing             Evaluate app and        Test and evaluation     Critical issues addressed; API and client flows
+                        model performance       report                  pass tests; limitations documented
 
-## Phase completion rule
+13. Deployment          Make a usable release   Deployment and setup    End-to-end workflow verified in target
+                                                guide                   environment
+-----------------------------------------------------------------------------------------------------------------------
 
-Do not mark a phase complete merely because code was generated. Run the
-application or tests, inspect the output, document unresolved issues,
-and verify the acceptance criteria.
+## Phase Completion Rule
+
+Do not mark a phase complete merely because code was generated. Run the application or tests, inspect the output, document unresolved issues, and verify the acceptance criteria.
