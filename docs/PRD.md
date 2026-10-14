@@ -2,424 +2,319 @@
 
 **Document status:** Draft for planning and approval\
 **Project phase:** Planning only --- implementation has not started\
-**Version:** 1.0
+**Version:** 1.1
 
 ## 1. Project Overview
 
-VisionGuard AI is a proposed computer-vision application for identifying
-supported infrastructure defects from images and helping users document
-inspections and follow up on reported issues.
+VisionGuard AI is a proposed computer-vision web application for identifying supported infrastructure defects from images and helping users document inspections and follow up on reported issues.
 
-The first target domain is road infrastructure. Candidate defect classes
-include potholes and road cracks, but the final classes will depend on
-the availability, licensing, quality, and evaluation results of suitable
-datasets and models.
+The first target domain is road infrastructure. Candidate defect classes include potholes and road cracks, but the final classes will depend on the availability, licensing, quality, and evaluation results of suitable datasets and models.
 
-The primary product capability is genuine AI-based defect detection.
-Inspection records, PDF reports, analytics, and complaint management are
-supporting capabilities.
+The primary product capability is genuine AI-based defect detection. Inspection records, PDF reports, analytics, and complaint management are supporting capabilities.
+
+The confirmed implementation stack pairs a lightweight, accessible frontend (**HTML5, CSS3, and JavaScript**) with a robust backend (**Python and Flask**).
 
 ## 2. Problem Statement
 
-Infrastructure defects can be difficult and time-consuming to document
-consistently through manual inspection alone. Teams may need a
-structured way to review images, record findings, and keep inspection
-information organised.
+Infrastructure defects can be difficult and time-consuming to document consistently through manual inspection alone. Public works and inspection teams need a structured, accessible web tool to review images, record findings, and keep inspection information organised.
 
-VisionGuard AI aims to assist this workflow by analysing images with a
-suitable computer-vision model and presenting its outputs in a clear,
-reviewable format. It is an inspection-support tool, not a replacement
-for qualified engineering assessment.
+VisionGuard AI aims to assist this workflow by analysing images with a suitable computer-vision model and presenting its outputs in a clear, reviewable format. It is an inspection-support tool, not a replacement for qualified engineering assessment.
 
 ## 3. Proposed Solution
 
-A user will upload an infrastructure image. The application will
-validate the image and pass it to a selected computer-vision model. If
-the model returns detections, the application will display the detected
-class, confidence score, and bounding box or other localisation output
-supported by that model.
+The application workflow is designed as follows:
 
-Users will be able to save inspection details, review prior inspections,
-and generate a report. In a later phase, users may create internal
-complaints linked to an inspection and authorised staff may update their
-statuses.
+1. **Web Interface**: The user opens the web application built with plain HTML5, CSS3, and JavaScript.
+2. **Image Ingestion**: The user uploads an infrastructure image.
+3. **HTTP Request**: JavaScript transmits the image to a Flask API endpoint using an asynchronous HTTP POST request (`multipart/form-data`).
+4. **Validation & Preprocessing**: Flask validates the image (format, dimensions, file size, integrity) and passes it to the image-processing (OpenCV) and AI inference components.
+5. **Model Inference**: The selected computer-vision model returns genuine detection results.
+6. **Structured Response**: Flask returns structured JSON containing the supported detection classes, confidence scores, and bounding coordinates or segmentation masks when available from the model.
+7. **Visualisation**: JavaScript displays the detection metrics, summary data, and the OpenCV-annotated image.
+8. **Supporting Modules**: In later phases, Flask coordinates database persistence (SQLite), inspection history, PDF report generation (ReportLab), dashboard analytics (optional Chart.js), and internal complaint management.
 
-Gemini or another language model may be considered for optional
-explanations or report wording. It must not invent detections,
-coordinates, or confidence scores. Detection values must originate from
-the actual computer-vision model.
+Gemini or another language model may be considered for optional explanations or report wording. It must not invent detections, coordinates, or confidence scores. Detection values must originate strictly from the actual computer-vision model.
 
 ## 4. Objectives
 
-1.  Build a usable image-based infrastructure inspection workflow.
-2.  Integrate and evaluate a suitable defect-detection model.
-3.  Visualise genuine model outputs clearly.
-4.  Persist inspection records and retrieve them reliably.
-5.  Generate reports that accurately reflect saved results.
-6.  Add complaint tracking only after the core inspection workflow
-    works.
-7.  Document performance, limitations, privacy considerations, and setup
-    instructions.
+1. Build a usable image-based infrastructure inspection workflow using standard web technologies (HTML, CSS, JS, and Flask).
+2. Integrate and evaluate a suitable defect-detection model.
+3. Visualise genuine model outputs clearly without simulated predictions.
+4. Persist inspection records and retrieve them reliably via Flask and SQLite.
+5. Generate downloadable reports that accurately reflect saved results.
+6. Add complaint tracking and authority review only after the core inspection workflow works.
+7. Document performance, limitations, privacy considerations, and setup instructions.
 
 ## 5. Target Users
 
--   **Inspectors or field users:** Upload images and record inspections.
--   **Reviewers or supervisors:** Review inspection results and reports.
--   **Authority staff:** In a later phase, review complaints and update
-    statuses.
--   **Project demonstrators or evaluators:** Review the workflow, model
-    evaluation, and limitations.
+- **Inspectors or field users:** Upload images and record inspections.
+- **Reviewers or supervisors:** Review inspection results and reports.
+- **Authority staff:** In a later phase, review internal complaints and update statuses.
+- **Project demonstrators or evaluators:** Review the workflow, model evaluation, and limitations.
 
-The first prototype may use a single-user workflow. Authentication and
-role-based access should be added when required by the chosen deployment
-and complaint workflow.
+The first prototype uses a single-user workflow. Authentication and role-based access should be added when required by the chosen deployment and complaint workflow.
 
 ## 6. Scope and Priorities
 
 ### In scope for the core version
 
--   Image upload and validation.
--   Computer-vision inference using a selected model.
--   Genuine class labels, confidence scores, and supported localisation
-    outputs.
--   Annotated image visualisation.
--   Saving and retrieving inspection records.
--   Downloadable inspection reports.
+- Image upload and client/server validation.
+- Flask API endpoint for image processing and inference.
+- Computer-vision inference using a selected model.
+- Genuine class labels, confidence scores, and supported localisation outputs.
+- Annotated image visualisation (OpenCV overlays based on real coordinates).
+- Saving and retrieving inspection records in SQLite.
+- Downloadable PDF inspection reports.
 
 ### Later or optional scope
 
--   Inspection analytics.
--   Location metadata.
--   Internal complaint creation and status tracking.
--   Authority dashboard and access control.
--   Video or live-camera analysis.
--   Additional defect classes or infrastructure types.
+- Dashboard analytics and charts (Chart.js).
+- Optional location metadata.
+- Internal complaint creation and status tracking.
+- Authority dashboard and role-based access control.
+- Video or live-camera analysis.
+- Additional defect classes or infrastructure types.
 
 ### Out of scope unless separately validated
 
--   Certifying structural safety from a photograph.
--   Automatically determining engineering-grade defect severity from
-    confidence scores.
--   Guaranteeing that an external authority has received a complaint
-    without a real, verified submission integration.
--   Claiming support for defect classes that have not been tested.
+- Certifying structural safety from a photograph.
+- Automatically determining engineering-grade defect severity from confidence scores.
+- Guaranteeing that an external authority has received a complaint without a real, verified submission integration.
+- Claiming support for defect classes that have not been tested.
 
-## 7. Functional Requirements
+## 7. Planned Frontend Views
 
-  -----------------------------------------------------------------------
-  ID                      Requirement             Priority
-  ----------------------- ----------------------- -----------------------
-  FR-01                   Accept supported image  P0
-                          formats and reject      
-                          invalid or unsupported  
-                          files with a clear      
-                          message.                
+The user interface will provide the following planned views (these are planned views, not implemented pages, and may later be combined or reorganised if that keeps the application simpler):
 
-  FR-02                   Run the selected        P0
-                          computer-vision model   
-                          on a valid image.       
+1. **Dashboard**: High-level system overview, recent inspection metrics, and quick actions.
+2. **AI Inspection / Image Upload**: File uploader, image preview, guidelines, and ingestion status.
+3. **Detection Results**: Side-by-side display of original and annotated images, detected distress classes, and confidence ratings.
+4. **Inspection History**: Searchable and filterable log of past inspections.
+5. **Inspection Details**: Detailed view of an individual inspection with metadata and coordinates.
+6. **Reports**: Configurable PDF report generation and download.
+7. **Complaint Management**: Internal submission and lifecycle tracking for civic defect complaints.
+8. **Authority Dashboard**: Restricted interface for reviewing complaints and updating maintenance/repair statuses.
 
-  FR-03                   Show genuine            P0
-                          detections, including   
-                          class, confidence, and  
-                          localisation when       
-                          supported by the model. 
+## 8. Functional Requirements
 
-  FR-04                   Handle images with no   P0
-                          detections without      
-                          fabricating results.    
+-------------------------------------------------------------------------
+ID      Requirement                                             Priority
+------- ------------------------------------------------------- ---------
+FR-01   Accept supported image formats and reject invalid or    P0
+        unsupported files with a clear message.                 
 
-  FR-05                   Display an annotated    P0
-                          image whose overlays    
-                          match actual model      
-                          outputs.                
+FR-02   Run the selected computer-vision model on a valid       P0
+        image via a Flask API endpoint.                         
 
-  FR-06                   Save and retrieve       P1
-                          inspection metadata and 
-                          detection results.      
+FR-03   Show genuine detections, including class, confidence,   P0
+        and localisation when supported by the model.           
 
-  FR-07                   Generate a downloadable P1
-                          report based on saved   
-                          inspection data.        
+FR-04   Handle images with no detections without fabricating    P0
+        results.                                                
 
-  FR-08                   Filter or search        P1
-                          inspection history.     
+FR-05   Display an annotated image whose overlays match actual  P0
+        model outputs.                                          
 
-  FR-09                   Summarise inspection    P2
-                          records with basic      
-                          charts and counts.      
+FR-06   Save and retrieve inspection metadata and detection     P1
+        results using SQLite.                                   
 
-  FR-10                   Allow a user to create  P2
-                          a complaint linked to   
-                          an inspection.          
+FR-07   Generate a downloadable PDF report based on saved       P1
+        inspection data using ReportLab.                        
 
-  FR-11                   Allow authorised users  P2
-                          to review complaints    
-                          and update their        
-                          statuses.               
+FR-08   Filter or search inspection history.                    P1
 
-  FR-12                   Record location         P2
-                          metadata when it is     
-                          provided and            
-                          appropriate.            
-  -----------------------------------------------------------------------
+FR-09   Summarise inspection records with basic charts (using   P2
+        Chart.js) and counts.                                   
 
-## 8. Non-Functional Requirements
+FR-10   Allow a user to create an internal complaint linked     P2
+        to an inspection.                                       
 
--   **Usability:** Keep the workflow understandable for a student
-    developer and first-time user.
--   **Reliability:** Invalid files, missing model files, and inference
-    failures should produce clear errors.
--   **Maintainability:** Separate interface, model inference, image
-    processing, persistence, and reporting responsibilities.
--   **Performance:** Record inference time and avoid unnecessary image
-    copies or repeated model loading.
--   **Privacy:** Explain how uploaded images are stored and provide a
-    way to remove local records when appropriate.
--   **Security:** Never commit API keys, credentials, private images, or
-    environment files to version control.
--   **Traceability:** Store model/version information with inspection
-    results when feasible.
--   **Honesty:** Clearly label model-generated results and known
-    limitations; do not imply that predictions are guaranteed to be
-    correct.
+FR-11   Allow authorised users to review complaints and update  P2
+        their statuses.                                         
 
-## 9. Proposed Technology Stack
+FR-12   Record location metadata when it is provided and        P2
+        appropriate.                                            
+-------------------------------------------------------------------------
 
-The stack is provisional and will be confirmed after model research.
+## 9. Non-Functional Requirements
 
-  -----------------------------------------------------------------------
-  Technology              Proposed role           Decision status
-  ----------------------- ----------------------- -----------------------
-  Python                  Main language           Proposed
+- **Usability:** Keep the workflow understandable for a student developer and first-time user using clean HTML, CSS, and JS.
+- **Reliability:** Invalid files, missing model files, and inference failures should produce clear JSON error messages.
+- **Maintainability:** Separate frontend presentation, Flask routing/services, model inference, image processing, persistence, and reporting responsibilities.
+- **Performance:** Record inference time and avoid unnecessary image copies or repeated model loading.
+- **Privacy:** Explain how uploaded images are stored and provide a way to remove local records when appropriate.
+- **Security:** Never commit API keys, credentials, private images, or environment files to version control.
+- **Traceability:** Store model and version information with inspection results when feasible.
+- **Honesty:** Clearly label model-generated results and known limitations; do not imply that predictions are guaranteed to be correct.
 
-  Streamlit               Prototype web interface Proposed
+## 10. Confirmed Technology Stack
 
-  OpenCV                  Image loading,          Proposed
-                          processing, and visual  
-                          overlays                
+The technology stack has been confirmed to use standard web technologies for full control and simplicity:
 
-  PyTorch                 Model runtime if        Conditional
-                          required by the         
-                          selected model          
+-----------------------------------------------------------------------------------------------------------------
+Technology              Role                                    Status
+----------------------- --------------------------------------- -------------------------------------------------
+HTML5, CSS3, JavaScript Web frontend presentation & interaction Confirmed core frontend
 
-  Pandas                  Tabular data handling   Proposed
-                          and analytics           
+Chart.js                Optional dashboard charts               Optional, for analytics phase
 
-  SQLite                  Local persistence for   Proposed
-                          the prototype           
+Python                  Backend programming language            Confirmed core backend
 
-  Plotly                  Charts for inspection   Optional
-                          analytics               
+Flask                   Web framework, routing, REST API        Confirmed core backend
 
-  ReportLab               PDF report generation   Optional, for reporting
-                                                  phase
+OpenCV                  Image processing & overlay rendering    Confirmed vision library
 
-  Gemini or another       Optional plain-language Not required for core
-  language model          summaries               detection
-  -----------------------------------------------------------------------
+PyTorch / compatible    Deep learning model runtime             Conditional, only if required by selected model
 
-Do not install all dependencies during planning. Add packages only when
-a phase needs them.
+Pandas                  Tabular processing and data aggregation Confirmed utility
 
-## 10. Dataset and Model Requirements
+SQLite                  Local relational database               Confirmed local storage
 
-Before selecting a model:
+ReportLab               PDF report generation                   Confirmed for reporting phase
 
-1.  Identify datasets relevant to the intended defect classes and image
-    conditions.
-2.  Check licensing, permitted use, dataset provenance, labels, and
-    annotation format.
-3.  Review class balance, image resolution, duplicate images, and label
-    quality.
-4.  Compare suitable pretrained models and their runtime requirements.
-5.  Verify whether the model supports classification, object detection,
-    or segmentation. Do not promise bounding boxes if the model does not
-    produce them.
-6.  Establish a representative held-out test set and a reproducible
-    evaluation procedure.
-7.  Document known limitations and conditions where the model may fail.
+Gemini / LLM            Optional natural-language summaries     Optional; must not invent detections
+-----------------------------------------------------------------------------------------------------------------
 
-Evaluate appropriate metrics such as precision, recall, and mAP for
-object detection, plus inference time. Metrics should be reported
-against a defined test set. Model confidence is not defect severity and
-should not be presented as a calibrated probability unless calibration
-has been evaluated.
+### Technology Decisions & Exclusions
+
+- **Frontend choice:** Plain HTML5, CSS3, and JavaScript were chosen to provide full architectural flexibility, transparent HTTP communication with Flask, and clean DOM manipulation without framework overhead.
+- **Streamlit evaluation:** Streamlit was initially evaluated as a rapid prototyping alternative, but was rejected in favor of Flask + HTML/CSS/JS to establish a standard client-server separation and customizable UI.
+- **SPA frameworks:** React, Next.js, and Vue were explicitly excluded to avoid unnecessary build toolchains and dependencies for a student developer project.
 
 ## 11. High-Level Architecture
 
-Proposed data flow:
+### Data Flow
 
-1.  **Interface:** User selects an image and submits it.
-2.  **Validation:** Check file type, size, readability, and dimensions.
-3.  **Preprocessing:** Prepare the image according to the selected
-    model's requirements.
-4.  **Inference service:** Run the actual model and return structured
-    results.
-5.  **Visualisation:** Render supported boxes, masks, or labels using
-    the model's outputs.
-6.  **Inspection service:** Save metadata and detection results.
-7.  **Reporting:** Build a report from saved, verified inspection data.
-8.  **Optional follow-up modules:** Analytics, complaint tracking, and
-    authority review.
+```text
+[Browser: HTML/CSS/JS]
+       │
+       │  1. HTTP POST (multipart image upload)
+       ▼
+[Flask Route: /api/inspect]
+       │
+       │  2. Format, dimension & integrity checks
+       ▼
+[Preprocessing: OpenCV]
+       │
+       │  3. Model-specific tensor preparation
+       ▼
+[AI Model Inference Engine]
+       │
+       │  4. Genuine detection classes, confidence, coordinates
+       ▼
+[Overlay Generator: OpenCV]
+       │
+       │  5. Annotated visual output
+       ▼
+[Flask Response]
+       │
+       │  6. Structured JSON + annotated image reference
+       ▼
+[Browser: HTML/CSS/JS] ── Displays results, metrics & overlay
+       │
+       │  7. (Later) Save inspection, request PDF, view history
+       ▼
+[Flask Database & Services] ── SQLite & ReportLab
+```
 
-A future implementation may separate these responsibilities into
-modules. The architecture should remain simple until the model and
-deployment requirements are known.
+### Proposed Target Folder Structure
 
-## 12. Data and Persistence
+```text
+VisionGuard-AI/
+├── app/
+│   ├── templates/                      # HTML5 templates (Dashboard, Upload, Results, etc.)
+│   ├── static/                         # Static assets
+│   │   ├── css/                        # CSS stylesheets
+│   │   ├── js/                         # JavaScript client files
+│   │   └── images/                     # Static assets and icons
+│   ├── routes/                         # Flask blueprints and API endpoints
+│   └── services/                       # Application services (inspection, reports)
+├── ai/
+│   ├── models/                         # Model weights and artifacts
+│   ├── detection/                      # Inference engine
+│   └── preprocessing/                  # Ingestion, validation, OpenCV routines
+├── database/                           # SQLite database connection and queries
+├── data/                               # Uploads, processed images, datasets
+├── reports/                            # Generated inspection PDF documents
+├── tests/                              # Automated test suite
+└── docs/                               # Project documentation
+```
 
-Potential inspection fields include:
+> **Note on structure:** This is a proposed target structure. Do not automatically create, move, rename, or delete folders during documentation updates. Any physical restructuring will be considered separately.
 
--   Inspection ID.
--   Timestamp.
--   Original image path or managed image reference.
--   Model name and version.
--   Detection class.
--   Confidence score.
--   Bounding box or other localisation output, if supported.
--   Processing duration.
--   Optional location metadata.
--   Report path, if generated.
+## 12. Dataset and Model Requirements
 
-Complaint records may later include a complaint ID, linked inspection
-ID, description, status, timestamps, and authorised reviewer
-information.
+Before selecting a model:
 
-Avoid storing unnecessary personal information. Define retention and
-deletion behaviour before deploying the application for real users.
+1. Identify datasets relevant to the intended defect classes (road potholes, cracks) and image conditions.
+2. Check licensing, permitted use, dataset provenance, labels, and annotation format.
+3. Review class balance, image resolution, duplicate images, and label quality.
+4. Compare suitable pretrained models and their runtime requirements.
+5. Verify whether the model supports classification, object detection, or segmentation. Do not promise bounding boxes if the model does not produce them.
+6. Establish a representative held-out test set and a reproducible evaluation procedure.
+7. Document known limitations and conditions where the model may fail.
 
-## 13. Security and Privacy
+Evaluate appropriate metrics such as precision, recall, and mAP for object detection, plus inference time. Model confidence is not defect severity.
 
--   Keep secrets in local environment variables or a secrets manager.
--   Commit `.env.example`, never real `.env` files.
--   Validate uploads and set reasonable file-size limits.
--   Restrict access to uploaded images and reports when the app is
-    deployed.
--   Avoid committing datasets, private images, generated databases, or
-    model weights unless licensing and repository size have been
-    checked.
--   Add authentication and role-based access before exposing authority
-    workflows publicly.
--   Do not send images to third-party services unless the user
-    understands and accepts that data flow.
+## 13. Data and Persistence
 
-## 14. Limitations and Risks
+Potential inspection fields in SQLite include:
 
--   A model may miss defects or incorrectly label ordinary road
-    features.
--   Performance may vary with lighting, weather, camera angle, distance,
-    resolution, and road surface.
--   A dataset may not represent the locations where the application is
-    used.
--   Bounding boxes indicate image regions, not physical measurements.
--   Confidence scores do not establish severity or structural safety.
--   Complaint routing and responsible authority mapping require verified
-    jurisdiction data.
--   Cloud deployment may have memory, processing-time, storage, or
-    model-size limits.
+- Inspection ID (primary key).
+- Timestamp.
+- Original image path or managed image reference.
+- Model name and version.
+- Detection class.
+- Confidence score.
+- Bounding box or other localisation output, if supported.
+- Processing duration.
+- Optional location metadata.
+- Report path, if generated.
 
-Mitigations include representative testing, clear limitation notices,
-manual review, secure storage, and honest reporting of evaluation
-results.
+Complaint records may later include a complaint ID, linked inspection ID, description, status, timestamps, and authorised reviewer information.
 
-## 15. Success Metrics
+## 14. Security and Privacy
 
-Success criteria will be agreed after baseline model research. Proposed
-measures include:
+- Keep secrets in local environment variables or a secrets manager.
+- Commit `.env.example`, never real `.env` files.
+- Validate uploads on the Flask backend and enforce maximum file-size limits.
+- Restrict access to uploaded images and reports when the app is deployed.
+- Avoid committing datasets, private images, generated databases, or model weights.
+- Add authentication and role-based access before exposing authority workflows publicly.
+- Do not send images to third-party services unless the user understands and accepts that data flow.
 
--   The app accepts valid images and rejects invalid inputs correctly.
--   Every displayed detection corresponds to an actual model output.
--   Precision, recall, and mAP are measured on a held-out test set where
-    appropriate.
--   Inference time and hardware requirements are recorded.
--   Inspection records can be saved and retrieved without data mismatch.
--   Generated reports match stored inspection results.
--   Core workflows pass documented tests.
--   Known limitations and setup steps are documented.
+## 15. Limitations and Risks
 
-Do not set an arbitrary accuracy target until the dataset, model, and
-test protocol are understood.
+- A model may miss defects or incorrectly label ordinary road features (e.g. shadows, oil stains).
+- Performance may vary with lighting, weather, camera angle, distance, resolution, and road surface.
+- A dataset may not represent the locations where the application is used.
+- Bounding boxes indicate image regions, not physical measurements.
+- Confidence scores do not establish severity or structural safety.
+- Complaint routing requires verified jurisdiction data.
 
-## 16. Testing Strategy
+## 16. Success Metrics
 
--   **Input tests:** Valid, unsupported, corrupted, and oversized
-    images.
--   **Inference tests:** Known test images, no-detection cases, and
-    model-load failures.
--   **Visualisation tests:** Verify that displayed overlays match
-    returned coordinates.
--   **Persistence tests:** Save, retrieve, filter, and delete inspection
-    records.
--   **Report tests:** Confirm that generated reports contain correct
-    stored values.
--   **Workflow tests:** Test the complete inspection process from upload
-    to report.
--   **Model evaluation:** Use a held-out set and document false
-    positives and false negatives.
--   **Security checks:** Check secrets, upload validation, and access
-    control before deployment.
+- The Flask API accepts valid images and rejects invalid inputs with descriptive JSON errors.
+- Every displayed detection corresponds to an actual model output.
+- Precision, recall, and mAP are measured on a held-out test set.
+- Inference time and hardware requirements are recorded.
+- Inspection records can be saved and retrieved from SQLite without data mismatch.
+- Generated ReportLab PDF reports match stored inspection results.
+- End-to-end client-server workflows pass documented tests.
 
-## 17. Development Roadmap
+## 17. Testing Strategy
 
-  -----------------------------------------------------------------------
-  Phase                   Focus                   Exit criteria
-  ----------------------- ----------------------- -----------------------
-  1                       Planning and            PRD, features,
-                          documentation           architecture, roadmap,
-                                                  and scope reviewed
-
-  2                       Dataset and model       Dataset and model
-                          research                chosen with documented
-                                                  reasons and evaluation
-                                                  plan
-
-  3                       Environment setup       Reproducible
-                                                  environment and
-                                                  dependency checks pass
-
-  4                       Image input             Upload, validation, and
-                                                  error handling work
-
-  5                       AI detection            Real model inference
-                                                  works and baseline
-                                                  results are measured
-
-  6                       Visualisation           Annotated output
-                                                  matches actual
-                                                  detections
-
-  7                       Inspection history      Records persist and can
-                                                  be retrieved
-
-  8                       Reports                 PDF reports accurately
-                                                  reflect stored results
-
-  9                       Analytics               Dashboard summaries
-                                                  match the data
-
-  10                      Complaint management    Complaints can be
-                                                  created and tracked
-
-  11                      Authority dashboard     Permitted users can
-                                                  review and update
-                                                  statuses
-
-  12                      Testing and evaluation  Critical defects
-                                                  addressed and model
-                                                  limitations documented
-
-  13                      Deployment              Deployed workflow is
-                                                  tested and
-                                                  documentation is
-                                                  complete
-  -----------------------------------------------------------------------
+- **Input tests:** Valid, unsupported, corrupted, and oversized images tested against Flask endpoints.
+- **Inference tests:** Known test images, no-detection cases, and model-load failures.
+- **Visualisation tests:** Verify that displayed overlays match returned coordinates.
+- **Persistence tests:** Save, retrieve, filter, and delete inspection records.
+- **Report tests:** Confirm that generated reports contain correct stored values.
+- **Workflow tests:** Test the complete inspection process from HTML/JS upload to Flask API response and report.
+- **Model evaluation:** Use a held-out set and document false positives and false negatives.
+- **Security checks:** Check secrets, upload validation, and access control.
 
 ## 18. Current Status and Next Action
 
-**Current status: Planning only.** No application code, model, dataset,
-or database has been implemented as part of this plan.
+**Current status: Planning only.** The technology stack has been clarified to HTML/CSS/JS frontend with Flask backend. No application code, model, dataset, or database has been implemented as part of this plan.
 
-The immediate next step is to create and review the project structure
-and documentation. After approval, research suitable datasets and models
-before committing to an implementation design.
+The immediate next step is to review the updated project documentation. After approval, research suitable datasets and models before committing to an implementation design.
