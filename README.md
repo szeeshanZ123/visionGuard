@@ -1,133 +1,88 @@
-# 🛡️ VisionGuard AI
+# VisionGuard AI
 
-**VisionGuard AI** is an AI-powered infrastructure defect detection and reporting platform designed for civil engineering inspectors, highway authorities, and public works departments.
+AI-powered infrastructure defect detection and reporting --- project workspace.
 
-The platform provides automated visual defect analysis for asphalt roadways, concrete pavements, bridges, and roadside safety assets.
+## Project Focus
 
----
+The primary goal is computer-vision-based detection of supported infrastructure defects from images (such as potholes and road cracks). Reports, analytics, and complaint management are supporting modules.
 
-## 📌 Phase 1 Status: Foundation & Image Ingestion
+## Documentation
 
-In accordance with Phase 1 design specifications:
-- **Clean, Modular Architecture**: Fully decoupled UI components, image verification utilities, and database scaffolding.
-- **Landing Page**: Professional overview of the platform's mission, target infrastructure distress types, and multi-phase roadmap.
-- **Image Ingestion**: Upload section tailored for road and infrastructure imagery with format validation, dimension checks, and OpenCV tensor compatibility checks.
-- **Strictly No Fake AI Predictions**: In strict adherence to engineering requirements, no mock or simulated defect bounding boxes are generated. Clear, explicit placeholders are staged for real model integration in Phase 2.
-- **Lightweight Database Scaffolding**: SQLite schema initialized for future inspection logging.
-- **Comprehensive Test Suite**: Automated unit and integration tests covering image validation, database health, and Streamlit component rendering.
+- `docs/PRD.md` --- product requirements and guardrails
+- `docs/FEATURES.md` --- feature priorities and acceptance criteria
+- `docs/PROJECT_OVERVIEW.md` --- problem, solution, target users, and boundaries
+- `docs/TECHNOLOGY_STACK.md` --- proposed technologies and rationale
+- `docs/SYSTEM_ARCHITECTURE.md` --- high-level data flow and subsystem boundaries
+- `docs/DEVELOPMENT_ROADMAP.md` --- 13-phase implementation roadmap
+- `docs/DATASET_AND_MODEL_RESEARCH.md` --- model and dataset selection checklist
+- `docs/TESTING_STRATEGY.md` --- testing and evaluation plan
 
----
+## Repository Structure
 
-## 📂 Project Structure
+The project structure directly follows the starter template specification:
 
 ```text
-visionGuard/
-├── app.py                          # Streamlit application main entry point
-├── requirements.txt                # Python package dependencies
-├── README.md                       # Documentation, setup & run guide
-├── data/
-│   ├── .gitkeep                    # Storage directory placeholder
-│   ├── visionguard.db              # SQLite database (auto-created on startup)
-│   └── sample_road.jpg             # Sample test road image for demonstration
-├── src/
-│   ├── __init__.py                 # Core package initializer
-│   ├── components/                 # Streamlit UI presentation modules
-│   │   ├── __init__.py
-│   │   ├── landing.py              # Landing page & roadmap view
-│   │   └── upload.py               # Ingestion, validation & Phase 2 placeholders
-│   ├── database/                   # SQLite database layer
-│   │   ├── __init__.py
-│   │   └── db.py                   # Schema creation & health checks
-│   └── utils/                      # Vision and image processing helpers
-│       ├── __init__.py
-│       ├── image_ops.py            # Image stream validation & OpenCV conversion
-│       └── generate_sample.py      # Sample test asset generation script
-└── tests/                          # Automated test suite
-    ├── __init__.py
-    ├── test_app_structure.py       # Import and module integrity smoke tests
-    ├── test_db.py                  # Database initialization and schema tests
-    ├── test_image_ops.py           # Image validation and OpenCV decode tests
-    └── test_streamlit_app.py       # Streamlit AppTest integration tests
+VisionGuard-AI/
+├── README.md                           # Documentation, setup & run guide
+├── requirements.txt                    # Project dependencies
+├── .gitignore                          # Git exclusions for models, DBs, uploads
+├── .env.example                        # Environment variables template
+├── docs/                               # Core planning & architecture docs
+│   ├── PRD.md
+│   ├── FEATURES.md
+│   ├── PROJECT_OVERVIEW.md
+│   ├── TECHNOLOGY_STACK.md
+│   ├── SYSTEM_ARCHITECTURE.md
+│   ├── DEVELOPMENT_ROADMAP.md
+│   ├── DATASET_AND_MODEL_RESEARCH.md
+│   └── TESTING_STRATEGY.md
+├── app/                                # Streamlit application layer
+│   ├── main.py                         # Application entry point
+│   ├── components/                     # UI components (landing, upload)
+│   ├── pages/                          # Multi-page views
+│   └── services/                       # Orchestration services
+├── ai/                                 # Computer vision & neural net subsystem
+│   ├── preprocessing/                  # Ingestion, validation, tensor formatting
+│   ├── detection/                      # Authentic model inference service
+│   └── models/                         # Model weights and artifacts
+├── database/                           # Persistence and schema management
+│   ├── db.py                           # SQLite connection and migration logic
+├── data/                               # Data storage
+│   ├── uploads/                        # User-uploaded inspection imagery
+│   ├── processed/                      # Preprocessed tensors and annotations
+│   ├── datasets/                       # Research and evaluation sets
+│   └── sample_road.jpg                 # Sample image for testing
+├── reports/                            # Generated inspection PDF exports
+├── assets/                             # Static visual assets
+└── tests/                              # Automated test suite
+    ├── test_app_structure.py           # Starter compliance & import tests
+    ├── test_db.py                      # Database schema and health tests
+    ├── test_image_ops.py               # Preprocessing validation tests
+    └── test_streamlit_app.py           # Streamlit AppTest integration tests
 ```
 
----
+## Safety and Quality Principles
 
-## 🛠️ Technology Stack
+- **Authentic AI inference**: Do not fabricate model predictions or mock bounding boxes.
+- **Confidence vs. severity**: Confidence is not defect severity.
+- **Engineering limits**: A photograph alone does not certify structural safety.
+- **Data hygiene**: Check model/dataset licences and evaluate performance on a held-out test set.
+- **Security**: Never commit real credentials or private user images.
 
-- **Python 3.10+ / 3.14**
-- **Streamlit**: Web application framework and interactive interface
-- **OpenCV (`opencv-python`)**: Computer vision and image decoding
-- **Pillow (`PIL`)**: Image stream verification and format inspection
-- **Pandas**: Structured technical metadata tables
-- **SQLite3**: Lightweight, zero-config relational storage
-- **PyTest**: Unit and integration testing
+## Quickstart
 
----
-
-## 🚀 Setup & Installation
-
-### 1. Clone or Open Workspace
-Navigate to the project root directory:
-```bash
-cd visionGuard
-```
-
-### 2. (Optional) Create a Virtual Environment
-```bash
-# Windows
-python -m venv venv
-venv\Scripts\activate
-
-# macOS / Linux
-python3 -m venv venv
-source venv/bin/activate
-```
-
-### 3. Install Dependencies
-Install all required packages from `requirements.txt`:
+### 1. Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
----
-
-## 💻 Running the Application
-
-Launch the Streamlit web application:
-```bash
-python -m streamlit run app.py
-```
-*(or `streamlit run app.py` if scripts are in your PATH)*
-
-Once started, open your web browser and navigate to:
-```
-http://localhost:8501
-```
-
----
-
-## 🧪 Running Automated Tests
-
-Run the full test suite using `pytest`:
+### 2. Run Tests
 ```bash
 python -m pytest -v
 ```
 
-This validates:
-1. Application imports and module integrity
-2. Database schema creation, health status, and metadata versioning
-3. Image format checks (JPG, PNG, WEBP), zero-byte rejections, and corrupted stream filtering
-4. OpenCV array decoding (`H, W, C`)
-5. Streamlit AppTest navigation and landing page rendering
-6. Streamlit AppTest file upload execution, metadata generation, and placeholder verification
-
----
-
-## 🗺️ Project Roadmap
-
-| Phase | Milestone | Status |
-| :--- | :--- | :--- |
-| **Phase 1** | Project setup, professional landing page, image ingestion & validation, AI placeholders | **Completed** |
-| **Phase 2** | Genuine Deep Learning defect detection model integration (YOLO / PyTorch for potholes, cracks, spalling) | *Next Phase* |
-| **Phase 3** | Defect severity scoring, dimension estimation, and geospatial tagging | *Planned* |
-| **Phase 4** | Authority complaint management, repair dispatching, and executive dashboard | *Planned* |
+### 3. Launch Streamlit Application
+```bash
+streamlit run app.py
+```
+*(or `streamlit run app/main.py`)*
