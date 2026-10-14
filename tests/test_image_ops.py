@@ -5,7 +5,7 @@ import pytest
 import numpy as np
 from PIL import Image
 
-from src.utils.image_ops import (
+from ai.preprocessing.image_ops import (
     validate_image_stream,
     load_image_as_opencv,
     opencv_to_rgb,

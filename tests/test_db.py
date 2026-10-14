@@ -3,7 +3,7 @@
 import os
 import sqlite3
 import pytest
-from src.database.db import get_db_connection, init_db, check_db_health
+from database.db import get_db_connection, init_db, check_db_health
 
 
 def test_database_initialization(tmp_path):
