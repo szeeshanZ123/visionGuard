@@ -1,24 +1,44 @@
-# Python
+# Virtual Environments
+.venv/
+venv/
+
+# Byte-compiled / cache files
 __pycache__/
 *.py[cod]
 *$py.class
-*.env
-venv/
-.venv/
-
-# Pytest / Coverage
 .pytest_cache/
 .coverage
 htmlcov/
 
-# Local data and SQLite databases
+# Environment Variables
+.env
+*.env
+
+# Local Databases
 *.db
 *.sqlite3
 data/*.db
+
+# Data directories (preserve gitkeep)
 data/uploads/*
 !data/uploads/.gitkeep
-!data/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+data/datasets/*
+!data/datasets/.gitkeep
 !data/sample_road.jpg
 
-# Streamlit
+# AI model artifacts (preserve gitkeep)
+ai/models/*
+!ai/models/.gitkeep
+*.pt
+*.pth
+*.onnx
+
+# Reports
+reports/*
+!reports/.gitkeep
+
+# Operating System & IDE
+.DS_Store
 .streamlit/
