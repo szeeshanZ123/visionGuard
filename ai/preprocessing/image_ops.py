@@ -1,9 +1,10 @@
 """
 Image processing and validation utilities for VisionGuard AI.
 
-Phase 1 Scope:
-- Validates uploaded images (formats, integrity, dimensions).
-- Extracts technical metadata without any mock or fake defect detection.
+Implements input validation and preprocessing requirements from docs/PRD.md & docs/SYSTEM_ARCHITECTURE.md:
+- Format, size, and integrity checks.
+- Dimensionality, color space, and channel extraction.
+- Decoding to OpenCV BGR arrays and conversion to RGB.
 """
 
 from typing import Dict, Any, Tuple, Optional
@@ -16,7 +17,9 @@ SUPPORTED_EXTENSIONS = {"jpg", "jpeg", "png", "bmp", "webp"}
 MAX_RECOMMENDED_SIZE_MB = 15.0
 
 
-def validate_image_stream(file_stream: io.BytesIO, filename: str = "upload.jpg") -> Tuple[bool, Optional[str], Optional[Dict[str, Any]]]:
+def validate_image_stream(
+    file_stream: io.BytesIO, filename: str = "upload.jpg"
+) -> Tuple[bool, Optional[str], Optional[Dict[str, Any]]]:
     """
     Validates uploaded image byte stream, verifying image integrity and metadata.
 
@@ -31,7 +34,11 @@ def validate_image_stream(file_stream: io.BytesIO, filename: str = "upload.jpg")
         # Check extension
         ext = filename.split(".")[-1].lower() if "." in filename else ""
         if ext not in SUPPORTED_EXTENSIONS:
-            return False, f"Unsupported file extension '.{ext}'. Supported: {', '.join(sorted(SUPPORTED_EXTENSIONS))}", None
+            return (
+                False,
+                f"Unsupported file extension '.{ext}'. Supported: {', '.join(sorted(SUPPORTED_EXTENSIONS))}",
+                None,
+            )
 
         # Check byte size
         file_stream.seek(0, io.SEEK_END)
@@ -43,7 +50,11 @@ def validate_image_stream(file_stream: io.BytesIO, filename: str = "upload.jpg")
 
         size_mb = file_size_bytes / (1024 * 1024)
         if size_mb > MAX_RECOMMENDED_SIZE_MB:
-            return False, f"File size ({size_mb:.2f} MB) exceeds maximum allowed {MAX_RECOMMENDED_SIZE_MB} MB limit.", None
+            return (
+                False,
+                f"File size ({size_mb:.2f} MB) exceeds maximum allowed {MAX_RECOMMENDED_SIZE_MB} MB limit.",
+                None,
+            )
 
         # Verify decoding with PIL
         try:
@@ -98,4 +109,6 @@ def load_image_as_opencv(file_stream: io.BytesIO) -> Optional[np.ndarray]:
 
 def opencv_to_rgb(img_bgr: np.ndarray) -> np.ndarray:
     """Converts OpenCV BGR image array to RGB for Streamlit/PIL rendering."""
+    if img_bgr is None:
+        raise ValueError("Cannot convert None BGR image to RGB")
     return cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)

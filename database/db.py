@@ -1,10 +1,9 @@
 """
 Database access and schema management for VisionGuard AI.
 
-Phase 1 Scope:
-- Establishes a lightweight SQLite database structure.
-- Prepares table schemas for future defect reports without implementing
-  full complaint workflows or authority dashboards.
+Follows the VisionGuard AI Architecture:
+- Local SQLite persistence for inspection logs, defect records, and metadata.
+- Prepares table schemas for defect inspection persistence and audit logs.
 """
 
 import sqlite3
@@ -17,7 +16,6 @@ DEFAULT_DB_PATH = os.path.join("data", "visionguard.db")
 
 def get_db_connection(db_path: str = DEFAULT_DB_PATH) -> sqlite3.Connection:
     """Creates and returns a connection to the SQLite database."""
-    # Ensure directory exists
     db_dir = os.path.dirname(db_path)
     if db_dir and not os.path.exists(db_dir):
         os.makedirs(db_dir, exist_ok=True)
@@ -28,11 +26,11 @@ def get_db_connection(db_path: str = DEFAULT_DB_PATH) -> sqlite3.Connection:
 
 
 def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
-    """Initializes the database schema with necessary tables for future phases."""
+    """Initializes the database schema with necessary tables for inspection workflows."""
     conn = get_db_connection(db_path)
     cursor = conn.cursor()
 
-    # Table for future defect inspection records
+    # Table for inspection records
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS defect_inspections (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
