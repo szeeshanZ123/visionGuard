@@ -1,52 +1,126 @@
 # VisionGuard AI --- Development Roadmap
 
-Each phase should be reviewed before the next begins. The current status is planning only.
+**Document Status:** Approved Technical Baseline  
+**Current Phase:** Phase 2 --- Dataset Research & Selection (Completed; Awaiting Phase 3 Approval)  
+**Implementation State:** Planning & Research Only (Zero Weights or Datasets Downloaded)  
+**Version:** 1.3  
 
-The project uses a plain **HTML5, CSS3, and JavaScript** frontend paired with a **Python and Flask** backend.
+---
 
------------------------------------------------------------------------------------------------------------------------
-Phase                   Goal                    Main deliverable        Exit criteria
------------------------ ----------------------- ----------------------- -----------------------------------------------
-1. Planning             Define scope and        PRD, feature list,      Documents reviewed and HTML/CSS/JS + Flask
-                        project docs            architecture, roadmap   scope approved
+## 1. Phased Implementation Strategy
 
-2. Model research       Compare datasets and    Research decision       Dataset licence, labels, model output format,
-                        candidate models        record                  and evaluation plan confirmed
+VisionGuard AI follows a strict 6-phase engineering roadmap. Each phase must be formally reviewed and verified against its documented exit criteria before subsequent phases commence.
 
-3. Environment setup    Create reproducible     Flask & Python          Dependencies install and basic server checks
-                        Python environment      dependency list         pass cleanly
+```text
+┌────────────────────────────────────────────────────────────────────────┐
+│ Phase 1: Project Foundation, Folder Verification, and Documentation    │  [COMPLETED]
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+┌───────────────────────────────────▼────────────────────────────────────┐
+│ Phase 2: Dataset Research, Selection, Licensing, & Preparation Plan    │  [COMPLETED]
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+┌───────────────────────────────────▼────────────────────────────────────┐
+│ Phase 3: Model Selection, Training or Fine-Tuning, and Evaluation      │  ◄ NEXT PHASE (AWAITING APPROVAL)
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+┌───────────────────────────────────▼────────────────────────────────────┐
+│ Phase 4: Flask Backend and Computer-Vision Integration                 │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+┌───────────────────────────────────▼────────────────────────────────────┐
+│ Phase 5: HTML/CSS/JavaScript Frontend Integration                      │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+┌───────────────────────────────────▼────────────────────────────────────┐
+│ Phase 6: Inspection History, Testing, and Final Improvements           │
+└────────────────────────────────────────────────────────────────────────┘
+```
 
-4. Image input          Upload and validate     Working HTML/JS upload  Valid files accepted; invalid files handled
-                        images via Flask API    and Flask endpoint      gracefully with JSON errors
+---
 
-5. AI detection         Integrate selected      Genuine inference       Outputs originate from real model inference
-                        model into backend      pipeline in Flask       and baseline metrics are documented
+## 2. Detailed Phase Specifications
 
-6. Visualisation        Display detections and  Annotated image and     Overlays match actual output coordinates or
-                        metrics on frontend     result view (HTML/JS)   masks; no fabricated detections
+### Phase 1: Project Foundation, Folder Verification, and Documentation (Current Phase)
+- **Primary Goal:** Establish repository baseline, verify foundational folder structure, resolve documentation inconsistencies, and document all engineering specifications.
+- **Key Deliverables:**
+  - Standardized project documentation (`README.md`, `PRD.md`, `FEATURES.md`, `PROJECT_OVERVIEW.md`, `TECHNOLOGY_STACK.md`, `SYSTEM_ARCHITECTURE.md`, `DEVELOPMENT_ROADMAP.md`, `DATASET_AND_MODEL_RESEARCH.md`, `TESTING_STRATEGY.md`).
+  - Verified folder layout with appropriate `.gitkeep` placeholders.
+  - Explicit definition of project boundaries, technology stack, and guardrails.
+- **Exit Criteria:**
+  - All documentation files reviewed, consistent, and approved.
+  - Strict confirmation that no application logic, backend server, database, or AI models were created.
 
-7. Inspection history   Persist results in      SQLite persistence &    Records survive server restart and match source
-                        local database          history view            results
+---
 
-8. Reports              Generate reports        Downloadable PDF        PDF opens and reflects saved inspection data
-                                                via ReportLab           accurately
+### Phase 2: Dataset Research, Selection, Licensing Verification, and Data Preparation Plan
+- **Primary Goal:** Investigate public road distress datasets, verify licensing rights, examine annotation quality, and formulate data preparation routines.
+- **Key Deliverables:**
+  - Evaluated dataset survey report covering candidate datasets (e.g. RDD2022, CRACK500, Pothole-600).
+  - Verification of commercial and academic licensing terms.
+  - Defined class mapping for supported defect categories: potholes and cracks (longitudinal, transverse, alligator).
+  - Train, validation, and held-out test split protocol.
+- **Exit Criteria:**
+  - Dataset selected with documented provenance and permissive licensing.
+  - Held-out test set isolated and sealed for unbiased evaluation.
 
-9. Analytics            Summarise inspections   Dashboard cards and     Counts match underlying SQLite records;
-                        with metrics & charts   Chart.js charts         charts render accurately
+---
 
-10. Complaints          Track internal civic    Complaint management    Complaints link to inspections and statuses
-                        complaints              workflow                persist reliably
+### Phase 3: Model Selection, Training or Fine-Tuning, and Evaluation
+- **Primary Goal:** Select suitable computer-vision architecture (object detection vs instance segmentation), train or fine-tune on chosen dataset, and measure baseline metrics.
+- **Key Deliverables:**
+  - Model selection record comparing candidate architectures (e.g. YOLOv8, Faster R-CNN, Mask R-CNN).
+  - Trained model weights stored in `ai/models/`.
+  - Comprehensive model evaluation report reporting precision, recall, mAP@0.5, and inference latency on the held-out test set.
+  - Systematic analysis of false positives and false negatives under varied lighting and road conditions.
+- **Exit Criteria:**
+  - Model meets baseline acceptance metrics (mAP@0.5 >= 0.50, Precision >= 0.65, Recall >= 0.60).
+  - Output format (bounding coordinates or segmentation masks) confirmed and documented.
 
-11. Authority dashboard Review and update       Restricted reviewer     Access controls and status updates work
-                        defect complaints       view                    as intended
+---
 
-12. Testing             Evaluate app and        Test and evaluation     Critical issues addressed; API and client flows
-                        model performance       report                  pass tests; limitations documented
+### Phase 4: Flask Backend and Computer-Vision Integration
+- **Primary Goal:** Implement Flask REST API endpoints and integrate the verified computer-vision inference pipeline.
+- **Key Deliverables:**
+  - Working Flask API endpoint (`POST /api/inspect`) accepting multipart image streams.
+  - OpenCV image preprocessing and validation pipeline (format checks, resizing, normalization).
+  - Model loader and inference execution service returning structured JSON.
+  - OpenCV visual overlay engine rendering bounding boxes/masks based strictly on actual model outputs.
+- **Exit Criteria:**
+  - Endpoints handle valid, corrupted, and oversized files gracefully with standard HTTP status codes.
+  - Inference returns real model coordinates without mock predictions.
 
-13. Deployment          Make a usable release   Deployment and setup    End-to-end workflow verified in target
-                                                guide                   environment
------------------------------------------------------------------------------------------------------------------------
+---
 
-## Phase Completion Rule
+### Phase 5: HTML/CSS/JavaScript Frontend Integration
+- **Primary Goal:** Build the clean, framework-free web interface and integrate it with the Flask backend.
+- **Key Deliverables:**
+  - Semantic HTML5 templates for dashboard, upload, and results display.
+  - Responsive vanilla CSS3 stylesheets (no CSS frameworks).
+  - Vanilla JavaScript client managing image selection, preview, asynchronous `fetch` requests, and DOM updates.
+  - Side-by-side original and annotated image comparison interface.
+- **Exit Criteria:**
+  - Complete user flow from file selection to detection visualization operates smoothly in standard desktop and tablet browsers.
+  - Zero frontend framework dependencies introduced.
 
-Do not mark a phase complete merely because code was generated. Run the application or tests, inspect the output, document unresolved issues, and verify the acceptance criteria.
+---
+
+### Phase 6: Inspection History, Testing, and Final Improvements
+- **Primary Goal:** Implement local persistence, downloadable PDF reporting, comprehensive test suites, and final documentation polish.
+- **Key Deliverables:**
+  - SQLite persistence layer logging inspection timestamps, image references, defect findings, and model versions.
+  - Historical survey log allowing chronological comparison of defect progression.
+  - Programmatic PDF inspection report generation via ReportLab.
+  - Optional Chart.js dashboard metrics.
+  - Complete automated unit, API, and workflow test suite.
+- **Exit Criteria:**
+  - Stored records persist reliably and match source inference data.
+  - Generated PDF reports open cleanly and reflect stored records.
+  - All automated tests pass with 100% success rate.
+
+---
+
+## 3. Phase Completion Rule
+
+> [!CAUTION]
+> Do not mark any phase complete merely because code or text was generated. Review each deliverable against its stated exit criteria, verify reproducibility, inspect output logs, and obtain explicit user approval before advancing to the next phase.

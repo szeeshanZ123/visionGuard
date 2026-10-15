@@ -1,121 +1,137 @@
-# VisionGuard AI --- High-Level System Architecture
+# VisionGuard AI --- System Architecture Specification
 
-## Architecture Overview
+**Document Status:** Approved Technical Baseline  
+**Project Phase:** Phase 1 --- Project Foundation & Documentation Only  
+**Implementation State:** Planned Architecture (Not Implemented)  
+**Version:** 1.2  
 
-VisionGuard AI follows a client-server architecture. The presentation tier is built with plain **HTML5, CSS3, and JavaScript** (with optional **Chart.js** for dashboard summaries). The backend service tier is powered by **Python and Flask**, coordinating image processing (OpenCV), model inference, and local persistence (SQLite).
+---
 
-## Intended Application Workflow
+## 1. Architectural Philosophy
 
-The end-to-end inspection lifecycle operates across the following defined steps:
+VisionGuard AI adopts a modular, decoupled client-server architecture. The system establishes distinct operational boundaries between presentation, backend routing, image preprocessing, artificial intelligence inference, persistence, and reporting.
 
 ```text
-[ Browser (HTML5 / CSS3 / JS) ]
-              │
-    (1) User opens web app & selects infrastructure image
-    (2) Client previews file & captures user inputs
-    (3) JS transmits multipart image payload via HTTP POST
-              │
-              ▼
-[ Flask Application (Python) ]
-              │
-    (4) Validates image: format, file size, dimensions, readability
-              │
-              ▼
-[ Preprocessing & Inference (OpenCV / PyTorch) ]
-              │
-    (5) OpenCV formats tensor to model specifications
-    (6) Selected computer-vision model executes genuine inference
-    (7) Model returns detected classes, confidence, and coordinates/masks (if supported)
-              │
-              ▼
-[ Visualisation Pipeline (OpenCV) ]
-              │
-    (8) OpenCV draws overlays on image strictly matching returned model coordinates
-              │
-              ▼
-[ Flask API Response ]
-              │
-    (9) Returns structured JSON + annotated image reference
-              │
-              ▼
-[ Browser Display (JS DOM Update) ]
-              │
-    (10) JavaScript renders side-by-side images, metrics, and detected distresses
-              │
-              ▼
-[ Subsequent Operations (Flask Backend) ]
-              │
-    (11) Persists inspection to SQLite database
-    (12) Generates downloadable PDF reports (ReportLab)
-    (13) Updates dashboard metrics (Chart.js) & manages complaints
+┌────────────────────────────────────────────────────────┐
+│               Frontend Presentation Tier               │
+│          HTML5  •  CSS3  •  Vanilla JavaScript         │
+└───────────────────────────┬────────────────────────────┘
+                            │ HTTP REST (JSON / Multipart)
+┌───────────────────────────▼────────────────────────────┐
+│                  Backend Service Tier                  │
+│                     Flask (Python)                     │
+└─────┬─────────────────────┬──────────────────────┬─────┘
+      │                     │                      │
+      ▼                     ▼                      ▼
+┌──────────────┐     ┌──────────────┐       ┌─────────────┐
+│  Vision & AI │     │ Persistence  │       │  Reporting  │
+│  OpenCV & CV │     │    SQLite    │       │  ReportLab  │
+│    Model     │     │              │       │             │
+└──────────────┘     └──────────────┘       └─────────────┘
 ```
 
-### Detailed Workflow Steps
+---
 
-1. **User Access:** The user opens the web application built with HTML, CSS, and JavaScript.
-2. **Image Selection:** The user uploads an infrastructure image through the browser interface.
-3. **HTTP API Request:** JavaScript sends the image to a Flask API endpoint (`/api/inspect`) using an asynchronous HTTP POST request (`multipart/form-data`).
-4. **Server Validation:** Flask validates the image format, byte size, readability, and dimensions, rejecting corrupt or unsupported files with descriptive JSON messages.
-5. **AI Inference:** Flask routes the valid image to the computer-vision inference component, which executes the genuine defect detection model.
-6. **Structured Results:** The model returns genuine detections. Flask packages the supported detection classes, confidence scores, and bounding boxes or segmentation masks when available from the model.
-7. **Visual Feedback:** OpenCV or an appropriate image-processing component renders the annotated overlay on the image using the actual model outputs, and JavaScript displays the results and annotated image in the browser.
-8. **Supporting Services:** In later phases, Flask coordinates database persistence in SQLite, inspection history retrieval, PDF report generation via ReportLab, dashboard analytics, and internal complaint tracking.
+## 2. Planned System Components & Responsibilities
 
-*Note on localization:* Do not claim that every model supports bounding boxes or masks. The system must verify the selected model's output format before designing UI overlays.
+### Component 1: Frontend Presentation Client
+- **Technologies:** Semantic HTML5, Vanilla CSS3, Modern ES6+ JavaScript.
+- **Responsibilities:**
+  - Render user-facing views (Dashboard, Image Upload, Detection Results, Inspection History).
+  - Handle client-side file selection, format validation, and immediate preview via `FileReader`.
+  - Transmit asynchronous HTTP requests (`fetch`) with multipart image payloads.
+  - Dynamically update the DOM to display side-by-side original and annotated images, detected distress metrics, and property estimates.
+  - Optionally render defect distribution charts using Chart.js.
+
+### Component 2: Backend API & Service Layer
+- **Technologies:** Python 3.10+, Flask.
+- **Responsibilities:**
+  - Expose versioned REST API endpoints (e.g. `POST /api/inspect`, `GET /api/history`, `POST /api/reports`).
+  - Enforce server-side file format verification (JPG, PNG, WEBP), file size checks (<= 15 MB), and stream validation.
+  - Orchestrate data flow between image preprocessing, AI inference, and database layers.
+  - Package structured JSON responses containing detected classes, confidence ratings, bounding box coordinates, and defect measurements.
+
+### Component 3: Vision Preprocessing & Overlay Engine
+- **Technologies:** OpenCV (`opencv-python`), NumPy.
+- **Responsibilities:**
+  - Decode incoming byte streams into BGR NumPy arrays.
+  - Inspect image dimensionality, channel count, and color space integrity.
+  - Format, normalize, and resize tensors according to the selected model's input requirements.
+  - Render visual overlays (bounding boxes, polygons, or masks) and defect labels strictly derived from verified model coordinates.
+
+### Component 4: AI Defect Detection Engine
+- **Technologies:** Selected Computer-Vision Model (e.g. YOLO, Mask R-CNN), PyTorch (conditional).
+- **Responsibilities:**
+  - Ingest preprocessed tensors and execute authentic neural network inference.
+  - Detect road surface defects specifically categorized as **potholes** and **cracks** (longitudinal, transverse, alligator).
+  - Produce raw output tensors containing class IDs, confidence scores, and bounding box coordinates `[x1, y1, x2, y2]` or segmentation masks.
+  - Return clean empty lists when no defects are detected (no synthetic detections).
+
+### Component 5: Persistence Layer
+- **Technologies:** SQLite, Python standard `sqlite3`.
+- **Responsibilities:**
+  - Store inspection metadata (inspection ID, timestamp, image file paths, model version).
+  - Store individual defect records (defect type, confidence score, bounding coordinates, estimated dimensions).
+  - Provide query interfaces for retrieving historical surveys and filtering by distress type or date.
+
+### Component 6: Document Reporting Engine
+- **Technologies:** ReportLab.
+- **Responsibilities:**
+  - Retrieve stored inspection data and compiled imagery from disk/database.
+  - Programmatically assemble professional PDF summaries including side-by-side imagery, tabular defect details, and structural engineering disclaimers.
+  - Serve downloadable PDF streams to the client browser.
 
 ---
 
-## Planned Frontend Views
+## 3. Inter-Component Communication Protocols
 
-The web frontend provides the following planned views (which may be consolidated into fewer screens to keep the application simpler):
-
-- **Dashboard:** Overview of recent inspections, distress counts, and operational health.
-- **AI Inspection / Image Upload:** File selection, capture guidelines, client preview, and upload trigger.
-- **Detection Results:** Visual breakdown of detections, confidence scores, and side-by-side original/annotated views.
-- **Inspection History:** Searchable table of past inspections with class and date filters.
-- **Inspection Details:** Granular metadata, technical properties, and distress coordinates for a single inspection.
-- **Reports:** Report generation parameters and one-click PDF downloads.
-- **Complaint Management:** Logging civic complaints linked to verified inspection findings.
-- **Authority Dashboard:** Role-restricted interface for municipal reviewers to inspect complaints and update resolution statuses.
+| Source Component | Target Component | Protocol / Medium | Payload Description |
+| :--- | :--- | :--- | :--- |
+| **Frontend Client** | **Flask API** | HTTP POST (`multipart/form-data`) | Raw image binary stream and optional metadata parameters. |
+| **Flask API** | **Frontend Client** | HTTP 200 OK (`application/json`) | Structured detection results (classes, confidence, coordinates, dimensions). |
+| **Flask API** | **Vision Engine** | In-Memory MemoryView / NumPy Array | Decoded image bytes passed directly to OpenCV routines. |
+| **Vision Engine** | **AI Model Engine** | PyTorch / NumPy Tensor | Standardized, normalized input tensor formatted to model resolution. |
+| **AI Model Engine** | **Vision Engine** | Python Dictionaries / Tensors | Raw detection vectors containing bounding coordinates, scores, and labels. |
+| **Flask API** | **SQLite Database** | Python DB-API 2.0 (SQL Queries) | Parameterized SQL statements for inserting and retrieving inspection records. |
+| **Flask API** | **ReportLab Engine** | Internal Python Function Calls | Dict of inspection records and file paths used to compile PDF documents. |
 
 ---
 
-## Proposed Target Folder Structure
+## 4. Current Repository Structure Verification
 
-The proposed target directory layout for future implementation:
+The current repository layout establishes clean foundation boundaries for these components:
 
 ```text
-VisionGuard-AI/
-├── app/                                # Flask application package
-│   ├── templates/                      # HTML5 templates (Dashboard, Upload, Results, etc.)
-│   ├── static/                         # Static assets delivered to browser
-│   │   ├── css/                        # CSS stylesheets
-│   │   ├── js/                         # JavaScript client scripts
-│   │   └── images/                     # Static UI assets and icons
-│   ├── routes/                         # Flask blueprints and REST API endpoints
-│   └── services/                       # Business logic (inspection, report generation)
+visionGuard/
+├── app/                                # Application package
+│   ├── main.py                         # Application entry point
+│   ├── components/                     # Presentation views & components
+│   ├── pages/                          # Multi-page views (.gitkeep)
+│   └── services/                       # Business logic and coordination services
 ├── ai/                                 # Computer vision subsystem
-│   ├── models/                         # Model weights and artifacts
-│   ├── detection/                      # Inference engine and class mapping
-│   └── preprocessing/                  # Input validation and OpenCV routines
-├── database/                           # SQLite database connection and queries
+│   ├── preprocessing/                  # Ingestion, validation, OpenCV routines
+│   ├── detection/                      # Model inference engine interface
+│   └── models/                         # Model weights and artifacts (.gitkeep)
+├── database/                           # Persistence layer
+│   └── db.py                           # SQLite schema and migration logic
 ├── data/                               # Storage directories
-│   ├── uploads/                        # User-uploaded inspection imagery
-│   ├── processed/                      # Preprocessed tensors and annotations
-│   └── datasets/                       # Model research and evaluation sets
-├── reports/                            # Generated inspection PDF documents
+│   ├── uploads/                        # User-uploaded inspection imagery (.gitkeep)
+│   ├── processed/                      # Preprocessed tensors (.gitkeep)
+│   ├── datasets/                       # Research datasets (.gitkeep)
+│   └── sample_road.jpg                 # Sample test asset
+├── reports/                            # Generated inspection PDF exports (.gitkeep)
+├── assets/                             # Static project assets (.gitkeep)
 ├── tests/                              # Automated test suite
-└── docs/                               # Project documentation
+└── docs/                               # Phase 1 documentation
 ```
 
-> **Important:** This is a proposed target structure. Do not automatically create, move, rename, or delete folders during documentation updates. Any physical restructuring will be handled separately.
+*Note:* In Phase 4 and Phase 5, the web templates and static assets (CSS/JS) will be placed inside `app/` in alignment with standard Flask application conventions.
 
 ---
 
-## Architectural Guardrails
+## 5. Architectural Guardrails
 
-- **Client-Server Decoupling:** Keep frontend presentation in HTML/CSS/JS and model inference strictly on the Flask backend.
-- **No Mock Predictions:** Never fabricate detections, confidence values, or bounding coordinates.
-- **Distinguish Confidence and Severity:** Confidence is a model probability score, not physical defect severity or structural safety.
-- **Model Traceability:** Store model name and version alongside saved inspections.
-- **Lightweight Dependencies:** Avoid heavy JavaScript frameworks (React/Vue) or unnecessary Python dependencies.
+1. **No Application Logic Implemented in Phase 1:** All components described above represent future technical designs.
+2. **Decoupled Responsibilities:** Model inference is strictly isolated from presentation logic; web routes do not contain neural network layers directly.
+3. **Deterministic Visualisation:** The visual overlay engine renders bounding boxes exclusively from genuine model coordinates.
+4. **Safety Disclaimers Enforced:** The reporting and display engines must clearly present model confidence as a statistical score, not an indicator of physical structural stability.

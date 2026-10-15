@@ -1,118 +1,147 @@
 # VisionGuard AI
 
-AI-powered infrastructure defect detection and reporting --- project workspace.
+AI-powered infrastructure defect inspection system focused on detecting cracks and potholes using computer vision.
 
-## Project Focus
+---
 
-The primary goal of VisionGuard AI is computer-vision-based detection of supported infrastructure defects from images (such as road potholes and cracks). Inspection history, reports, analytics, and complaint management are supporting modules.
+## 1. Project Overview
 
-## Confirmed Technology Stack
+**VisionGuard AI** is an engineering-focused computer vision platform designed to assist civil engineers, highway maintenance authorities, and public works inspectors in identifying, documenting, and tracking roadway distresses.
 
-- **Frontend**: Plain HTML5, CSS3, and JavaScript.
-  - Semantic HTML5 for page structure.
-  - Vanilla CSS3 for responsive layout and styling.
-  - Vanilla JavaScript for user interaction, image previews, asynchronous API requests (`fetch`), and rendering detection results.
-  - **Chart.js** (optional) for dashboard summaries and analytics when required.
-  - *No heavy frontend frameworks (React, Next.js, Vue) or Streamlit.*
-- **Backend**: Python with **Flask**.
-  - Flask web server handling routing, API endpoints, and application logic.
-  - **OpenCV** for image preprocessing, validation, and detection overlay rendering.
-  - **SQLite** for lightweight local persistence of inspection records.
-  - **PyTorch** (or another compatible runtime): only if required by the selected computer-vision model.
-  - **Pandas**: for tabular processing and analytics where needed.
-  - **ReportLab**: for generating downloadable PDF inspection reports.
-- **AI Core**:
-  - Genuine computer-vision model for supported infrastructure defect classes.
-  - Model selection is determined during the dataset and model research phase.
-  - Gemini may be considered for optional plain-language explanations, but must not invent detections, coordinates, or confidence scores.
+The platform targets the automated visual detection and localization of critical road surface defects—specifically **asphalt cracks** (longitudinal, transverse, alligator) and **potholes**—from standard photographic imagery.
 
-## Application Architecture & Workflow
+> [!IMPORTANT]
+> **Current Development Status: Phase 1 — Project Foundation & Documentation Only.**
+> No AI model, Flask backend routes, frontend user interface, or production database has been implemented yet. All features, architecture, and workflows described herein represent approved engineering plans.
 
-The core inspection workflow operates as follows:
+---
 
-1. **User opens web application**: Built with HTML5, CSS3, and JavaScript.
-2. **User uploads image**: User selects an infrastructure photo via the web interface.
-3. **HTTP API Request**: JavaScript sends the image to a Flask API endpoint via an asynchronous HTTP POST request (`multipart/form-data`).
-4. **Flask Ingestion & Validation**: Flask validates the image (format, dimensions, size, integrity) and passes it to the preprocessing and AI inference services.
-5. **Model Inference**: The selected computer-vision model runs inference and returns genuine detection data.
-6. **Structured JSON Response**: Flask returns structured JSON containing detected defect classes, confidence scores, and bounding coordinates or segmentation masks when supported.
-7. **Client-side Visualisation**: JavaScript updates the DOM to display detection metrics, summary data, and the OpenCV-annotated image.
-8. **Subsequent Capabilities**: In later phases, Flask coordinates database persistence, inspection history retrieval, PDF report downloads, dashboard analytics, and complaint tracking.
+## 2. Problem Statement
 
-## Planned Frontend Views
+Manual visual inspection of roadways and municipal infrastructure is:
+- **Time-Consuming & Resource-Intensive:** Inspection teams must manually survey miles of roadway on foot or via slow-moving vehicles.
+- **Subjective & Inconsistent:** Different inspectors record defect severity and extents differently based on visual estimates.
+- **Difficult to Track Over Time:** Paper-based or ad-hoc photo logs lack centralized coordinates, standardized defect classification, and chronological comparisons.
 
-The user interface will provide the following planned views (which may be consolidated or organized into streamlined views to keep the application simple):
+VisionGuard AI solves this by introducing a repeatable, computer-vision-based workflow that validates image quality, executes authentic defect detection, visualizes distress localization, and organizes inspection records for structured maintenance scheduling.
 
-- **Dashboard**: High-level system overview, recent inspections, and key metrics.
-- **AI Inspection / Image Upload**: File selection, capture guidelines, and image preview.
-- **Detection Results**: Side-by-side original and annotated images, detected distress classes, and confidence ratings.
-- **Inspection History**: Searchable and filterable log of past inspections.
-- **Inspection Details**: In-depth inspection record with metadata and defect coordinates.
-- **Reports**: Configurable and downloadable PDF inspection documentation.
-- **Complaint Management**: Internal tracking of civic complaints linked to verified inspections.
-- **Authority Dashboard**: Restricted interface for reviewing complaints and updating maintenance/repair statuses.
+---
 
-## Proposed Target Structure
+## 3. Intended Users
 
-The proposed target directory layout for the Flask + HTML/CSS/JS architecture:
+- **Civil & Highway Engineers:** Conduct formal pavement condition surveys and evaluate localized surface distresses.
+- **Municipal Maintenance Crews & Inspectors:** Upload roadway field images to rapidly log defect locations and generate work orders.
+- **Supervisors & Public Works Directors:** Review inspection logs, track repair statuses, and audit historical deterioration trends.
+- **Academic Evaluators & Project Reviewers:** Review model evaluation benchmarks, architectural modularity, and test coverage.
+
+---
+
+## 4. Planned Features
+
+### Core Defect Detection (MVP)
+- **Image Upload & Validation:** Client/server verification of image formats (JPG, PNG, WEBP), file size, and tensor readability.
+- **Genuine AI Detection:** Inference using an evaluated computer-vision model for pothole and crack identification.
+- **Visual Localisation:** OpenCV rendering of bounding boxes or segmentation masks derived strictly from actual model outputs.
+- **Defect Metrics Estimation:** Technical estimation of defect attributes (e.g. bounding dimensions, aspect ratios, surface area approximation) where technically feasible and calibrated.
+
+### Inspection Management & History
+- **Inspection Records:** Local SQLite persistence storing timestamps, image paths, detected classes, confidence ratings, and defect measurements.
+- **Historical Comparison:** Chronological inspection logs allowing engineers to compare distress progression across repeated surveys.
+- **PDF Inspection Summaries:** Standardized, downloadable PDF inspection reports compiled via ReportLab.
+
+### Analytical & Administrative Extensions (Later Phases)
+- **Dashboard Metrics:** Summary cards and defect distribution charts rendered with Chart.js.
+- **Civic Complaint Lifecycle:** Internal logging of citizen-reported distresses linked to verified inspection imagery.
+- **Authority Review View:** Restricted status-management view for maintenance dispatch and repair tracking.
+
+---
+
+## 5. Technology Stack
+
+### Frontend
+- **HTML5:** Semantic document structure and accessible forms.
+- **CSS3:** Custom responsive layout, styling, and animations (no Tailwind or CSS frameworks).
+- **Vanilla JavaScript (ES6+):** User interaction, client-side image preview, asynchronous `fetch` requests, and dynamic DOM rendering.
+- **Chart.js (Optional):** Lightweight client-side charting for inspection distribution summaries.
+- *Strict Rule:* No single-page application (SPA) frameworks (React, Vue, Angular) and no Streamlit.
+
+### Backend
+- **Python:** Core programming language for data structures, CV algorithms, and service coordination.
+- **Flask:** Lightweight WSGI web framework exposing RESTful HTTP endpoints and serving static assets.
+- **OpenCV (`opencv-python`):** Image loading, color space transformation, preprocessing, and overlay annotation based strictly on real model coordinates.
+- **PyTorch (or compatible runtime):** Conditional deep learning inference runtime, utilized only if required by the selected model.
+- **SQLite:** Lightweight, serverless relational database for local persistence of inspection records.
+- **ReportLab:** Engine for generating clean, auditable PDF inspection reports.
+
+### AI & Modeling
+- Real, trained or properly evaluated computer-vision model for object detection or instance segmentation (selected during Phase 2/3).
+- *Strict Rule:* Gemini or other language models may only provide plain-language text summaries; they must **never** fabricate defect detections, bounding boxes, or confidence scores.
+
+---
+
+## 6. Planned Phases (6-Phase Development Roadmap)
+
+1. **Phase 1: Project Foundation, Folder Verification, and Documentation (Current Phase)**
+   Establish repository structure, verify directory placeholders, and complete comprehensive technical specifications.
+2. **Phase 2: Dataset Research, Selection, Licensing Verification, and Data Preparation Plan**
+   Evaluate public pavement distress datasets (e.g. RDD2022, CRACK500), audit licenses, and define train/val/test splits.
+3. **Phase 3: Model Selection, Training or Fine-Tuning, and Evaluation**
+   Select detection/segmentation architecture, establish held-out test sets, and document baseline mAP, precision, and recall.
+4. **Phase 4: Flask Backend and Computer-Vision Integration**
+   Build Flask REST API endpoints, image validation pipelines, OpenCV preprocessing, and real model inference routines.
+5. **Phase 5: HTML/CSS/JavaScript Frontend Integration**
+   Implement semantic HTML templates, responsive CSS, and vanilla JS API communication for upload and visualization.
+6. **Phase 6: Inspection History, Testing, and Final Improvements**
+   Integrate SQLite persistence, ReportLab PDF generation, Chart.js metrics, and comprehensive end-to-end testing.
+
+---
+
+## 7. Current Repository Structure
+
+The current repository structure serves as the source of truth for the project foundation:
 
 ```text
-VisionGuard-AI/
-├── README.md                           # Project documentation & overview
-├── requirements.txt                    # Backend dependencies
-├── .env.example                        # Environment variable templates
-├── .gitignore                          # Git exclusions for weights, DBs, and uploads
-├── docs/                               # Core planning & architecture documentation
-│   ├── PRD.md
-│   ├── FEATURES.md
-│   ├── PROJECT_OVERVIEW.md
-│   ├── TECHNOLOGY_STACK.md
-│   ├── SYSTEM_ARCHITECTURE.md
-│   ├── DEVELOPMENT_ROADMAP.md
-│   ├── DATASET_AND_MODEL_RESEARCH.md
-│   └── TESTING_STRATEGY.md
-├── app/                                # Flask application package
-│   ├── templates/                      # HTML5 templates (Dashboard, Upload, Results, etc.)
-│   ├── static/                         # Static web assets
-│   │   ├── css/                        # Custom CSS stylesheets
-│   │   ├── js/                         # Frontend JavaScript modules
-│   │   └── images/                     # Static UI assets and icons
-│   ├── routes/                         # Flask route blueprints & REST API endpoints
+visionGuard/
+├── README.md                           # Master project overview & specifications
+├── requirements.txt                    # Python package dependencies
+├── .env.example                        # Environment variables template
+├── .gitignore                          # Git exclusions for model weights, databases, uploads
+├── docs/                               # Phase 1 technical planning documentation
+│   ├── PRD.md                          # Product Requirements Document
+│   ├── FEATURES.md                     # Feature specifications & MVP boundaries
+│   ├── PROJECT_OVERVIEW.md             # High-level problem, solution, & user analysis
+│   ├── TECHNOLOGY_STACK.md             # Technology choices, rationale, & data flow
+│   ├── SYSTEM_ARCHITECTURE.md          # Component boundaries & communication protocols
+│   ├── DEVELOPMENT_ROADMAP.md          # 6-phase engineering roadmap
+│   ├── DATASET_AND_MODEL_RESEARCH.md   # Dataset checklist, licensing, & model selection plan
+│   └── TESTING_STRATEGY.md             # Comprehensive testing & evaluation strategy
+├── app/                                # Application package
+│   ├── main.py                         # Application entry point
+│   ├── components/                     # Presentation views & components
+│   ├── pages/                          # Multi-page / modular views (.gitkeep)
 │   └── services/                       # Business logic and coordination services
 ├── ai/                                 # Computer vision subsystem
-│   ├── preprocessing/                  # Input validation, OpenCV decoding, tensor prep
-│   ├── detection/                      # Genuine model inference engine
-│   └── models/                         # Model weights and artifacts
+│   ├── preprocessing/                  # Ingestion, validation, OpenCV routines
+│   ├── detection/                      # Model inference engine interface
+│   └── models/                         # Model weights and artifacts (.gitkeep)
 ├── database/                           # Persistence layer
-│   └── db.py                           # SQLite schema and query logic
-├── data/                               # Data storage
-│   ├── uploads/                        # User-uploaded inspection imagery
-│   ├── processed/                      # Preprocessed tensors and annotations
-│   ├── datasets/                       # Model research and evaluation sets
+│   └── db.py                           # SQLite schema and migration logic
+├── data/                               # Storage directories
+│   ├── uploads/                        # User-uploaded inspection imagery (.gitkeep)
+│   ├── processed/                      # Preprocessed tensors (.gitkeep)
+│   ├── datasets/                       # Research datasets (.gitkeep)
 │   └── sample_road.jpg                 # Sample test asset
-├── reports/                            # Generated PDF inspection summaries
-├── assets/                             # Repository project assets
+├── reports/                            # Generated inspection PDF exports (.gitkeep)
+├── assets/                             # Static project assets (.gitkeep)
 └── tests/                              # Automated test suite
 ```
 
-> **Note**: This is a proposed target structure for future phases. Physical restructuring from any prior layout will be conducted deliberately during the environment and architecture setup phases.
+---
 
-## Safety and Quality Principles
+## 8. Safety, Engineering, and Quality Guardrails
 
-- **Authentic AI inference**: Do not fabricate model predictions or mock bounding boxes.
-- **Confidence vs. severity**: Confidence is not defect severity.
-- **Engineering limits**: A photograph alone does not certify structural safety.
-- **Data hygiene**: Check model/dataset licences and evaluate performance on a held-out test set.
-- **Student-developer scope**: Keep architecture modular, lightweight, and maintainable without unnecessary dependencies.
-- **Security**: Never commit real credentials or private user images.
-
-## Documentation Index
-
-- [`docs/PRD.md`](docs/PRD.md) --- Product Requirements Document
-- [`docs/FEATURES.md`](docs/FEATURES.md) --- Feature specifications and acceptance criteria
-- [`docs/PROJECT_OVERVIEW.md`](docs/PROJECT_OVERVIEW.md) --- Problem, solution, target users, and boundaries
-- [`docs/TECHNOLOGY_STACK.md`](docs/TECHNOLOGY_STACK.md) --- Confirmed technology stack and selection rationale
-- [`docs/SYSTEM_ARCHITECTURE.md`](docs/SYSTEM_ARCHITECTURE.md) --- Data flow, Flask API endpoints, and component boundaries
-- [`docs/DEVELOPMENT_ROADMAP.md`](docs/DEVELOPMENT_ROADMAP.md) --- 13-phase engineering progression
-- [`docs/DATASET_AND_MODEL_RESEARCH.md`](docs/DATASET_AND_MODEL_RESEARCH.md) --- Model and dataset selection checklist
-- [`docs/TESTING_STRATEGY.md`](docs/TESTING_STRATEGY.md) --- Test suite, API testing, and model evaluation plan
+1. **A Photograph Alone Does Not Certify Structural Safety:** VisionGuard AI is an inspection-support tool; it does not replace qualified on-site civil engineering assessments.
+2. **Confidence Is Not Severity:** Model confidence measures classification probability, not physical distress severity, depth, or safety risk.
+3. **No Fabricated Predictions:** Never generate simulated, hardcoded, or mock bounding boxes. No-detection cases must be reported honestly.
+4. **Empirical Evaluation:** Model accuracy claims must be backed by documented evaluation on a held-out test set with standard metrics (precision, recall, mAP, IoU).
+5. **Privacy & Security:** Never commit real credentials, secret API keys, or private user images to version control.

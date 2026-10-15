@@ -1,75 +1,100 @@
-# VisionGuard AI --- Confirmed Technology Stack
+# VisionGuard AI --- Technology Stack Specification
 
-**Status:** Confirmed. The frontend uses plain HTML5, CSS3, and JavaScript, and the backend uses Python with Flask.
+**Document Status:** Approved Technical Baseline  
+**Project Phase:** Phase 1 --- Project Foundation & Documentation Only  
+**Architecture Status:** Planned Architecture (Not a currently working implementation)  
+**Version:** 1.2  
 
-## Confirmed Technology Summary
+---
 
--------------------------------------------------------------------------------------------------------
-Technology              Intended role                           Status & Notes
------------------------ --------------------------------------- ---------------------------------------
-HTML5                   Semantic structure & page layout        Confirmed frontend core
+## 1. Overview of Technology Choices
 
-CSS3                    Styling, responsive design, animations  Confirmed frontend styling
+VisionGuard AI pairs a lightweight, framework-free frontend with a modern Python computer-vision backend. The selection is guided by three engineering principles:
+1. **Separation of Concerns:** Clear client-server decoupling via standard HTTP REST APIs.
+2. **Student-Developer Accessibility:** Minimal external dependencies, standard toolchains, and zero client-side compilation steps.
+3. **Domain Fitness:** Leveraging Python's premier ecosystem for computer vision and machine learning alongside standards-compliant web technologies.
 
-JavaScript (ES6+)       Interactivity, file upload, API fetch   Confirmed frontend client logic
+---
 
-Chart.js                Optional dashboard charts               Optional, for analytics phase
+## 2. Component Justification & Roles
 
-Python                  Main backend programming language       Confirmed backend core
+### A. Frontend Layer
 
-Flask                   Web server, routing, REST API endpoints Confirmed backend framework
+| Technology | Role | Justification & Appropriateness |
+| :--- | :--- | :--- |
+| **HTML5** | Semantic Page Structure | Provides standard, accessible markup for forms, file inputs, comparison containers, and modal dialogs without framework overhead. |
+| **CSS3** | Responsive Styling & Layout | Delivers responsive grid and flexbox layouts, visual indicators, and micro-interactions with pure vanilla CSS. Avoids framework lock-in. |
+| **Vanilla JavaScript (ES6+)** | Client Interactivity & API Communication | Manages DOM events, client-side file reading (`FileReader`), asynchronous HTTP `fetch` requests, error handling, and dynamic result rendering without node_modules overhead. |
+| **Chart.js** *(Optional)* | Frontend Analytics | Lightweight canvas-based charting library selected only for rendering optional defect distribution summaries and historical trend lines. |
 
-OpenCV                  Image processing & overlay rendering    Confirmed vision library
+*Explicit Decision:* Frameworks such as React, Next.js, Vue, or Angular are **strictly excluded**. They add build toolchains, node dependencies, and unnecessary complexity. Streamlit is also excluded to preserve clean RESTful API separation.
 
-PyTorch / runtime       Deep-learning inference engine          Conditional; only if required by model
+---
 
-Pandas                  Tabular processing and data aggregation Confirmed utility
+### B. Backend Layer
 
-SQLite                  Local relational database storage       Confirmed local persistence
+| Technology | Role | Justification & Appropriateness |
+| :--- | :--- | :--- |
+| **Python 3.10+** | Core Backend Language | Universal standard for computer vision, scientific computing, deep learning inference, and backend automation. |
+| **Flask** | Web Server & REST API Framework | Minimalist WSGI micro-framework that excels at serving RESTful JSON endpoints and static files with clear, readable routing. |
+| **OpenCV (`opencv-python`)** | Image Preprocessing & Visualisation | High-performance C++ backend exposed to Python for array decoding, dimension checks, tensor resizing, and drawing genuine detection overlays. |
+| **PyTorch** *(Conditional)* | Deep Learning Runtime | Industrial standard for executing convolutional neural networks and transformer-based vision models. Included only if the selected model requires it. |
+| **SQLite** | Local Relational Database | Zero-configuration, serverless, self-contained SQL database engine ideal for persisting inspection records and defect logs locally. |
+| **Pandas** | Tabular Data Handling | High-performance data manipulation library for aggregating historical inspection metrics and defect distributions. |
+| **ReportLab** | PDF Report Compilation | Robust Python library for programmatically generating clean, printable inspection documentation and audit reports. |
 
-ReportLab               PDF report generation                   Confirmed for reporting phase
+---
 
-Gemini / LLM            Optional natural-language explanations  Optional; must not invent detections
--------------------------------------------------------------------------------------------------------
+### C. Artificial Intelligence & Computer Vision
 
-## Component Details
+| Component | Responsibility | Guardrails & Requirements |
+| :--- | :--- | :--- |
+| **Defect Detection Model** | Pothole & Crack Detection | A genuine object-detection (e.g. YOLO, Faster R-CNN) or instance segmentation (e.g. Mask R-CNN) model selected during Phase 2/3. |
+| **Gemini / LLM** *(Optional)* | Natural-Language Explanations | May be considered for summarizing verified inspection numbers into plain-language text; **strictly prohibited** from fabricating defect predictions. |
 
-### Frontend Stack
+---
 
-- **HTML5:** Provides clean, accessible semantic markup for all pages and forms.
-- **CSS3:** Delivers responsive styling, modern layout management (Flexbox/Grid), visual feedback, and clear presentation.
-- **JavaScript (Vanilla ES6+):** Manages user interactions, client-side image file reading (`FileReader`), asynchronous HTTP communication with Flask endpoints using `fetch()`, DOM updates, and error handling.
-- **Chart.js:** An optional lightweight charting library used only when visualizing inspection trends or class distributions on the dashboard.
+## 3. End-to-End Data Flow
 
-*Explicit Decision:* Heavy single-page application (SPA) frameworks such as React, Next.js, and Vue are not used. They introduce unnecessary build complexity and tooling overhead for a student-developer project.
+The planned frontend-to-backend lifecycle executes as follows:
 
-### Backend Stack
+```text
+[ Browser (HTML5 / CSS3 / Vanilla JavaScript) ]
+                        │
+                        │  1. User selects image; JS generates client-side preview
+                        │  2. JS sends multipart/form-data via HTTP POST
+                        ▼
+             [ Flask REST API (/api/inspect) ]
+                        │
+                        │  3. Server validates format, dimensions, file size
+                        ▼
+         [ Image Preprocessing Pipeline (OpenCV) ]
+                        │
+                        │  4. Decodes image into BGR array; checks tensor validity
+                        │  5. Formats input tensor to model specifications
+                        ▼
+        [ Computer Vision Model Inference Engine ]
+                        │
+                        │  6. Runs authentic inference on tensor
+                        │  7. Returns classes, confidence scores, coordinates/masks
+                        ▼
+       [ Visualisation & Overlay Engine (OpenCV) ]
+                        │
+                        │  8. Draws bounding boxes/masks strictly from real coordinates
+                        ▼
+         [ Flask JSON Response Construction ]
+                        │
+                        │  9. Packages structured JSON (detections, metrics, overlay ref)
+                        ▼
+[ Browser Display (HTML / CSS / DOM Update) ]
+                        │
+                        │  10. JS renders side-by-side images, metrics table, and details
+                        ▼
+  [ Database & Reporting (SQLite & ReportLab) ]
+                        │
+                        │  11. Inspection persisted to SQLite (later phase)
+                        │  12. PDF inspection report compiled on demand (later phase)
+```
 
-- **Python:** Chosen as the primary language due to its rich ecosystem for computer vision, machine learning, and data engineering.
-- **Flask:** Serves as the web framework and microservices coordinator. It exposes standard RESTful HTTP endpoints (e.g. `/api/inspect`, `/api/history`, `/api/reports`) and renders HTML templates.
-- **OpenCV (`opencv-python`):** Handles image loading, dimension inspection, color conversion, preprocessing, and drawing visual overlays (boxes or masks) derived strictly from genuine model outputs.
-- **PyTorch (or ONNX / TensorFlow Lite):** A deep-learning inference runtime added only if the selected defect-detection model requires it. Model selection is deferred to Phase 2.
-- **Pandas:** Utility library for structuring tabular inspection history and aggregating metrics.
-- **SQLite:** Built-in lightweight relational database that requires no standalone daemon, ideal for local inspection logging and internal complaint tracking.
-- **ReportLab:** Standard Python library for compiling inspection records and annotated imagery into downloadable PDF documents.
-
-### AI Integration
-
-- **Defect Detection Model:** A genuine computer-vision model tailored for supported infrastructure distress classes (such as potholes and road cracks). The exact model architecture, weights, and runtime are evaluated and chosen in Phase 2.
-- **Generative AI (Gemini / LLM):** If used, limited strictly to formatting or providing plain-language summaries of verified inspection records. It must never fabricate predictions, confidence values, or bounding coordinates.
-
-## Evaluated and Rejected Alternatives
-
-1. **Streamlit (Rejected):**
-   - *Initial consideration:* Streamlit was evaluated in early scoping for rapid prototyping.
-   - *Reason for rejection:* Streamlit tightly couples the user interface with execution state and obscures client-server interactions. Transitioning to plain HTML5/CSS3/JavaScript with a Flask backend provides full control over the UI, clean separation of concerns via standard REST APIs, and a more realistic, extensible web architecture.
-
-2. **React / Next.js / Vue (Rejected):**
-   - *Reason for rejection:* Adding a Node.js build system, packaging pipelines, and heavy client-side dependencies creates unnecessary complexity for a student project. Plain HTML, CSS, and vanilla JavaScript achieve all required interactivity with zero client build steps.
-
-## Selection Principles
-
-1. Choose tools that maintain a clear separation between frontend presentation and backend intelligence.
-2. Install dependencies only when the relevant phase begins (e.g., ReportLab only during the reporting phase).
-3. Do not promise bounding boxes or masks if the chosen model only supports classification.
-4. Keep the architecture lightweight, modular, and maintainable.
+> [!IMPORTANT]
+> The workflow detailed above is the **planned target architecture**. In accordance with Phase 1 constraints, no Flask routes or active model pipelines are currently running.
