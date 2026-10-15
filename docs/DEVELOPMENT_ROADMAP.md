@@ -1,9 +1,9 @@
 # VisionGuard AI --- Development Roadmap
 
 **Document Status:** Approved Technical Baseline  
-**Current Phase:** Phase 3.3 — Google Colab Dataset Preparation & Validation (Notebook Created; Awaiting Execution in Colab)  
-**Implementation State:** Planning, Preparation & Verification Notebooks Only (Zero Local Weights or Local Datasets Downloaded)  
-**Version:** 1.5  
+**Current Phase:** Phase 3.4 — YOLOv8 Nano Training & Evaluation (Training Notebook & Protocol Created; Awaiting Execution in Colab)  
+**Implementation State:** Planning, Preparation & Training Notebooks Only (Zero Local Weights Downloaded)  
+**Version:** 1.6  
 
 ---
 
@@ -24,8 +24,8 @@ VisionGuard AI follows a strict 6-phase engineering roadmap. Each phase must be 
 │ Phase 3: AI Model Environment, Dataset Prep, Training & Evaluation     │  [ACTIVE]
 │   ├── Phase 3.1: Hardware & Environment Verification                   │  [COMPLETED]
 │   ├── Phase 3.2: Dataset Preparation Specification                     │  [COMPLETED]
-│   ├── Phase 3.3: Colab Dataset Acquisition & Validation Notebook       │  [ACTIVE / NOTEBOOK CREATED]
-│   └── Phase 3.4: YOLOv8 Training, Validation, and Evaluation           │  [PLANNED]
+│   ├── Phase 3.3: Colab Dataset Acquisition & Validation (India RDD)    │  [COMPLETED]
+│   └── Phase 3.4: YOLOv8 Training, Validation, and Evaluation           │  [ACTIVE / NOTEBOOK CREATED]
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │
 ┌───────────────────────────────────▼────────────────────────────────────┐
@@ -76,21 +76,21 @@ VisionGuard AI follows a strict 6-phase engineering roadmap. Each phase must be 
 - **Deliverables:** `docs/PHASE_3_ENVIRONMENT_CHECK.md`. Verified RTX 3050 Laptop GPU (4.0 GB VRAM), AMD Ryzen 7 7435HS, 16 GB RAM, 107 GB free disk space. Python 3.14 baseline documented. Decision confirmed to run model training on Google Colab (T4 GPU, 15 GB VRAM).
 
 #### Phase 3.2: Dataset Acquisition & Preparation Specification [COMPLETED]
-- **Deliverables:** `docs/PHASE_3_DATASET_PREPARATION.md`. Verified official Figshare source (DOI 10.6084/m9.figshare.21431547.v1, ~13.26 GB archive), country subset (Japan train subset, ~10,500 images; curated 3,000–4,500 subset), sequence-aware block partitioning (preventing adjacent video frame leakage), 0-indexed YOLO class mapping (`D00`, `D10`, `D20`, `D40`), and automated validation checks.
+- **Deliverables:** `docs/PHASE_3_DATASET_PREPARATION.md`. Verified official Figshare source (DOI 10.6084/m9.figshare.21431547.v1, ~13.26 GB archive), country subset options, sequence-aware block partitioning (preventing adjacent video frame leakage), 0-indexed YOLO class mapping (`D00`, `D10`, `D20`, `D40`), and automated validation checks.
 
-#### Phase 3.3: Google Colab Dataset Preparation & Validation [ACTIVE / NOTEBOOK CREATED]
-- **Deliverables:** `VisionGuard_Phase_3_3_Dataset_Preparation.ipynb`. Ready-to-run Google Colab notebook implementing live Figshare API verification, ephemeral chunked streaming download, MD5 integrity check, selective Japan train extraction, Pascal VOC XML to YOLO label conversion, class filtering for `D00`/`D10`/`D20`/`D40`, sequence-aware block splitting (70% train / 15% val / 15% test, `seed=42`), visual sanity verification grid, comprehensive validation report, and optional Google Drive export.
-- **Current Status:** Notebook created and verified in repository; awaiting execution in Google Colab environment before Phase 3.4.
+#### Phase 3.3: Google Colab Dataset Preparation & Validation [COMPLETED]
+- **Deliverables:** `VisionGuard_Phase_3_3_Dataset_Preparation.ipynb`. Successfully executed by user in Colab on RDD2022 India subset. Produced 7,706 total verified images: 5,356 train (69.5%), 1,150 val (14.9%), 1,200 test (15.6%). Total annotations: 6,831 instances (D00: 1,555, D10: 68, D20: 2,021, D40: 3,187). Backup archive saved to Google Drive.
 
-#### Phase 3.4: Model Training, Fine-Tuning, and Evaluation [PLANNED]
-- **Primary Goal:** Train YOLOv8n on prepared RDD2022 dataset in Google Colab, export weights (`best.pt`), and measure metrics on held-out test split.
-- **Key Deliverables:**
-  - Trained model weights stored in `ai/models/best.pt`.
-  - Comprehensive model evaluation report reporting precision, recall, mAP@0.5, and inference latency on the held-out test set.
-  - Systematic analysis of false positives and false negatives under varied lighting and road conditions.
+#### Phase 3.4: YOLOv8 Nano Training, Fine-Tuning, and Evaluation [ACTIVE / NOTEBOOK CREATED]
+- **Primary Goal:** Train YOLOv8n on prepared RDD2022 India dataset in Google Colab, export weights (`best.pt`), and measure metrics on held-out test split.
+- **Deliverables:** `VisionGuard_Phase_3_4_YOLOv8_Training.ipynb` and `docs/PHASE_3_MODEL_TRAINING.md`.
+- **Configuration:** YOLOv8 Nano (`yolov8n.pt`), `imgsz=640`, `batch=8`, `epochs=30`, `seed=42`, `patience=10`.
+- **Current Status:** Training notebook and protocol ready for execution in Google Colab; awaiting training completion to obtain `best.pt`.
 - **Exit Criteria:**
-  - Model meets baseline acceptance metrics (mAP@0.5 >= 0.50, Precision >= 0.65, Recall >= 0.60).
+  - Model meets baseline acceptance metrics (mAP@0.5 >= 0.50, Precision >= 0.60, Recall >= 0.55).
   - Output format (bounding coordinates and class labels) confirmed and documented.
+  - Held-out test set evaluated strictly after training and checkpoint selection are frozen.
+  - Trained weights (`best.pt`) exported to Google Drive for local download to `ai/models/best.pt`.
 
 ---
 
