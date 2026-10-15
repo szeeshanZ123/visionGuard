@@ -1,15 +1,18 @@
 # VisionGuard AI Dependencies
 # Aligned with docs/TECHNOLOGY_STACK.md
 
-# Web Application Interface
+# Web Application Interface & Backend
 streamlit>=1.30.0
+flask>=3.0.0
 
-# Computer Vision & Image Preprocessing (ai/preprocessing/)
+# Computer Vision, Deep Learning & Image Preprocessing
 opencv-python>=4.8.0
 pillow>=10.0.0
+ultralytics>=8.1.0
 
 # Data Analysis & Persistence
 pandas>=2.0.0
 
 # Testing & Evaluation (tests/ & docs/TESTING_STRATEGY.md)
 pytest>=8.0.0
+
