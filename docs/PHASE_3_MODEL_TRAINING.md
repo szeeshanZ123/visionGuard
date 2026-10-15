@@ -228,7 +228,8 @@ To run Phase 3.4 in Google Colab:
 3. Switch runtime: **Runtime** > **Change runtime type** > **T4 GPU** > **Save**.
 4. Run cells sequentially:
    - **Step 1 & 2:** Verifies GPU and installs dependencies.
-   - **Step 3 & 4:** Restores dataset from Drive and audits class distribution.
+   - **Step 2.5 & 3:** Diagnoses backup archive, restores dataset into `/content/visionguard_dataset`, and verifies split integrity.
+   - **Step 4:** Audits training set class distribution.
    - **Step 5 & 6:** Initializes YOLOv8 Nano and executes 30 training epochs (~35–45 min).
    - **Step 7 & 8:** Displays loss curves and evaluates `best.pt` on validation split.
    - **Step 9 & 10:** Runs final evaluation on the quarantined held-out test split and visualizes predictions.

@@ -56,47 +56,35 @@ In addition to the primary 13.26 GB archive, the official Figshare entry hosts s
 
 ## 3. Archive Structure & Country Breakdown
 
-### 3.1 Raw Archive Directory Hierarchy
+### 3.1 Raw Archive Packaging & Nested Sub-Archives
 
-When unpacked, `RDD2022_released_through_CRDDC2022.zip` exhibits the following verified directory structure:
+The official 13.26 GB outer archive (`RDD2022_released_through_CRDDC2022.zip`) packages **7 nested country sub-archives**:
 
 ```text
-RDD2022/
-├── China_Drone/
-│   └── train/
-│       ├── annotations/xmls/   # PASCAL VOC XML annotations
-│       └── images/             # Road images (.jpg)
-├── China_MotorBike/
-│   ├── test/images/            # Unannotated competition test images
-│   └── train/
-│       ├── annotations/xmls/
-│       └── images/
-├── Czech/
-│   ├── test/images/
-│   └── train/
-│       ├── annotations/xmls/
-│       └── images/
-├── India/
-│   ├── test/images/
-│   └── train/
-│       ├── annotations/xmls/
-│       └── images/
-├── Japan/
-│   ├── test/images/
-│   └── train/
-│       ├── annotations/xmls/
-│       └── images/
-├── Norway/
-│   ├── test/images/
-│   └── train/
-│       ├── annotations/xmls/
-│       └── images/
-└── United_States/
-    ├── test/images/
-    └── train/
-        ├── annotations/xmls/
-        └── images/
+RDD2022_released_through_CRDDC2022.zip (13.26 GB)
+├── RDD2022_China_Drone.zip        (~262 MB)
+├── RDD2022_China_MotorBike.zip    (~252 MB)
+├── RDD2022_Czech.zip              (~456 MB)
+├── RDD2022_India.zip              (~502 MB)
+├── RDD2022_Japan.zip              (~1,023 MB)
+├── RDD2022_Norway.zip             (~3,275 MB)
+└── RDD2022_United_States.zip      (~745 MB)
 ```
+
+Each individual country sub-archive contains its respective training and evaluation partitions:
+
+```text
+<Country_Archive>/
+├── test/
+│   └── images/                 # Unannotated competition test images (.jpg)
+└── train/
+    ├── annotations/
+    │   └── xmls/               # PASCAL VOC XML annotations (.xml)
+    └── images/                 # Road images (.jpg)
+```
+
+> [!TIP]
+> **Nested Archive Selective Extraction:** Because the outer archive packages 7 separate sub-archives, extraction only requires extracting the target country sub-archive (e.g., `RDD2022_India.zip`, 502 MB), saving gigabytes of disk space and extraction time.
 
 ### 3.2 Global Distribution and Subset Metrics
 
