@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VisionGuard AI — Infrastructure Defect Detection</title>
+    <meta name="description" content="AI-Powered Infrastructure Defect Detection & Road Inspection Platform using genuine YOLOv8 computer vision.">
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
+</head>
+<body>
+    <!-- Navigation Header -->
+    <header class="app-header">
+        <div class="header-container">
+            <div class="brand">
+                <span class="brand-icon">🛡️</span>
+                <div class="brand-text">
+                    <h1>VisionGuard AI</h1>
+                    <p class="tagline">Infrastructure Defect Detection & Inspection Platform</p>
+                </div>
+            </div>
+            <div class="telemetry-bar" id="telemetryBar">
+                <span class="badge badge-info" id="dbStatusBadge">Database: Checking...</span>
+                <span class="badge badge-warning" id="modelStatusBadge">Model: Checking...</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="main-container">
+        <!-- System Notice Banner (e.g. Model Missing) -->
+        <div class="alert alert-warning" id="systemNoticeBanner" style="display: none;">
+            <div class="alert-icon">⚠️</div>
+            <div class="alert-content">
+                <strong id="systemNoticeTitle">Model Checkpoint Notice</strong>
+                <p id="systemNoticeMsg"></p>
+                <div class="instructions-box" id="systemNoticeInstructions" style="display: none;"></div>
+            </div>
+        </div>
+
+        <!-- Ingestion Guidelines Callout -->
+        <section class="guidelines-card">
+            <div class="guidelines-header" id="guidelinesToggle">
+                <span class="icon">ℹ️</span>
+                <strong>Capture & Ingestion Guidelines</strong>
+                <span class="toggle-indicator">▼</span>
+            </div>
+            <div class="guidelines-body" id="guidelinesBody">
+                <div class="guidelines-grid">
+                    <div class="guideline-item">
+                        <span class="guideline-icon">☀️</span>
+                        <div>
+                            <strong>Lighting</strong>
+                            <p>Clear natural daylight; avoid deep shadow cast or blinding lens flare.</p>
+                        </div>
+                    </div>
+                    <div class="guideline-item">
+                        <span class="guideline-icon">📐</span>
+                        <div>
+                            <strong>Orientation</strong>
+                            <p>Top-down overhead or ~45-degree angle capturing asphalt texture clearly.</p>
+                        </div>
+                    </div>
+                    <div class="guideline-item">
+                        <span class="guideline-icon">🖼️</span>
+                        <div>
+                            <strong>Supported Formats</strong>
+                            <p>JPG, JPEG, PNG, BMP, WEBP (Maximum size: 15 MB).</p>
+                        </div>
+                    </div>
+                    <div class="guideline-item">
+                        <span class="guideline-icon">🎯</span>
+                        <div>
+                            <strong>Distress Classes</strong>
+                            <p>D00 (Longitudinal), D10 (Transverse), D20 (Alligator), D40 (Pothole).</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Image Upload & Controls Section -->
+        <section class="inspection-input-card">
+            <div class="card-header">
+                <h2>📷 Surface Distress Ingestion</h2>
+                <p>Upload a roadway or infrastructure surface photograph for genuine computer-vision inference.</p>
+            </div>
+
+            <div class="upload-area" id="dropZone">
+                <input type="file" id="imageFileInput" accept=".jpg,.jpeg,.png,.bmp,.webp" style="display: none;">
+                <div class="upload-prompt" id="uploadPrompt">
+                    <div class="upload-icon">📁</div>
+                    <h3>Drag & Drop road image here, or <button type="button" class="btn btn-secondary" id="browseBtn">Browse Files</button></h3>
+                    <p class="upload-subtext">Supported: JPG, PNG, WEBP • Max Size: 15 MB</p>
+                </div>
+                <div class="preview-strip" id="previewStrip" style="display: none;">
+                    <img id="clientPreviewImg" src="" alt="Client Preview" class="preview-thumbnail">
+                    <div class="file-details">
+                        <strong id="selectedFileName">filename.jpg</strong>
+                        <span id="selectedFileSize">0 KB</span>
+                    </div>
+                    <button type="button" class="btn btn-outline" id="removeFileBtn">Remove</button>
+                </div>
+            </div>
+
+            <!-- Parameters and Action -->
+            <div class="inspection-controls">
+                <div class="control-group">
+                    <label for="confSlider">
+                        Detection Confidence Threshold: 
+                        <strong id="confValDisplay">0.25</strong>
+                    </label>
+                    <input type="range" id="confSlider" min="0.10" max="0.90" step="0.05" value="0.25">
+                    <span class="control-hint">Minimum statistical probability to register a distress bounding box.</span>
+                </div>
+                <div class="action-buttons">
+                    <button type="button" class="btn btn-primary" id="inspectBtn" disabled>
+                        <span class="btn-text">Run Defect Inspection</span>
+                        <span class="spinner" id="inspectSpinner" style="display: none;"></span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Results Section (Populated Dynamically) -->
+        <section class="results-container" id="resultsContainer" style="display: none;">
+            <div class="results-header">
+                <h2>🔍 Inspection Findings</h2>
+                <span class="badge" id="resultsCountBadge">0 Defects Found</span>
+            </div>
+
+            <!-- Side-by-Side Visual Comparison -->
+            <div class="comparison-grid">
+                <div class="image-column">
+                    <div class="image-column-header">
+                        <h3>Original Road Image</h3>
+                        <span class="caption" id="origDimCaption">-- × -- px</span>
+                    </div>
+                    <div class="image-display-box">
+                        <img id="originalDisplayImg" src="" alt="Original Surface Image">
+                    </div>
+                </div>
+
+                <div class="image-column">
+                    <div class="image-column-header">
+                        <h3>Authentic AI Detection Overlay</h3>
+                        <span class="caption" id="modelCheckpointCaption">YOLOv8 Nano</span>
+                    </div>
+                    <div class="image-display-box">
+                        <img id="annotatedDisplayImg" src="" alt="Annotated Detection Overlay">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Telemetry Metrics & Metadata Row -->
+            <div class="metrics-row">
+                <div class="metric-card">
+                    <span class="metric-label">Defects Detected</span>
+                    <strong class="metric-value" id="metricDefectCount">0</strong>
+                    <span class="metric-caption" id="metricDefectTypes">--</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Top Detection Confidence</span>
+                    <strong class="metric-value" id="metricTopConf">--%</strong>
+                    <span class="metric-caption">Statistical Likelihood</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Model Engine</span>
+                    <strong class="metric-value text-sm" id="metricModelName">YOLOv8n</strong>
+                    <span class="metric-caption">RDD2022 India Weights</span>
+                </div>
+            </div>
+
+            <!-- Technical Image Metadata Table -->
+            <div class="card meta-card">
+                <h3>Technical Image Metadata</h3>
+                <div class="table-responsive">
+                    <table class="data-table" id="metaTable">
+                        <tbody>
+                            <tr><th>File Name</th><td id="metaFilename">--</td></tr>
+                            <tr><th>Format</th><td id="metaFormat">--</td></tr>
+                            <tr><th>Dimensions</th><td id="metaDimensions">--</td></tr>
+                            <tr><th>Aspect Ratio</th><td id="metaAspectRatio">--</td></tr>
+                            <tr><th>Channels & Mode</th><td id="metaChannels">--</td></tr>
+                            <tr><th>File Size</th><td id="metaFileSize">--</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Detailed Distress Annotations Table -->
+            <div class="card detections-card">
+                <h3>Detected Road Distresses (Authentic Model Coordinates)</h3>
+                <div class="table-responsive">
+                    <table class="data-table" id="detectionsTable">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Distress Category</th>
+                                <th>Class ID</th>
+                                <th>Statistical Confidence</th>
+                                <th>Bounding Box [x1, y1, x2, y2]</th>
+                                <th>Pixel Extent (W × H)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detectionsTableBody">
+                            <!-- Injected by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Strict Civil Engineering Disclaimer -->
+            <div class="alert alert-disclaimer">
+                <div class="alert-icon">🛡️</div>
+                <div class="alert-content">
+                    <strong>Civil Engineering Disclaimer & Safety Boundary:</strong>
+                    <p>
+                        VisionGuard AI detections and confidence ratings reflect <em>statistical model certainty</em>, 
+                        <strong>not physical pavement failure severity, cavity depth, or roadway structural safety</strong>. 
+                        A photograph alone cannot certify roadway load-bearing capacity, sub-base condition, or asphalt thickness. 
+                        Bounding boxes represent pixel localization and do not measure millimeter crack width without physical ground-plane calibration.
+                    </p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+        <p>© VisionGuard AI • Built with Python, Flask, OpenCV & YOLOv8 • Strict adherence to genuine AI models (No mock predictions).</p>
+    </footer>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
