@@ -1,9 +1,9 @@
 # VisionGuard AI --- Development Roadmap
 
 **Document Status:** Approved Technical Baseline  
-**Current Phase:** Phase 2 --- Dataset Research & Selection (Completed; Awaiting Phase 3 Approval)  
-**Implementation State:** Planning & Research Only (Zero Weights or Datasets Downloaded)  
-**Version:** 1.3  
+**Current Phase:** Phase 3.2 — Dataset Acquisition & Preparation (Planning & Specification Completed; Awaiting Colab Validation)  
+**Implementation State:** Planning & Research Only (Zero Weights or Datasets Downloaded Locally)  
+**Version:** 1.4  
 
 ---
 
@@ -21,7 +21,10 @@ VisionGuard AI follows a strict 6-phase engineering roadmap. Each phase must be 
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │
 ┌───────────────────────────────────▼────────────────────────────────────┐
-│ Phase 3: Model Selection, Training or Fine-Tuning, and Evaluation      │  ◄ NEXT PHASE (AWAITING APPROVAL)
+│ Phase 3: AI Model Environment, Dataset Prep, Training & Evaluation     │  [ACTIVE]
+│   ├── Phase 3.1: Hardware & Environment Verification                   │  [COMPLETED]
+│   ├── Phase 3.2: Dataset Acquisition & Colab Preparation Plan          │  [IN PROGRESS / SPECIFIED]
+│   └── Phase 3.3: YOLOv8 Training, Validation, and Evaluation           │  [PLANNED]
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │
 ┌───────────────────────────────────▼────────────────────────────────────┐
@@ -41,7 +44,7 @@ VisionGuard AI follows a strict 6-phase engineering roadmap. Each phase must be 
 
 ## 2. Detailed Phase Specifications
 
-### Phase 1: Project Foundation, Folder Verification, and Documentation (Current Phase)
+### Phase 1: Project Foundation, Folder Verification, and Documentation
 - **Primary Goal:** Establish repository baseline, verify foundational folder structure, resolve documentation inconsistencies, and document all engineering specifications.
 - **Key Deliverables:**
   - Standardized project documentation (`README.md`, `PRD.md`, `FEATURES.md`, `PROJECT_OVERVIEW.md`, `TECHNOLOGY_STACK.md`, `SYSTEM_ARCHITECTURE.md`, `DEVELOPMENT_ROADMAP.md`, `DATASET_AND_MODEL_RESEARCH.md`, `TESTING_STRATEGY.md`).
@@ -56,26 +59,34 @@ VisionGuard AI follows a strict 6-phase engineering roadmap. Each phase must be 
 ### Phase 2: Dataset Research, Selection, Licensing Verification, and Data Preparation Plan
 - **Primary Goal:** Investigate public road distress datasets, verify licensing rights, examine annotation quality, and formulate data preparation routines.
 - **Key Deliverables:**
-  - Evaluated dataset survey report covering candidate datasets (e.g. RDD2022, CRACK500, Pothole-600).
-  - Verification of commercial and academic licensing terms.
-  - Defined class mapping for supported defect categories: potholes and cracks (longitudinal, transverse, alligator).
+  - Evaluated dataset survey report covering candidate datasets (RDD2022, CRACK500, SDNET2018, Roboflow Pothole).
+  - Verification of commercial and academic licensing terms (CC BY 4.0 / CC BY-SA 4.0).
+  - Defined initial candidate class mapping for supported defect categories: longitudinal cracks (`D00`), transverse cracks (`D10`), alligator cracks (`D20`), and potholes (`D40`).
   - Train, validation, and held-out test split protocol.
 - **Exit Criteria:**
-  - Dataset selected with documented provenance and permissive licensing.
-  - Held-out test set isolated and sealed for unbiased evaluation.
+  - Dataset selected with documented provenance and permissive licensing (RDD2022).
+  - Model architecture selected (YOLOv8 Nano).
 
 ---
 
-### Phase 3: Model Selection, Training or Fine-Tuning, and Evaluation
-- **Primary Goal:** Select suitable computer-vision architecture (object detection vs instance segmentation), train or fine-tune on chosen dataset, and measure baseline metrics.
+### Phase 3: AI Model Environment, Dataset Prep, Training & Evaluation
+
+#### Phase 3.1: Hardware & Environment Verification [COMPLETED]
+- **Deliverables:** `docs/PHASE_3_ENVIRONMENT_CHECK.md`. Verified RTX 3050 Laptop GPU (4.0 GB VRAM), AMD Ryzen 7 7435HS, 16 GB RAM, 107 GB free disk space. Python 3.14 baseline documented. Decision confirmed to run model training on Google Colab (T4 GPU, 15 GB VRAM).
+
+#### Phase 3.2: Dataset Acquisition & Preparation Plan for Colab [ACTIVE / SPECIFIED]
+- **Deliverables:** `docs/PHASE_3_DATASET_PREPARATION.md`. Verified official Figshare source (DOI 10.6084/m9.figshare.21431547.v1, ~13.26 GB archive), country subset (Japan train subset, ~10,500 images; curated 3,000–4,500 subset), sequence-aware block partitioning (preventing adjacent video frame leakage), 0-indexed YOLO class mapping (`D00`, `D10`, `D20`, `D40`), and automated validation checks.
+- **Current Status:** Planning and conversion pipeline fully specified; awaiting Colab execution and validation before Phase 3.3.
+
+#### Phase 3.3: Model Training, Fine-Tuning, and Evaluation [PLANNED]
+- **Primary Goal:** Train YOLOv8n on prepared RDD2022 dataset in Google Colab, export weights (`best.pt`), and measure metrics on held-out test split.
 - **Key Deliverables:**
-  - Model selection record comparing candidate architectures (e.g. YOLOv8, Faster R-CNN, Mask R-CNN).
-  - Trained model weights stored in `ai/models/`.
+  - Trained model weights stored in `ai/models/best.pt`.
   - Comprehensive model evaluation report reporting precision, recall, mAP@0.5, and inference latency on the held-out test set.
   - Systematic analysis of false positives and false negatives under varied lighting and road conditions.
 - **Exit Criteria:**
   - Model meets baseline acceptance metrics (mAP@0.5 >= 0.50, Precision >= 0.65, Recall >= 0.60).
-  - Output format (bounding coordinates or segmentation masks) confirmed and documented.
+  - Output format (bounding coordinates and class labels) confirmed and documented.
 
 ---
 
