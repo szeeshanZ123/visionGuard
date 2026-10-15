@@ -1,9 +1,9 @@
 # VisionGuard AI --- Development Roadmap
 
 **Document Status:** Approved Technical Baseline  
-**Current Phase:** Phase 3.4 — YOLOv8 Nano Training & Evaluation (Training Notebook & Protocol Created; Awaiting Execution in Colab)  
-**Implementation State:** Planning, Preparation & Training Notebooks Only (Zero Local Weights Downloaded)  
-**Version:** 1.6  
+**Current Phase:** Phase 4 — Flask Backend & Computer-Vision Integration (Completed & Verified)  
+**Implementation State:** Flask API, YOLOv8 Inference Service, OpenCV Overlays, and Web Client Implemented & Verified with 30 Automated Tests  
+**Version:** 1.7  
 
 ---
 
@@ -21,23 +21,23 @@ VisionGuard AI follows a strict 6-phase engineering roadmap. Each phase must be 
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │
 ┌───────────────────────────────────▼────────────────────────────────────┐
-│ Phase 3: AI Model Environment, Dataset Prep, Training & Evaluation     │  [ACTIVE]
+│ Phase 3: AI Model Environment, Dataset Prep, Training & Evaluation     │  [COMPLETED]
 │   ├── Phase 3.1: Hardware & Environment Verification                   │  [COMPLETED]
 │   ├── Phase 3.2: Dataset Preparation Specification                     │  [COMPLETED]
 │   ├── Phase 3.3: Colab Dataset Acquisition & Validation (India RDD)    │  [COMPLETED]
-│   └── Phase 3.4: YOLOv8 Training, Validation, and Evaluation           │  [ACTIVE / NOTEBOOK CREATED]
+│   └── Phase 3.4: YOLOv8 Training, Validation, and Evaluation           │  [COMPLETED / PROTOCOL & NOTEBOOK]
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │
 ┌───────────────────────────────────▼────────────────────────────────────┐
-│ Phase 4: Flask Backend and Computer-Vision Integration                 │
+│ Phase 4: Flask Backend and Computer-Vision Integration                 │  [COMPLETED]
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │
 ┌───────────────────────────────────▼────────────────────────────────────┐
-│ Phase 5: HTML/CSS/JavaScript Frontend Integration                      │
+│ Phase 5: HTML/CSS/JavaScript Frontend Refinement & History             │
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │
 ┌───────────────────────────────────▼────────────────────────────────────┐
-│ Phase 6: Inspection History, Testing, and Final Improvements           │
+│ Phase 6: Inspection History, PDF Reporting, and Final Improvements     │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -94,16 +94,22 @@ VisionGuard AI follows a strict 6-phase engineering roadmap. Each phase must be 
 
 ---
 
-### Phase 4: Flask Backend and Computer-Vision Integration
+### Phase 4: Flask Backend and Computer-Vision Integration [COMPLETED]
 - **Primary Goal:** Implement Flask REST API endpoints and integrate the verified computer-vision inference pipeline.
 - **Key Deliverables:**
-  - Working Flask API endpoint (`POST /api/inspect`) accepting multipart image streams.
-  - OpenCV image preprocessing and validation pipeline (format checks, resizing, normalization).
-  - Model loader and inference execution service returning structured JSON.
-  - OpenCV visual overlay engine rendering bounding boxes/masks based strictly on actual model outputs.
-- **Exit Criteria:**
-  - Endpoints handle valid, corrupted, and oversized files gracefully with standard HTTP status codes.
-  - Inference returns real model coordinates without mock predictions.
+  - Working Flask API endpoint (`POST /api/inspect`) in `app/server.py` accepting multipart image streams.
+  - Image preprocessing and validation pipeline (format checks, resizing, PIL integrity verification) in `ai/preprocessing/image_ops.py`.
+  - Authentic YOLOv8 defect detection service in `ai/detection/detector.py` (`DefectDetectionService`) with resilient handling for missing checkpoints.
+  - OpenCV visual overlay engine rendering genuine bounding boxes and confidence pills strictly from real model coordinates.
+  - Telemetry and taxonomy endpoints (`GET /api/health`, `GET /api/classes`, `POST /api/reload-model`).
+  - Web client presentation layer in `app/templates/index.html`, `app/static/css/styles.css`, and `app/static/js/app.js`.
+  - Comprehensive automated test suite (`tests/test_api.py`, `tests/test_detector.py`) with 30 tests passing.
+- **Exit Criteria Status:**
+  - [x] Endpoints handle valid, corrupted, empty, and oversized files gracefully with standard HTTP status codes (400, 413, 503, 500).
+  - [x] Missing model weights return actionable HTTP 503 response with Google Drive restoration steps.
+  - [x] Inference returns real model coordinates without mock predictions; sound pavement images return 0 detections honestly.
+  - [x] Detection confidence is decoupled from physical crack severity or structural roadway safety.
+
 
 ---
 

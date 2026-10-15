@@ -11,8 +11,9 @@ AI-powered infrastructure defect inspection system focused on detecting cracks a
 The platform targets the automated visual detection and localization of critical road surface defects—specifically **asphalt cracks** (longitudinal, transverse, alligator) and **potholes**—from standard photographic imagery.
 
 > [!IMPORTANT]
-> **Current Development Status: Phase 1 — Project Foundation & Documentation Only.**
-> No AI model, Flask backend routes, frontend user interface, or production database has been implemented yet. All features, architecture, and workflows described herein represent approved engineering plans.
+> **Current Development Status: Phase 4 — Flask Backend & Computer-Vision Integration (Completed & Verified).**
+> The Flask REST API (`/api/inspect`, `/api/health`, `/api/classes`), YOLOv8 defect detection service, OpenCV annotation engine, and HTML5/CSS3/Vanilla JS client are implemented and verified with 30 passing automated tests.
+
 
 ---
 
@@ -145,3 +146,33 @@ visionGuard/
 3. **No Fabricated Predictions:** Never generate simulated, hardcoded, or mock bounding boxes. No-detection cases must be reported honestly.
 4. **Empirical Evaluation:** Model accuracy claims must be backed by documented evaluation on a held-out test set with standard metrics (precision, recall, mAP, IoU).
 5. **Privacy & Security:** Never commit real credentials, secret API keys, or private user images to version control.
+
+---
+
+## 9. Quick Start & Execution Guide
+
+### 9.1 Model Checkpoint Setup (`best.pt`)
+The YOLOv8 Nano model trained on the RDD2022 India dataset exports its checkpoint to Google Drive:
+1. Download `best.pt` from your Google Drive folder (`VisionGuard_Artifacts/best.pt`).
+2. Move the file into the project directory:
+   ```bash
+   # Target location:
+   ai/models/best.pt
+   ```
+*(Note: If `best.pt` is not present, the Flask server still launches safely and the API informs the user via HTTP 503 with exact setup instructions).*
+
+### 9.2 Launching the Flask Web Application & REST API
+```bash
+python app/server.py
+```
+Or with Flask CLI:
+```bash
+python -m flask --app app.server run --port 5000
+```
+Open your browser at `http://127.0.0.1:5000` to access the inspection interface.
+
+### 9.3 Running Automated Tests
+```bash
+python -m pytest -v
+```
+All 30 unit, API, image preprocessing, and app tests will execute.
