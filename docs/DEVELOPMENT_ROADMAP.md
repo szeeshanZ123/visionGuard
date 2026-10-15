@@ -1,9 +1,9 @@
 # VisionGuard AI --- Development Roadmap
 
 **Document Status:** Approved Technical Baseline  
-**Current Phase:** Phase 3.2 — Dataset Acquisition & Preparation (Planning & Specification Completed; Awaiting Colab Validation)  
-**Implementation State:** Planning & Research Only (Zero Weights or Datasets Downloaded Locally)  
-**Version:** 1.4  
+**Current Phase:** Phase 3.3 — Google Colab Dataset Preparation & Validation (Notebook Created; Awaiting Execution in Colab)  
+**Implementation State:** Planning, Preparation & Verification Notebooks Only (Zero Local Weights or Local Datasets Downloaded)  
+**Version:** 1.5  
 
 ---
 
@@ -23,8 +23,9 @@ VisionGuard AI follows a strict 6-phase engineering roadmap. Each phase must be 
 ┌───────────────────────────────────▼────────────────────────────────────┐
 │ Phase 3: AI Model Environment, Dataset Prep, Training & Evaluation     │  [ACTIVE]
 │   ├── Phase 3.1: Hardware & Environment Verification                   │  [COMPLETED]
-│   ├── Phase 3.2: Dataset Acquisition & Colab Preparation Plan          │  [IN PROGRESS / SPECIFIED]
-│   └── Phase 3.3: YOLOv8 Training, Validation, and Evaluation           │  [PLANNED]
+│   ├── Phase 3.2: Dataset Preparation Specification                     │  [COMPLETED]
+│   ├── Phase 3.3: Colab Dataset Acquisition & Validation Notebook       │  [ACTIVE / NOTEBOOK CREATED]
+│   └── Phase 3.4: YOLOv8 Training, Validation, and Evaluation           │  [PLANNED]
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │
 ┌───────────────────────────────────▼────────────────────────────────────┐
@@ -74,11 +75,14 @@ VisionGuard AI follows a strict 6-phase engineering roadmap. Each phase must be 
 #### Phase 3.1: Hardware & Environment Verification [COMPLETED]
 - **Deliverables:** `docs/PHASE_3_ENVIRONMENT_CHECK.md`. Verified RTX 3050 Laptop GPU (4.0 GB VRAM), AMD Ryzen 7 7435HS, 16 GB RAM, 107 GB free disk space. Python 3.14 baseline documented. Decision confirmed to run model training on Google Colab (T4 GPU, 15 GB VRAM).
 
-#### Phase 3.2: Dataset Acquisition & Preparation Plan for Colab [ACTIVE / SPECIFIED]
+#### Phase 3.2: Dataset Acquisition & Preparation Specification [COMPLETED]
 - **Deliverables:** `docs/PHASE_3_DATASET_PREPARATION.md`. Verified official Figshare source (DOI 10.6084/m9.figshare.21431547.v1, ~13.26 GB archive), country subset (Japan train subset, ~10,500 images; curated 3,000–4,500 subset), sequence-aware block partitioning (preventing adjacent video frame leakage), 0-indexed YOLO class mapping (`D00`, `D10`, `D20`, `D40`), and automated validation checks.
-- **Current Status:** Planning and conversion pipeline fully specified; awaiting Colab execution and validation before Phase 3.3.
 
-#### Phase 3.3: Model Training, Fine-Tuning, and Evaluation [PLANNED]
+#### Phase 3.3: Google Colab Dataset Preparation & Validation [ACTIVE / NOTEBOOK CREATED]
+- **Deliverables:** `VisionGuard_Phase_3_3_Dataset_Preparation.ipynb`. Ready-to-run Google Colab notebook implementing live Figshare API verification, ephemeral chunked streaming download, MD5 integrity check, selective Japan train extraction, Pascal VOC XML to YOLO label conversion, class filtering for `D00`/`D10`/`D20`/`D40`, sequence-aware block splitting (70% train / 15% val / 15% test, `seed=42`), visual sanity verification grid, comprehensive validation report, and optional Google Drive export.
+- **Current Status:** Notebook created and verified in repository; awaiting execution in Google Colab environment before Phase 3.4.
+
+#### Phase 3.4: Model Training, Fine-Tuning, and Evaluation [PLANNED]
 - **Primary Goal:** Train YOLOv8n on prepared RDD2022 dataset in Google Colab, export weights (`best.pt`), and measure metrics on held-out test split.
 - **Key Deliverables:**
   - Trained model weights stored in `ai/models/best.pt`.
