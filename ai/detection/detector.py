@@ -16,6 +16,14 @@ import os
 import cv2
 import numpy as np
 
+import logging
+
+from ai.detection.slicer import SlicedInferenceEngine
+
+logger = logging.getLogger("visionguard.detector")
+if not logger.handlers:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+
 DEFAULT_MODEL_PATH = os.path.join("ai", "models", "best.pt")
 
 # Canonical class taxonomy from Phase 3.4 (RDD2022 India dataset)
@@ -60,6 +68,14 @@ class DefectDetectionService:
             "checkpoint_path": self.model_path,
             "inference_hardware": "CPU/CUDA",
         }
+        self.last_inference_stats = {
+            "raw_candidate_count": 0,
+            "top_raw_confidence": 0.0,
+            "top_raw_class": "",
+            "suggested_threshold": None,
+        }
+        # Sliced / Tiled inference engine for capturing continuous cracks at native resolution
+        self.slicer = SlicedInferenceEngine(slice_size=384, overlap_ratio=0.20, merge_iou_threshold=0.40)
 
         # Attempt to load checkpoint if present
         self.load_model()
@@ -112,14 +128,21 @@ class DefectDetectionService:
         image_bgr: np.ndarray,
         conf_threshold: float = 0.25,
         raise_if_unloaded: bool = False,
+        inspection_mode: str = "standard",
+        slice_size: Optional[int] = None,
+        overlap_ratio: Optional[float] = None,
     ) -> List[Dict[str, Any]]:
         """
         Runs defect detection on an OpenCV BGR image using the authentic model.
+        Supports standard full-frame inference or high-resolution tiled/sliced inference.
 
         Args:
             image_bgr: NumPy ndarray in BGR format.
             conf_threshold: Minimum detection confidence threshold (default 0.25).
             raise_if_unloaded: Whether to raise FileNotFoundError if weights are missing.
+            inspection_mode: 'standard' (full image) or 'tiled'/'sliced' (overlapping high-res tiles).
+            slice_size: Custom tile size in pixels (for tiled mode).
+            overlap_ratio: Overlap ratio between adjacent tiles (e.g. 0.20 = 20%).
 
         Returns:
             List of detection dicts: [{
@@ -136,6 +159,69 @@ class DefectDetectionService:
             }]
             Strict guardrail: Returns empty list if no defects are detected or image is invalid.
         """
+        mode = (inspection_mode or "standard").lower().strip()
+        if mode in ("tiled", "sliced"):
+            return self.detect_sliced(
+                image_bgr=image_bgr,
+                conf_threshold=conf_threshold,
+                slice_size=slice_size,
+                overlap_ratio=overlap_ratio,
+                fuse_with_global=True,
+                raise_if_unloaded=raise_if_unloaded,
+            )
+
+        return self._detect_standard(
+            image_bgr=image_bgr,
+            conf_threshold=conf_threshold,
+            raise_if_unloaded=raise_if_unloaded,
+        )
+
+    def detect_sliced(
+        self,
+        image_bgr: np.ndarray,
+        conf_threshold: float = 0.25,
+        slice_size: Optional[int] = None,
+        overlap_ratio: Optional[float] = None,
+        fuse_with_global: bool = True,
+        raise_if_unloaded: bool = False,
+    ) -> List[Dict[str, Any]]:
+        """
+        Runs high-resolution sliced/tiled defect detection across overlapping image patches.
+        Preserves fine crack continuity and prevents downsampling degradation.
+        """
+        if not self.is_loaded:
+            if raise_if_unloaded:
+                raise FileNotFoundError(self.status_message)
+            return []
+
+        if image_bgr is None or not isinstance(image_bgr, np.ndarray) or image_bgr.size == 0:
+            return []
+
+        detections = self.slicer.execute_sliced_inference(
+            detector=self,
+            image_bgr=image_bgr,
+            conf_threshold=conf_threshold,
+            slice_size=slice_size,
+            overlap_ratio=overlap_ratio,
+            fuse_with_global=fuse_with_global,
+            raise_if_unloaded=raise_if_unloaded,
+        )
+
+        # Synchronize telemetry stats from slicer
+        if hasattr(self.slicer, "last_sliced_stats"):
+            self.last_inference_stats = dict(self.slicer.last_sliced_stats)
+
+        return detections
+
+    def _detect_standard(
+        self,
+        image_bgr: np.ndarray,
+        conf_threshold: float = 0.25,
+        raise_if_unloaded: bool = False,
+    ) -> List[Dict[str, Any]]:
+        """
+        Internal execution for single-frame full-image YOLOv8 inference.
+        """
         if not self.is_loaded:
             if raise_if_unloaded:
                 raise FileNotFoundError(self.status_message)
@@ -145,24 +231,48 @@ class DefectDetectionService:
             return []
 
         try:
-            # Genuine YOLO inference
+            # Predict using min(conf_threshold, 0.01) so raw candidates are visible for logging
+            diagnostic_threshold = min(conf_threshold, 0.01)
             results = self.model.predict(
                 source=image_bgr,
-                conf=conf_threshold,
+                conf=diagnostic_threshold,
                 verbose=False,
             )
 
             detections: List[Dict[str, Any]] = []
             if not results or len(results) == 0:
+                logger.info("Zero raw candidate detections found at diagnostic threshold (conf=%.4f).", diagnostic_threshold)
+                self.last_inference_stats = {
+                    "raw_candidate_count": 0,
+                    "top_raw_confidence": 0.0,
+                    "top_raw_class": "",
+                    "suggested_threshold": None,
+                }
                 return detections
 
             boxes = results[0].boxes
             if boxes is None or len(boxes) == 0:
+                logger.info("Zero raw candidate boxes found at diagnostic threshold (conf=%.4f).", diagnostic_threshold)
+                self.last_inference_stats = {
+                    "raw_candidate_count": 0,
+                    "top_raw_confidence": 0.0,
+                    "top_raw_class": "",
+                    "suggested_threshold": None,
+                }
                 return detections
 
             model_names = getattr(self.model, "names", CLASS_NAMES)
+            raw_count = len(boxes)
+            logger.info(
+                "YOLO inference: %d raw candidate box(es) detected before filtering (target threshold >= %.2f):",
+                raw_count,
+                conf_threshold,
+            )
 
-            for i in range(len(boxes)):
+            top_raw_conf = 0.0
+            top_raw_class = ""
+
+            for i in range(raw_count):
                 xyxy = boxes.xyxy[i].cpu().numpy().tolist()
                 x1, y1, x2, y2 = float(xyxy[0]), float(xyxy[1]), float(xyxy[2]), float(xyxy[3])
                 conf = float(boxes.conf[i].cpu().numpy())
@@ -179,29 +289,62 @@ class DefectDetectionService:
                     cls_raw, cls_raw.replace("_", " ").title()
                 )
 
+                if conf > top_raw_conf:
+                    top_raw_conf = conf
+                    top_raw_class = distress_category
+
                 box_w = max(0.0, x2 - x1)
                 box_h = max(0.0, y2 - y1)
                 aspect_ratio = round(box_w / box_h, 3) if box_h > 0 else 0.0
                 pixel_area = round(box_w * box_h, 1)
 
-                detections.append({
-                    "class_id": cls_id,
-                    "class_name": cls_raw,
-                    "distress_category": distress_category,
-                    "confidence": round(conf, 4),
-                    "bbox": {
-                        "x1": round(x1, 1),
-                        "y1": round(y1, 1),
-                        "x2": round(x2, 1),
-                        "y2": round(y2, 1),
-                        "width": round(box_w, 1),
-                        "height": round(box_h, 1),
-                        "aspect_ratio": aspect_ratio,
-                        "pixel_area": pixel_area,
-                    },
-                    "disclaimer": "Detection confidence is statistical likelihood, not pavement structural safety.",
-                })
+                is_kept = conf >= conf_threshold
+                logger.info(
+                    "  [Raw Detection #%d] class_id=%d, class_name=%s (%s), conf=%.4f, bbox=[%.1f, %.1f, %.1f, %.1f] -> %s",
+                    i + 1,
+                    cls_id,
+                    cls_raw,
+                    distress_category,
+                    conf,
+                    x1,
+                    y1,
+                    x2,
+                    y2,
+                    "ACCEPTED" if is_kept else "FILTERED OUT",
+                )
 
+                if is_kept:
+                    detections.append({
+                        "class_id": cls_id,
+                        "class_name": cls_raw,
+                        "distress_category": distress_category,
+                        "confidence": round(conf, 4),
+                        "bbox": {
+                            "x1": round(x1, 1),
+                            "y1": round(y1, 1),
+                            "x2": round(x2, 1),
+                            "y2": round(y2, 1),
+                            "width": round(box_w, 1),
+                            "height": round(box_h, 1),
+                            "aspect_ratio": aspect_ratio,
+                            "pixel_area": pixel_area,
+                        },
+                        "disclaimer": "Detection confidence is statistical likelihood, not pavement structural safety.",
+                    })
+
+            self.last_inference_stats = {
+                "raw_candidate_count": raw_count,
+                "top_raw_confidence": round(top_raw_conf, 4),
+                "top_raw_class": top_raw_class,
+                "suggested_threshold": round(max(0.05, top_raw_conf - 0.004), 2) if top_raw_conf >= 0.045 else None,
+            }
+
+            logger.info(
+                "Threshold filtering complete: %d of %d raw detection(s) meet confidence threshold >= %.2f",
+                len(detections),
+                raw_count,
+                conf_threshold,
+            )
             return detections
 
         except Exception as exc:
@@ -307,6 +450,7 @@ class DefectDetectionService:
 
 __all__ = [
     "DefectDetectionService",
+    "SlicedInferenceEngine",
     "CLASS_NAMES",
     "CLASS_DISPLAY_NAMES",
     "CLASS_COLORS_BGR",

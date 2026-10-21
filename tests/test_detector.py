@@ -109,3 +109,84 @@ def test_detector_invalid_input_handling():
     assert detector.detect(None) == []
     empty_arr = np.array([], dtype=np.uint8)
     assert detector.detect(empty_arr) == []
+
+
+def test_detector_raw_candidate_filtering_and_class_mapping():
+    """
+    Verifies:
+    1. Raw candidate predictions are accurately filtered against conf_threshold.
+    2. Class IDs map faithfully to D00, D10, D20, and D40 taxonomies.
+    3. Filtered detections match downstream contract expectations.
+    """
+    import torch
+
+    class MockYOLOBoxes:
+        def __init__(self, xyxy_list, conf_list, cls_list):
+            self.xyxy = torch.tensor(xyxy_list, dtype=torch.float32)
+            self.conf = torch.tensor(conf_list, dtype=torch.float32)
+            self.cls = torch.tensor(cls_list, dtype=torch.float32)
+
+        def __len__(self):
+            return len(self.conf)
+
+    class MockYOLOResult:
+        def __init__(self, boxes):
+            self.boxes = boxes
+
+    class MockYOLOModel:
+        def __init__(self):
+            self.names = {
+                0: "D00_longitudinal_crack",
+                1: "D10_transverse_crack",
+                2: "D20_alligator_crack",
+                3: "D40_pothole",
+            }
+
+        def predict(self, source, conf=0.25, verbose=False):
+            # Simulate returning 4 raw candidates spanning different confidence tiers
+            raw_xyxy = [
+                [10.0, 20.0, 100.0, 150.0],
+                [50.0, 60.0, 120.0, 180.0],
+                [80.0, 90.0, 200.0, 220.0],
+                [150.0, 160.0, 300.0, 350.0],
+            ]
+            raw_conf = [0.35, 0.12, 0.054, 0.008]
+            raw_cls = [0, 1, 2, 3]
+            boxes = MockYOLOBoxes(raw_xyxy, raw_conf, raw_cls)
+            return [MockYOLOResult(boxes)]
+
+    detector = DefectDetectionService(model_path="ai/models/best.pt")
+    detector.is_loaded = True
+    detector.model = MockYOLOModel()
+
+    blank_img = np.zeros((480, 640, 3), dtype=np.uint8)
+
+    # Test 1: Production threshold = 0.25 -> only box with conf=0.35 passes
+    det_25 = detector.detect(blank_img, conf_threshold=0.25)
+    assert len(det_25) == 1
+    assert det_25[0]["class_id"] == 0
+    assert det_25[0]["class_name"] == "D00_longitudinal_crack"
+    assert det_25[0]["distress_category"] == "Longitudinal Crack"
+    assert det_25[0]["confidence"] == 0.35
+
+    # Test 2: Diagnostic threshold = 0.10 -> boxes with 0.35 and 0.12 pass
+    det_10 = detector.detect(blank_img, conf_threshold=0.10)
+    assert len(det_10) == 2
+    assert det_10[0]["class_id"] == 0
+    assert det_10[1]["class_id"] == 1
+    assert det_10[1]["class_name"] == "D10_transverse_crack"
+    assert det_10[1]["distress_category"] == "Transverse Crack"
+    assert det_10[1]["confidence"] == 0.12
+
+    # Test 3: Low diagnostic threshold = 0.05 -> boxes with 0.35, 0.12, 0.054 pass
+    det_05 = detector.detect(blank_img, conf_threshold=0.05)
+    assert len(det_05) == 3
+    assert det_05[2]["class_id"] == 2
+    assert det_05[2]["class_name"] == "D20_alligator_crack"
+    assert det_05[2]["distress_category"] == "Alligator Crack"
+    assert det_05[2]["confidence"] == 0.054
+
+    # Test 4: Ultra-high threshold = 0.90 -> 0 boxes pass
+    det_90 = detector.detect(blank_img, conf_threshold=0.90)
+    assert len(det_90) == 0
+
