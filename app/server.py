@@ -12,8 +12,13 @@ import io
 import os
 import sys
 import uuid
+import logging
 from pathlib import Path
 from typing import Optional
+
+# Configure application logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+logger = logging.getLogger("visionguard")
 
 # Ensure project root is present in sys.path when running app/server.py directly
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -257,11 +262,36 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
         except ValueError:
             conf_thresh = 0.25
 
-        detections = app.detector.detect(cv_img, conf_threshold=conf_thresh)
+        inspection_mode = request.form.get("inspection_mode", "standard").lower().strip()
+        if inspection_mode not in ["standard", "tiled", "sliced"]:
+            inspection_mode = "standard"
 
-        # 6. Generate genuine visual overlay
-        annotated_bgr = app.detector.draw_annotations(cv_img, detections)
-        annotated_b64 = app.detector.encode_image_to_base64(annotated_bgr)
+        try:
+            if inspection_mode in ["tiled", "sliced"] and hasattr(app.detector, "detect_sliced"):
+                detections = app.detector.detect_sliced(
+                    cv_img,
+                    conf_threshold=conf_thresh,
+                    raise_if_unloaded=True,
+                )
+            else:
+                detections = app.detector.detect(
+                    cv_img,
+                    conf_threshold=conf_thresh,
+                    raise_if_unloaded=True,
+                )
+            # 6. Generate genuine visual overlay
+            annotated_bgr = app.detector.draw_annotations(cv_img, detections)
+            annotated_b64 = app.detector.encode_image_to_base64(annotated_bgr)
+        except Exception as exc:
+            logger.exception(f"Inference error processing '{filename}': {str(exc)}")
+            return (
+                jsonify({
+                    "status": "error",
+                    "error_code": "INFERENCE_FAILED",
+                    "message": f"Inference execution failed: {str(exc)}",
+                }),
+                500,
+            )
 
         # Optionally persist annotated image to data/processed
         processed_dir = os.path.join("data", "processed")
@@ -278,6 +308,9 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
             "filename": filename,
             "metadata": metadata,
             "model_info": app.detector.model_info,
+            "inspection_mode": inspection_mode,
+            "confidence_threshold": conf_thresh,
+            "candidate_summary": getattr(app.detector, "last_inference_stats", {}),
             "detections": detections,
             "defect_count": len(detections),
             "annotated_image": annotated_b64,
@@ -295,4 +328,5 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
 app = create_app()
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    app.run(host="127.0.0.1", port=5000, debug=False)
+

@@ -127,6 +127,7 @@ class InspectionService:
             "filename": filename,
             "metadata": metadata,
             "model_info": self.detector.model_info,
+            "confidence_threshold": conf_threshold,
             "detections": detections,
             "defect_count": len(detections),
             "annotated_image_base64": annotated_b64,

@@ -248,3 +248,116 @@ def test_inspect_successful_inference_contract(client_with_mock_detections, samp
     assert bbox["y2"] > bbox["y1"]
     assert bbox["width"] == bbox["x2"] - bbox["x1"]
     assert bbox["height"] == bbox["y2"] - bbox["y1"]
+
+
+def test_inspect_inference_failure_returns_500_json(sample_road_bytes):
+    """Verifies that if an unexpected error occurs during inference, the server returns structured JSON with HTTP 500."""
+    class FailingDetector(DefectDetectionService):
+        def __init__(self):
+            super().__init__(model_path="ai/models/best.pt")
+            self.is_loaded = True
+            self.status_message = "Loaded"
+
+        def detect(self, image_bgr, conf_threshold=0.25, raise_if_unloaded=False):
+            raise RuntimeError("Simulated internal neural network layer failure")
+
+    failing_app = create_app(detector=FailingDetector(), test_config={"TESTING": True})
+    with failing_app.test_client() as client:
+        data = {
+            "image": (io.BytesIO(sample_road_bytes), "sample_road.jpg"),
+        }
+        res = client.post("/api/inspect", data=data, content_type="multipart/form-data")
+        assert res.status_code == 500
+        res_data = res.get_json()
+        assert res_data["status"] == "error"
+        assert res_data["error_code"] == "INFERENCE_FAILED"
+        assert "Simulated internal neural network" in res_data["message"]
+
+
+def test_inspect_with_real_best_pt_checkpoint(sample_road_bytes):
+    """Verifies real inference when ai/models/best.pt is available on disk."""
+    real_weights_path = Path(__file__).parent.parent / "ai" / "models" / "best.pt"
+    if not real_weights_path.exists():
+        pytest.skip("ai/models/best.pt not present; skipping real weights test")
+
+    real_detector = DefectDetectionService(model_path=str(real_weights_path))
+    assert real_detector.is_loaded is True
+
+    app = create_app(detector=real_detector, test_config={"TESTING": True})
+    with app.test_client() as client:
+        data = {
+            "image": (io.BytesIO(sample_road_bytes), "sample_road.jpg"),
+            "confidence_threshold": "0.25",
+        }
+        res = client.post("/api/inspect", data=data, content_type="multipart/form-data")
+        assert res.status_code == 200
+        res_data = res.get_json()
+        assert res_data["status"] == "success"
+        assert res_data["filename"] == "sample_road.jpg"
+        assert res_data["confidence_threshold"] == 0.25
+        assert res_data["model_info"]["checkpoint_path"] == str(real_weights_path)
+        assert isinstance(res_data["detections"], list)
+        assert res_data["defect_count"] == len(res_data["detections"])
+        assert res_data["annotated_image"].startswith("data:image/jpeg;base64,")
+
+
+def test_inspect_threshold_propagation_and_clamping(sample_road_bytes):
+    """Verifies that confidence_threshold is correctly passed, parsed, clamped, and echoed back."""
+    app = create_app(test_config={"TESTING": True})
+    with app.test_client() as client:
+        # Case 1: Custom valid threshold = 0.10
+        res = client.post(
+            "/api/inspect",
+            data={"image": (io.BytesIO(sample_road_bytes), "sample_road.jpg"), "confidence_threshold": "0.10"},
+            content_type="multipart/form-data",
+        )
+        assert res.status_code == 200
+        assert res.get_json()["confidence_threshold"] == 0.10
+
+        # Case 2: Minimum clamp = 0.05 when 0.01 provided
+        res = client.post(
+            "/api/inspect",
+            data={"image": (io.BytesIO(sample_road_bytes), "sample_road.jpg"), "confidence_threshold": "0.01"},
+            content_type="multipart/form-data",
+        )
+        assert res.status_code == 200
+        assert res.get_json()["confidence_threshold"] == 0.05
+
+        # Case 3: Maximum clamp = 0.95 when 0.99 provided
+        res = client.post(
+            "/api/inspect",
+            data={"image": (io.BytesIO(sample_road_bytes), "sample_road.jpg"), "confidence_threshold": "0.99"},
+            content_type="multipart/form-data",
+        )
+        assert res.status_code == 200
+        assert res.get_json()["confidence_threshold"] == 0.95
+
+        # Case 4: Default fallback = 0.25 when invalid string provided
+        res = client.post(
+            "/api/inspect",
+            data={"image": (io.BytesIO(sample_road_bytes), "sample_road.jpg"), "confidence_threshold": "invalid"},
+            content_type="multipart/form-data",
+        )
+        assert res.status_code == 200
+        assert res.get_json()["confidence_threshold"] == 0.25
+
+
+def test_inspect_empty_predictions_consistency(sample_road_bytes):
+    """Verifies that an image with zero detections returns a consistent, complete payload."""
+    app = create_app(test_config={"TESTING": True})
+    with app.test_client() as client:
+        # Request at high threshold 0.90
+        res = client.post(
+            "/api/inspect",
+            data={"image": (io.BytesIO(sample_road_bytes), "sample_road.jpg"), "confidence_threshold": "0.90"},
+            content_type="multipart/form-data",
+        )
+        assert res.status_code == 200
+        data = res.get_json()
+        assert data["status"] == "success"
+        assert data["confidence_threshold"] == 0.90
+        assert data["defect_count"] == 0
+        assert data["detections"] == []
+        assert data["annotated_image"].startswith("data:image/jpeg;base64,")
+        assert "Notice:" in data["disclaimer"]
+
