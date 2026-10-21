@@ -41,6 +41,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const metricDefectTypes = document.getElementById("metricDefectTypes");
     const metricTopConf = document.getElementById("metricTopConf");
     const metricModelName = document.getElementById("metricModelName");
+    const metricInspectionMode = document.getElementById("metricInspectionMode");
+    const metricModeCaption = document.getElementById("metricModeCaption");
 
     const metaFilename = document.getElementById("metaFilename");
     const metaFormat = document.getElementById("metaFormat");
@@ -191,10 +193,15 @@ document.addEventListener("DOMContentLoaded", () => {
         resultsContainer.style.display = "none";
     }
 
-    // 4. Confidence Threshold Slider
-    confSlider.addEventListener("input", (e) => {
-        confValDisplay.textContent = parseFloat(e.target.value).toFixed(2);
-    });
+    // 4. Confidence Threshold Slider Synchronization
+    function syncSliderDisplay() {
+        const val = parseFloat(confSlider.value);
+        confValDisplay.textContent = isNaN(val) ? "0.25" : val.toFixed(2);
+    }
+    // Synchronize immediately on page load in case browser restored previous input state
+    syncSliderDisplay();
+    confSlider.addEventListener("input", syncSliderDisplay);
+    confSlider.addEventListener("change", syncSliderDisplay);
 
     // 5. Run Inspection Action
     inspectBtn.addEventListener("click", async () => {
@@ -205,44 +212,89 @@ document.addEventListener("DOMContentLoaded", () => {
         inspectSpinner.style.display = "inline-block";
         inspectBtn.querySelector(".btn-text").textContent = "Analyzing Road Imagery...";
 
+        const activeThreshold = parseFloat(confSlider.value) || 0.25;
+        const modeRadio = document.querySelector('input[name="inspectionMode"]:checked');
+        const activeMode = modeRadio ? modeRadio.value : "standard";
+
         const formData = new FormData();
         formData.append("image", currentFile);
-        formData.append("confidence_threshold", confSlider.value);
+        formData.append("confidence_threshold", activeThreshold.toFixed(2));
+        formData.append("inspection_mode", activeMode);
 
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
+
+        let res;
         try {
-            const res = await fetch("/api/inspect", {
+            res = await fetch("/api/inspect", {
                 method: "POST",
                 body: formData,
+                signal: controller.signal,
             });
-
-            const data = await res.json();
-
-            if (!res.ok) {
-                handleApiError(data);
-                return;
+        } catch (fetchErr) {
+            clearTimeout(timeoutId);
+            console.error("Fetch communication failure:", fetchErr);
+            if (fetchErr.name === "AbortError") {
+                alert("Request timed out: Inference took longer than 60 seconds. Please try again with a smaller image or higher confidence threshold.");
+            } else {
+                alert(`Network connection error: Unable to reach the VisionGuard AI backend at ${window.location.origin}.\n\nDetails: ${fetchErr.message || "Connection refused"}\n\nPlease verify that 'python app/server.py' is running in your terminal.`);
             }
-
-            renderResults(data);
-
-        } catch (err) {
-            alert("Network error: Failed to communicate with the VisionGuard AI backend.");
+            return;
         } finally {
+            clearTimeout(timeoutId);
             inspectBtn.disabled = false;
             inspectSpinner.style.display = "none";
             inspectBtn.querySelector(".btn-text").textContent = "Run Defect Inspection";
         }
+
+        // Parse response body safely
+        let data = null;
+        const contentType = res.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+            try {
+                data = await res.json();
+            } catch (jsonErr) {
+                console.error("Failed to parse JSON response:", jsonErr);
+            }
+        }
+
+        if (!res.ok) {
+            let errorMsg = `Server responded with status HTTP ${res.status}`;
+            if (data && data.message) {
+                errorMsg = data.message;
+            } else {
+                try {
+                    const rawText = await res.text();
+                    if (rawText) errorMsg += `: ${rawText.substring(0, 150)}`;
+                } catch (_) {}
+            }
+            handleApiError(res.status, data, errorMsg);
+            return;
+        }
+
+        if (!data) {
+            alert("Protocol Error: The server returned a 200 OK status without a valid JSON body.");
+            return;
+        }
+
+        try {
+            renderResults(data);
+        } catch (renderErr) {
+            console.error("UI rendering error:", renderErr);
+            alert(`Rendering Error: Failed to display detection findings: ${renderErr.message}`);
+        }
     });
 
-    function handleApiError(data) {
-        if (data.error_code === "MODEL_WEIGHTS_MISSING") {
-            systemNoticeTitle.textContent = "Model Weights Checkpoint Required";
-            systemNoticeMsg.textContent = data.message;
-            systemNoticeInstructions.textContent = data.setup_instructions || "Place best.pt into ai/models/best.pt";
+    function handleApiError(status, data, message) {
+        if (status === 503 || (data && data.error_code === "MODEL_WEIGHTS_MISSING")) {
+            systemNoticeTitle.textContent = "Model Weights Checkpoint Required (HTTP 503)";
+            systemNoticeMsg.textContent = (data && data.message) || message;
+            systemNoticeInstructions.textContent = (data && data.setup_instructions) || "Place best.pt into ai/models/best.pt";
             systemNoticeInstructions.style.display = "block";
             systemNoticeBanner.style.display = "flex";
             window.scrollTo({ top: 0, behavior: "smooth" });
         } else {
-            alert(`Inspection Failed: ${data.message || "Unknown error"}`);
+            alert(`Inspection Failed (HTTP ${status}):\n${message}`);
         }
     }
 
@@ -266,11 +318,25 @@ document.addEventListener("DOMContentLoaded", () => {
         modelCheckpointCaption.textContent = modelInfo.name || "YOLOv8n";
         metricModelName.textContent = modelInfo.name || "YOLOv8 Nano";
 
+        // Inspection Mode Telemetry
+        const inspMode = (data.inspection_mode || "standard").toLowerCase();
+        if (inspMode === "tiled" || inspMode === "sliced") {
+            if (metricInspectionMode) metricInspectionMode.textContent = "Tiled Slicing";
+            const sliceCount = data.candidate_summary && data.candidate_summary.slice_count ? `${data.candidate_summary.slice_count} Tiles` : "High-Res";
+            if (metricModeCaption) metricModeCaption.textContent = `${sliceCount} (Continuous Coverage)`;
+        } else {
+            if (metricInspectionMode) metricInspectionMode.textContent = "Standard";
+            if (metricModeCaption) metricModeCaption.textContent = "Full-Frame 640px";
+        }
+
         // Defect Counts & Telemetry
         const detections = data.detections || [];
         const defectCount = detections.length;
+        const usedThreshold = (typeof data.confidence_threshold === "number")
+            ? data.confidence_threshold.toFixed(2)
+            : (parseFloat(confSlider.value) || 0.25).toFixed(2);
 
-        resultsCountBadge.textContent = `${defectCount} Defect${defectCount === 1 ? "" : "s"} Detected`;
+        resultsCountBadge.textContent = `${defectCount} Defect${defectCount === 1 ? "" : "s"} Detected (Threshold ≥ ${usedThreshold})`;
         resultsCountBadge.className = defectCount > 0 ? "badge badge-warning" : "badge badge-success";
 
         metricDefectCount.textContent = defectCount;
@@ -282,7 +348,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const maxConf = Math.max(...detections.map(d => d.confidence));
             metricTopConf.textContent = (maxConf * 100).toFixed(1) + "%";
         } else {
-            metricDefectTypes.textContent = "Sound Road Surface";
+            metricDefectTypes.textContent = `No defects ≥ ${usedThreshold}`;
             metricTopConf.textContent = "N/A";
         }
 
@@ -290,24 +356,59 @@ document.addEventListener("DOMContentLoaded", () => {
         detectionsTableBody.innerHTML = "";
         if (defectCount === 0) {
             const emptyRow = document.createElement("tr");
+            let suggestionHtml = "";
+            const cand = data.candidate_summary;
+            if (cand && cand.suggested_threshold && cand.suggested_threshold < parseFloat(usedThreshold)) {
+                suggestionHtml = `
+                    <div style="margin-top: 1rem; padding: 1rem; background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.35); border-radius: 8px; text-align: left; max-width: 620px; margin-left: auto; margin-right: auto;">
+                        <strong style="color: #60a5fa; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.3rem;">
+                            <span>💡</span> Subtle Distress Detected Below Threshold
+                        </strong>
+                        <p style="font-size: 0.9rem; color: var(--text-secondary); margin: 0.4rem 0 0.8rem 0; line-height: 1.4;">
+                            The AI model identified a candidate <strong>${cand.top_raw_class || "Distress"}</strong> with <strong>${(cand.top_raw_confidence * 100).toFixed(1)}% statistical confidence</strong>, but filtered it out because the current threshold is set to <strong>${usedThreshold}</strong>.
+                        </p>
+                        <button type="button" class="btn btn-secondary btn-sm" id="applySuggestedThresholdBtn" style="cursor: pointer; padding: 0.4rem 0.9rem; font-size: 0.85rem; font-weight: 600;">
+                            🔍 Inspect in Tiled Mode at ${cand.suggested_threshold.toFixed(2)} Threshold
+                        </button>
+                    </div>
+                `;
+            }
+
             emptyRow.innerHTML = `
-                <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">
-                    ✅ No surface cracks or potholes detected at confidence threshold ≥ ${confSlider.value}.
+                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">
+                    <div>✅ No surface cracks or potholes detected at confidence threshold ≥ ${usedThreshold}.</div>
+                    ${suggestionHtml}
                 </td>
             `;
             detectionsTableBody.appendChild(emptyRow);
+
+            const applyBtn = document.getElementById("applySuggestedThresholdBtn");
+            if (applyBtn && cand && cand.suggested_threshold) {
+                applyBtn.addEventListener("click", () => {
+                    confSlider.value = cand.suggested_threshold.toFixed(2);
+                    syncSliderDisplay();
+                    const tiledRadio = document.querySelector('input[name="inspectionMode"][value="tiled"]');
+                    if (tiledRadio) tiledRadio.checked = true;
+                    inspectBtn.click();
+                });
+            }
         } else {
             detections.forEach((det, idx) => {
                 const tr = document.createElement("tr");
                 const bbox = det.bbox || {};
                 const coords = `[${bbox.x1}, ${bbox.y1}, ${bbox.x2}, ${bbox.y2}]`;
                 const extent = `${bbox.width} × ${bbox.height} px`;
+                const src = det.source || "global";
+                const srcBadge = src === "tiled"
+                    ? '<span class="badge badge-info" style="font-size: 0.72rem; padding: 2px 6px;">🔬 Tiled</span>'
+                    : '<span class="badge badge-secondary" style="font-size: 0.72rem; padding: 2px 6px;">⚡ Full-Frame</span>';
 
                 tr.innerHTML = `
                     <td><strong>${idx + 1}</strong></td>
                     <td><span class="badge badge-info">${det.distress_category}</span></td>
                     <td><code>${det.class_name}</code></td>
                     <td><strong>${(det.confidence * 100).toFixed(1)}%</strong></td>
+                    <td>${srcBadge}</td>
                     <td><code>${coords}</code></td>
                     <td>${extent}</td>
                 `;

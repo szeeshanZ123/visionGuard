@@ -110,9 +110,29 @@
                         Detection Confidence Threshold: 
                         <strong id="confValDisplay">0.25</strong>
                     </label>
-                    <input type="range" id="confSlider" min="0.10" max="0.90" step="0.05" value="0.25">
+                    <input type="range" id="confSlider" min="0.05" max="0.95" step="0.05" value="0.25">
                     <span class="control-hint">Minimum statistical probability to register a distress bounding box.</span>
                 </div>
+
+                <div class="control-group">
+                    <label>Inspection Mode:</label>
+                    <div class="segmented-control" id="inspectionModeGroup">
+                        <label class="segmented-option">
+                            <input type="radio" name="inspectionMode" value="standard" checked>
+                            <span class="segmented-label">
+                                <span class="mode-icon">⚡</span> Standard (Fast)
+                            </span>
+                        </label>
+                        <label class="segmented-option">
+                            <input type="radio" name="inspectionMode" value="tiled">
+                            <span class="segmented-label">
+                                <span class="mode-icon">🔬</span> Tiled Slicing (Deep Crack Coverage)
+                            </span>
+                        </label>
+                    </div>
+                    <span class="control-hint">Tiled slicing scans native resolution sub-windows to preserve continuous crack geometry.</span>
+                </div>
+
                 <div class="action-buttons">
                     <button type="button" class="btn btn-primary" id="inspectBtn" disabled>
                         <span class="btn-text">Run Defect Inspection</span>
@@ -169,6 +189,11 @@
                     <strong class="metric-value text-sm" id="metricModelName">YOLOv8n</strong>
                     <span class="metric-caption">RDD2022 India Weights</span>
                 </div>
+                <div class="metric-card">
+                    <span class="metric-label">Inspection Mode</span>
+                    <strong class="metric-value text-sm" id="metricInspectionMode">Standard</strong>
+                    <span class="metric-caption" id="metricModeCaption">Full-Frame 640px</span>
+                </div>
             </div>
 
             <!-- Technical Image Metadata Table -->
@@ -199,6 +224,7 @@
                                 <th>Distress Category</th>
                                 <th>Class ID</th>
                                 <th>Statistical Confidence</th>
+                                <th>Source</th>
                                 <th>Bounding Box [x1, y1, x2, y2]</th>
                                 <th>Pixel Extent (W × H)</th>
                             </tr>
