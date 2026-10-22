@@ -20,7 +20,10 @@
                 </div>
             </div>
             <nav class="nav-tabs" id="navTabs">
-                <button type="button" class="nav-tab-btn active" id="tabNewInspectionBtn">
+                <button type="button" class="nav-tab-btn active" id="tabDashboardBtn">
+                    <span>📊</span> Dashboard
+                </button>
+                <button type="button" class="nav-tab-btn" id="tabNewInspectionBtn">
                     <span>🔬</span> New Inspection
                 </button>
                 <button type="button" class="nav-tab-btn" id="tabRecordsBtn">
@@ -46,8 +49,209 @@
             </div>
         </div>
 
+        <!-- Dashboard Section Wrapper -->
+        <section class="dashboard-container" id="dashboardSection">
+            <div class="dash-header">
+                <div>
+                    <h2>📊 Infrastructure Defect Analytics Dashboard</h2>
+                    <p>Real-time distress distribution, resolution workflows, and audit intelligence calculated from local SQLite database.</p>
+                </div>
+                <div class="dash-actions">
+                    <button type="button" class="btn btn-secondary btn-sm" id="refreshDashboardBtn">🔄 Refresh Analytics</button>
+                    <button type="button" class="btn btn-primary btn-sm" id="dashStartInspectionBtn">➕ New Inspection</button>
+                </div>
+            </div>
+
+            <!-- KPI Metric Summary Row (5 Cards) -->
+            <div class="metrics-row dash-kpi-row" id="dashKpiRow">
+                <div class="metric-card">
+                    <span class="metric-label">Total Inspections</span>
+                    <strong class="metric-value" id="dashTotalInspections">0</strong>
+                    <span class="metric-caption">Persisted in SQLite</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Total Detected Defects</span>
+                    <strong class="metric-value text-danger" id="dashTotalDefects">0</strong>
+                    <span class="metric-caption">Cracks & Potholes</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Open Records</span>
+                    <strong class="metric-value text-info" id="dashOpenRecords">0</strong>
+                    <span class="metric-caption">Awaiting review</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">In-Progress Records</span>
+                    <strong class="metric-value text-warning" id="dashInProgressRecords">0</strong>
+                    <span class="metric-caption">Active review / repair</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Resolved Records</span>
+                    <strong class="metric-value text-success" id="dashResolvedRecords">0</strong>
+                    <span class="metric-caption">Workflow closed</span>
+                </div>
+            </div>
+
+            <!-- Visual Analytics Grid: Defect Categories Chart & Status Breakdown -->
+            <div class="dash-analytics-grid">
+                <!-- Defect Category Distribution Chart Card -->
+                <div class="card dash-chart-card">
+                    <div class="card-header-row">
+                        <div>
+                            <h3>Defect Category Distribution</h3>
+                            <p class="card-subtitle">Real-world distress classification from authentic YOLOv8 inference telemetry</p>
+                        </div>
+                        <span class="badge badge-secondary" id="dashDefectsTotalBadge">0 Total Distress Instances</span>
+                    </div>
+
+                    <div class="category-bars-container" id="dashCategoryBarsContainer">
+                        <!-- Longitudinal Crack -->
+                        <div class="category-bar-item">
+                            <div class="category-bar-meta">
+                                <span class="category-title">
+                                    <span class="color-dot dot-longitudinal"></span>
+                                    Longitudinal Crack <code class="class-code">D00</code>
+                                </span>
+                                <span class="category-stat" id="statCatLongitudinal">0 (0.0%)</span>
+                            </div>
+                            <div class="category-progress-track">
+                                <div class="category-progress-bar bar-longitudinal" id="barCatLongitudinal" style="width: 0%;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Transverse Crack -->
+                        <div class="category-bar-item">
+                            <div class="category-bar-meta">
+                                <span class="category-title">
+                                    <span class="color-dot dot-transverse"></span>
+                                    Transverse Crack <code class="class-code">D10</code>
+                                </span>
+                                <span class="category-stat" id="statCatTransverse">0 (0.0%)</span>
+                            </div>
+                            <div class="category-progress-track">
+                                <div class="category-progress-bar bar-transverse" id="barCatTransverse" style="width: 0%;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Alligator Crack -->
+                        <div class="category-bar-item">
+                            <div class="category-bar-meta">
+                                <span class="category-title">
+                                    <span class="color-dot dot-alligator"></span>
+                                    Alligator Crack <code class="class-code">D20</code>
+                                </span>
+                                <span class="category-stat" id="statCatAlligator">0 (0.0%)</span>
+                            </div>
+                            <div class="category-progress-track">
+                                <div class="category-progress-bar bar-alligator" id="barCatAlligator" style="width: 0%;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Pothole -->
+                        <div class="category-bar-item">
+                            <div class="category-bar-meta">
+                                <span class="category-title">
+                                    <span class="color-dot dot-pothole"></span>
+                                    Pothole <code class="class-code">D40</code>
+                                </span>
+                                <span class="category-stat" id="statCatPothole">0 (0.0%)</span>
+                            </div>
+                            <div class="category-progress-track">
+                                <div class="category-progress-bar bar-pothole" id="barCatPothole" style="width: 0%;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Defect Empty State if zero defects across all records -->
+                    <div class="chart-empty-state" id="dashDefectsEmptyState" style="display: none;">
+                        <span class="empty-icon-sm">🛣️</span>
+                        <p>No defects recorded in saved inspections. All surveyed road surfaces are sound or zero-defect.</p>
+                    </div>
+                </div>
+
+                <!-- Workflow Resolution Health Card -->
+                <div class="card dash-workflow-card">
+                    <div class="card-header-row">
+                        <div>
+                            <h3>Remediation Workflow Status</h3>
+                            <p class="card-subtitle">Distribution of inspection lifecycle states in database</p>
+                        </div>
+                    </div>
+
+                    <div class="workflow-stacked-bar-container">
+                        <div class="workflow-stacked-bar" id="dashWorkflowStackedBar">
+                            <div class="stacked-segment segment-open" id="segmentOpen" style="width: 0%;" title="Open"></div>
+                            <div class="stacked-segment segment-progress" id="segmentProgress" style="width: 0%;" title="In Progress"></div>
+                            <div class="stacked-segment segment-resolved" id="segmentResolved" style="width: 0%;" title="Resolved"></div>
+                        </div>
+                        <div class="workflow-legend">
+                            <div class="legend-item">
+                                <span class="legend-dot dot-open"></span>
+                                <span class="legend-text">Open: <strong id="legendOpenCount">0</strong> (<span id="legendOpenPct">0%</span>)</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-dot dot-progress"></span>
+                                <span class="legend-text">In Progress: <strong id="legendProgressCount">0</strong> (<span id="legendProgressPct">0%</span>)</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-dot dot-resolved"></span>
+                                <span class="legend-text">Resolved: <strong id="legendResolvedCount">0</strong> (<span id="legendResolvedPct">0%</span>)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-disclaimer alert-sm" style="margin-top: 1.25rem;">
+                        <div class="alert-icon">ℹ️</div>
+                        <div class="alert-content">
+                            <strong>Workflow Tracking Notice:</strong>
+                            <p>Status classifications represent administrative office tracking. Marking records as "Resolved" or "In Progress" does not certify physical structural repairs.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Inspections Table Card -->
+            <div class="card dash-recent-card">
+                <div class="card-header-row">
+                    <div>
+                        <h3>Recent Road Inspections</h3>
+                        <p class="card-subtitle">Latest 5 surveyed surface records loaded from SQLite</p>
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-sm" id="dashViewAllRecordsBtn">View All In Records History →</button>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="data-table" id="dashRecentTable">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Road / Location</th>
+                                <th>Inspection Date</th>
+                                <th>Defects Detected</th>
+                                <th>Top Confidence</th>
+                                <th>Current Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashRecentTableBody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Empty State for Recent Table -->
+                <div class="empty-state" id="dashEmptyState" style="display: none; padding: 2.5rem 1rem;">
+                    <div class="empty-icon">📭</div>
+                    <h3>No Saved Inspections Yet</h3>
+                    <p>The database currently contains no saved road defect inspections. Run your first inspection to start compiling analytics.</p>
+                    <button type="button" class="btn btn-primary" id="dashEmptyNewInspectionBtn" style="margin-top: 1rem;">
+                        🔬 Run First Inspection
+                    </button>
+                </div>
+            </div>
+        </section>
+
         <!-- New Inspection Section Wrapper -->
-        <div id="newInspectionSection">
+        <div id="newInspectionSection" style="display: none;">
             <!-- Ingestion Guidelines Callout -->
             <section class="guidelines-card">
             <div class="guidelines-header" id="guidelinesToggle">
@@ -264,6 +468,7 @@
                         <label for="saveStatusSelect">Initial Status:</label>
                         <select id="saveStatusSelect" class="form-control">
                             <option value="Open" selected>🔵 Open</option>
+                            <option value="In Progress">🟠 In Progress</option>
                             <option value="Under Review">🟡 Under Review</option>
                             <option value="Repair in Progress">🟠 Repair in Progress</option>
                             <option value="Resolved">🟢 Resolved</option>
@@ -307,17 +512,38 @@
                     <p>Historical registry of road surface distress inspections persisted in local database.</p>
                 </div>
                 <div class="records-actions">
-                    <div class="filter-group">
-                        <label for="recordsStatusFilter">Filter by Status:</label>
-                        <select id="recordsStatusFilter" class="form-control form-control-sm">
-                            <option value="">All Statuses</option>
-                            <option value="Open">🔵 Open</option>
-                            <option value="Under Review">🟡 Under Review</option>
-                            <option value="Repair in Progress">🟠 Repair in Progress</option>
-                            <option value="Resolved">🟢 Resolved</option>
-                        </select>
+                    <div class="filter-controls-row">
+                        <div class="filter-group">
+                            <label for="recordsStatusFilter">Status:</label>
+                            <select id="recordsStatusFilter" class="form-control form-control-sm">
+                                <option value="">All Statuses</option>
+                                <option value="Open">🔵 Open</option>
+                                <option value="In Progress">🟠 In Progress</option>
+                                <option value="Under Review">🟡 Under Review</option>
+                                <option value="Repair in Progress">🟠 Repair in Progress</option>
+                                <option value="Resolved">🟢 Resolved</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="recordsCategoryFilter">Defect Category:</label>
+                            <select id="recordsCategoryFilter" class="form-control form-control-sm">
+                                <option value="">All Categories</option>
+                                <option value="Longitudinal">Longitudinal Crack (D00)</option>
+                                <option value="Transverse">Transverse Crack (D10)</option>
+                                <option value="Alligator">Alligator Crack (D20)</option>
+                                <option value="Pothole">Pothole (D40)</option>
+                                <option value="Sound">Sound Surface (0 Defects)</option>
+                            </select>
+                        </div>
+                        <div class="filter-group flex-grow">
+                            <label for="recordsSearchInput">Search Location:</label>
+                            <input type="text" id="recordsSearchInput" class="form-control form-control-sm" placeholder="Search road name or notes...">
+                        </div>
+                        <div class="filter-buttons">
+                            <button type="button" class="btn btn-secondary btn-sm" id="resetRecordsFiltersBtn" title="Reset all filters">✕ Reset</button>
+                            <button type="button" class="btn btn-secondary btn-sm" id="refreshRecordsBtn">🔄 Refresh</button>
+                        </div>
                     </div>
-                    <button type="button" class="btn btn-secondary btn-sm" id="refreshRecordsBtn">🔄 Refresh</button>
                 </div>
             </div>
 
@@ -400,6 +626,7 @@
                         <label for="detailStatusSelect">Change Status To:</label>
                         <select id="detailStatusSelect" class="form-control">
                             <option value="Open">🔵 Open</option>
+                            <option value="In Progress">🟠 In Progress</option>
                             <option value="Under Review">🟡 Under Review</option>
                             <option value="Repair in Progress">🟠 Repair in Progress</option>
                             <option value="Resolved">🟢 Resolved</option>

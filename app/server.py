@@ -35,6 +35,7 @@ from database.db import (
     row_to_dict,
     save_inspection,
     get_inspections,
+    get_dashboard_analytics,
     get_inspection_by_id,
     update_inspection_status,
     delete_inspection,
@@ -351,20 +352,46 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
     # -------------------------------------------------------------------------
     # Inspection Records API Routes
     # -------------------------------------------------------------------------
+    @app.route("/api/dashboard/stats", methods=["GET"])
+    def api_get_dashboard_stats():
+        """
+        Returns aggregate defect metrics, category distribution, and recent records
+        calculated dynamically from actual SQLite database rows.
+        """
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        stats = get_dashboard_analytics(db_path=db_path)
+        return jsonify({
+            "status": "success",
+            "stats": stats,
+            "disclaimer": (
+                "Notice: Dashboard statistics and resolution states are compiled from "
+                "administrative workflow records and do not certify that physical pavement repairs "
+                "have occurred or engineering structural integrity has been verified."
+            )
+        }), 200
+
     @app.route("/api/inspections", methods=["GET"])
     def api_get_inspections():
         """
-        Lists saved inspection records with optional status filtering.
-        Query params: status, limit (default 100), offset (default 0).
+        Lists saved inspection records with optional filtering.
+        Query params: status, category, q (search query), limit, offset.
         """
         db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
         status_filter = request.args.get("status")
-        if status_filter and status_filter not in ALLOWED_STATUSES:
+        if (
+            status_filter
+            and status_filter.strip()
+            and status_filter.strip() not in ALLOWED_STATUSES
+            and status_filter.strip().lower() not in ["all", "in progress group", "in-progress", "active"]
+        ):
             return jsonify({
                 "status": "error",
                 "error_code": "INVALID_STATUS_FILTER",
                 "message": f"Status '{status_filter}' is invalid. Allowed: {ALLOWED_STATUSES}",
             }), 400
+
+        category_filter = request.args.get("category")
+        search_query = request.args.get("q") or request.args.get("search")
 
         try:
             limit = min(200, max(1, int(request.args.get("limit", 100))))
@@ -373,7 +400,14 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
             limit = 100
             offset = 0
 
-        inspections = get_inspections(status=status_filter, limit=limit, offset=offset, db_path=db_path)
+        inspections = get_inspections(
+            status=status_filter if status_filter and status_filter.lower() != "all" else None,
+            limit=limit,
+            offset=offset,
+            category=category_filter if category_filter and category_filter.lower() != "all" else None,
+            search_query=search_query,
+            db_path=db_path
+        )
         return jsonify({
             "status": "success",
             "count": len(inspections),

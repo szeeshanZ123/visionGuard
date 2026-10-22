@@ -455,12 +455,52 @@ document.addEventListener("DOMContentLoaded", () => {
     let isSaving = false;
     let currentDetailId = null;
 
+    const tabDashboardBtn = document.getElementById("tabDashboardBtn");
     const tabNewInspectionBtn = document.getElementById("tabNewInspectionBtn");
     const tabRecordsBtn = document.getElementById("tabRecordsBtn");
+    const dashboardSection = document.getElementById("dashboardSection");
     const newInspectionSection = document.getElementById("newInspectionSection");
     const recordsSection = document.getElementById("recordsSection");
     const recordDetailSection = document.getElementById("recordDetailSection");
     const recordsCountBadgeHeader = document.getElementById("recordsCountBadgeHeader");
+
+    const refreshDashboardBtn = document.getElementById("refreshDashboardBtn");
+    const dashStartInspectionBtn = document.getElementById("dashStartInspectionBtn");
+    const dashViewAllRecordsBtn = document.getElementById("dashViewAllRecordsBtn");
+    const dashEmptyNewInspectionBtn = document.getElementById("dashEmptyNewInspectionBtn");
+
+    const dashTotalInspections = document.getElementById("dashTotalInspections");
+    const dashTotalDefects = document.getElementById("dashTotalDefects");
+    const dashOpenRecords = document.getElementById("dashOpenRecords");
+    const dashInProgressRecords = document.getElementById("dashInProgressRecords");
+    const dashResolvedRecords = document.getElementById("dashResolvedRecords");
+
+    const dashDefectsTotalBadge = document.getElementById("dashDefectsTotalBadge");
+    const dashCategoryBarsContainer = document.getElementById("dashCategoryBarsContainer");
+    const dashDefectsEmptyState = document.getElementById("dashDefectsEmptyState");
+
+    const statCatLongitudinal = document.getElementById("statCatLongitudinal");
+    const barCatLongitudinal = document.getElementById("barCatLongitudinal");
+    const statCatTransverse = document.getElementById("statCatTransverse");
+    const barCatTransverse = document.getElementById("barCatTransverse");
+    const statCatAlligator = document.getElementById("statCatAlligator");
+    const barCatAlligator = document.getElementById("barCatAlligator");
+    const statCatPothole = document.getElementById("statCatPothole");
+    const barCatPothole = document.getElementById("barCatPothole");
+
+    const segmentOpen = document.getElementById("segmentOpen");
+    const segmentProgress = document.getElementById("segmentProgress");
+    const segmentResolved = document.getElementById("segmentResolved");
+    const legendOpenCount = document.getElementById("legendOpenCount");
+    const legendOpenPct = document.getElementById("legendOpenPct");
+    const legendProgressCount = document.getElementById("legendProgressCount");
+    const legendProgressPct = document.getElementById("legendProgressPct");
+    const legendResolvedCount = document.getElementById("legendResolvedCount");
+    const legendResolvedPct = document.getElementById("legendResolvedPct");
+
+    const dashRecentTable = document.getElementById("dashRecentTable");
+    const dashRecentTableBody = document.getElementById("dashRecentTableBody");
+    const dashEmptyState = document.getElementById("dashEmptyState");
 
     const saveInspectionBtn = document.getElementById("saveInspectionBtn");
     const saveSpinner = document.getElementById("saveSpinner");
@@ -471,6 +511,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const saveStatusSelect = document.getElementById("saveStatusSelect");
 
     const recordsStatusFilter = document.getElementById("recordsStatusFilter");
+    const recordsCategoryFilter = document.getElementById("recordsCategoryFilter");
+    const recordsSearchInput = document.getElementById("recordsSearchInput");
+    const resetRecordsFiltersBtn = document.getElementById("resetRecordsFiltersBtn");
     const refreshRecordsBtn = document.getElementById("refreshRecordsBtn");
     const recordsTable = document.getElementById("recordsTable");
     const recordsTableBody = document.getElementById("recordsTableBody");
@@ -505,6 +548,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function getStatusBadgeClass(status) {
         switch (status) {
             case "Open": return "badge badge-status-open";
+            case "In Progress": return "badge badge-status-in-progress";
             case "Under Review": return "badge badge-status-review";
             case "Repair in Progress": return "badge badge-status-repair";
             case "Resolved": return "badge badge-status-resolved";
@@ -526,32 +570,53 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // View Navigation
     function switchView(viewName) {
-        if (viewName === "new") {
-            tabNewInspectionBtn.classList.add("active");
-            tabRecordsBtn.classList.remove("active");
-            newInspectionSection.style.display = "block";
-            recordsSection.style.display = "none";
-            recordDetailSection.style.display = "none";
+        if (viewName === "dashboard") {
+            if (tabDashboardBtn) tabDashboardBtn.classList.add("active");
+            if (tabNewInspectionBtn) tabNewInspectionBtn.classList.remove("active");
+            if (tabRecordsBtn) tabRecordsBtn.classList.remove("active");
+            if (dashboardSection) dashboardSection.style.display = "flex";
+            if (newInspectionSection) newInspectionSection.style.display = "none";
+            if (recordsSection) recordsSection.style.display = "none";
+            if (recordDetailSection) recordDetailSection.style.display = "none";
+            loadDashboardStats();
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        } else if (viewName === "new") {
+            if (tabDashboardBtn) tabDashboardBtn.classList.remove("active");
+            if (tabNewInspectionBtn) tabNewInspectionBtn.classList.add("active");
+            if (tabRecordsBtn) tabRecordsBtn.classList.remove("active");
+            if (dashboardSection) dashboardSection.style.display = "none";
+            if (newInspectionSection) newInspectionSection.style.display = "block";
+            if (recordsSection) recordsSection.style.display = "none";
+            if (recordDetailSection) recordDetailSection.style.display = "none";
         } else if (viewName === "records") {
-            tabNewInspectionBtn.classList.remove("active");
-            tabRecordsBtn.classList.add("active");
-            newInspectionSection.style.display = "none";
-            recordsSection.style.display = "flex";
-            recordDetailSection.style.display = "none";
+            if (tabDashboardBtn) tabDashboardBtn.classList.remove("active");
+            if (tabNewInspectionBtn) tabNewInspectionBtn.classList.remove("active");
+            if (tabRecordsBtn) tabRecordsBtn.classList.add("active");
+            if (dashboardSection) dashboardSection.style.display = "none";
+            if (newInspectionSection) newInspectionSection.style.display = "none";
+            if (recordsSection) recordsSection.style.display = "flex";
+            if (recordDetailSection) recordDetailSection.style.display = "none";
             loadRecords();
         } else if (viewName === "detail") {
-            tabNewInspectionBtn.classList.remove("active");
-            tabRecordsBtn.classList.add("active");
-            newInspectionSection.style.display = "none";
-            recordsSection.style.display = "none";
-            recordDetailSection.style.display = "flex";
+            if (tabDashboardBtn) tabDashboardBtn.classList.remove("active");
+            if (tabNewInspectionBtn) tabNewInspectionBtn.classList.remove("active");
+            if (tabRecordsBtn) tabRecordsBtn.classList.add("active");
+            if (dashboardSection) dashboardSection.style.display = "none";
+            if (newInspectionSection) newInspectionSection.style.display = "none";
+            if (recordsSection) recordsSection.style.display = "none";
+            if (recordDetailSection) recordDetailSection.style.display = "flex";
             window.scrollTo({ top: 0, behavior: "smooth" });
         }
     }
 
+    if (tabDashboardBtn) tabDashboardBtn.addEventListener("click", () => switchView("dashboard"));
     if (tabNewInspectionBtn) tabNewInspectionBtn.addEventListener("click", () => switchView("new"));
     if (tabRecordsBtn) tabRecordsBtn.addEventListener("click", () => switchView("records"));
     if (backToRecordsBtn) backToRecordsBtn.addEventListener("click", () => switchView("records"));
+    if (dashStartInspectionBtn) dashStartInspectionBtn.addEventListener("click", () => switchView("new"));
+    if (dashEmptyNewInspectionBtn) dashEmptyNewInspectionBtn.addEventListener("click", () => switchView("new"));
+    if (dashViewAllRecordsBtn) dashViewAllRecordsBtn.addEventListener("click", () => switchView("records"));
+    if (refreshDashboardBtn) refreshDashboardBtn.addEventListener("click", loadDashboardStats);
 
     // Initial Count Fetch
     async function loadRecordsHeaderCount() {
@@ -672,12 +737,175 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Load Records History
+    // Debounce helper for search input
+    function debounce(fn, delay) {
+        let timer = null;
+        return function(...args) {
+            clearTimeout(timer);
+            timer = setTimeout(() => fn.apply(this, args), delay);
+        };
+    }
+
+    // Load Dashboard Statistics & Analytics
+    async function loadDashboardStats() {
+        if (!dashTotalInspections) return;
+
+        try {
+            const res = await fetch("/api/dashboard/stats");
+            const data = await res.json();
+            if (!res.ok || data.status !== "success") {
+                throw new Error(data.message || "Failed to load dashboard metrics");
+            }
+
+            const stats = data.stats || {};
+            const totalInspections = stats.total_inspections || 0;
+            const totalDefects = stats.total_defects || 0;
+            const openRecords = stats.open_records || 0;
+            const inProgressRecords = stats.in_progress_records || 0;
+            const resolvedRecords = stats.resolved_records || 0;
+
+            dashTotalInspections.textContent = totalInspections;
+            dashTotalDefects.textContent = totalDefects;
+            dashOpenRecords.textContent = openRecords;
+            dashInProgressRecords.textContent = inProgressRecords;
+            dashResolvedRecords.textContent = resolvedRecords;
+
+            if (recordsCountBadgeHeader) recordsCountBadgeHeader.textContent = totalInspections;
+
+            // Defect categories breakdown
+            const cats = stats.defect_categories || {};
+            const longCount = cats["Longitudinal Crack"] || 0;
+            const transCount = cats["Transverse Crack"] || 0;
+            const alliCount = cats["Alligator Crack"] || 0;
+            const potCount = cats["Pothole"] || 0;
+
+            if (dashDefectsTotalBadge) {
+                dashDefectsTotalBadge.textContent = `${totalDefects} Total Distress Instances`;
+            }
+
+            if (totalDefects === 0) {
+                if (dashDefectsEmptyState) dashDefectsEmptyState.style.display = "block";
+                if (dashCategoryBarsContainer) dashCategoryBarsContainer.style.display = "none";
+            } else {
+                if (dashDefectsEmptyState) dashDefectsEmptyState.style.display = "none";
+                if (dashCategoryBarsContainer) dashCategoryBarsContainer.style.display = "flex";
+
+                const longPct = ((longCount / totalDefects) * 100).toFixed(1);
+                const transPct = ((transCount / totalDefects) * 100).toFixed(1);
+                const alliPct = ((alliCount / totalDefects) * 100).toFixed(1);
+                const potPct = ((potCount / totalDefects) * 100).toFixed(1);
+
+                if (statCatLongitudinal) statCatLongitudinal.textContent = `${longCount} (${longPct}%)`;
+                if (barCatLongitudinal) barCatLongitudinal.style.width = `${longPct}%`;
+
+                if (statCatTransverse) statCatTransverse.textContent = `${transCount} (${transPct}%)`;
+                if (barCatTransverse) barCatTransverse.style.width = `${transPct}%`;
+
+                if (statCatAlligator) statCatAlligator.textContent = `${alliCount} (${alliPct}%)`;
+                if (barCatAlligator) barCatAlligator.style.width = `${alliPct}%`;
+
+                if (statCatPothole) statCatPothole.textContent = `${potCount} (${potPct}%)`;
+                if (barCatPothole) barCatPothole.style.width = `${potPct}%`;
+            }
+
+            // Workflow status distribution
+            if (totalInspections > 0) {
+                const openPct = ((openRecords / totalInspections) * 100).toFixed(1);
+                const progPct = ((inProgressRecords / totalInspections) * 100).toFixed(1);
+                const resPct = ((resolvedRecords / totalInspections) * 100).toFixed(1);
+
+                if (segmentOpen) segmentOpen.style.width = `${openPct}%`;
+                if (segmentProgress) segmentProgress.style.width = `${progPct}%`;
+                if (segmentResolved) segmentResolved.style.width = `${resPct}%`;
+
+                if (legendOpenCount) legendOpenCount.textContent = openRecords;
+                if (legendOpenPct) legendOpenPct.textContent = `${openPct}%`;
+                if (legendProgressCount) legendProgressCount.textContent = inProgressRecords;
+                if (legendProgressPct) legendProgressPct.textContent = `${progPct}%`;
+                if (legendResolvedCount) legendResolvedCount.textContent = resolvedRecords;
+                if (legendResolvedPct) legendResolvedPct.textContent = `${resPct}%`;
+            } else {
+                if (segmentOpen) segmentOpen.style.width = "0%";
+                if (segmentProgress) segmentProgress.style.width = "0%";
+                if (segmentResolved) segmentResolved.style.width = "0%";
+                if (legendOpenCount) legendOpenCount.textContent = "0";
+                if (legendOpenPct) legendOpenPct.textContent = "0%";
+                if (legendProgressCount) legendProgressCount.textContent = "0";
+                if (legendProgressPct) legendProgressPct.textContent = "0%";
+                if (legendResolvedCount) legendResolvedCount.textContent = "0";
+                if (legendResolvedPct) legendResolvedPct.textContent = "0%";
+            }
+
+            // Recent inspections
+            renderRecentTable(stats.recent_inspections || []);
+        } catch (err) {
+            console.error("Dashboard stats error:", err);
+        }
+    }
+
+    // Render Recent Inspections Table on Dashboard
+    function renderRecentTable(inspections) {
+        if (!dashRecentTableBody) return;
+        dashRecentTableBody.innerHTML = "";
+
+        if (!inspections || inspections.length === 0) {
+            if (dashEmptyState) dashEmptyState.style.display = "block";
+            if (dashRecentTable) dashRecentTable.style.display = "none";
+            return;
+        }
+
+        if (dashEmptyState) dashEmptyState.style.display = "none";
+        if (dashRecentTable) dashRecentTable.style.display = "table";
+
+        inspections.forEach(rec => {
+            const tr = document.createElement("tr");
+            const roadDisplay = rec.road_name ? `<strong>${rec.road_name}</strong>` : '<span style="color: var(--text-muted); font-style: italic;">Unspecified Location</span>';
+            const countDisplay = rec.defect_count > 0 
+                ? `<span class="badge badge-warning" style="font-weight: 700;">${rec.defect_count} Defect${rec.defect_count === 1 ? "" : "s"}</span>`
+                : `<span class="badge badge-success">0 (Sound)</span>`;
+            const confDisplay = rec.defect_count > 0 && rec.confidence ? `${(rec.confidence * 100).toFixed(1)}%` : "N/A";
+            const statusClass = getStatusBadgeClass(rec.status);
+
+            tr.innerHTML = `
+                <td><strong>#${rec.id}</strong></td>
+                <td>${roadDisplay}</td>
+                <td><span style="font-size: 0.82rem; color: var(--text-secondary);">${formatDateTime(rec.uploaded_at)}</span></td>
+                <td>${countDisplay}</td>
+                <td><strong>${confDisplay}</strong></td>
+                <td><span class="${statusClass}">${rec.status}</span></td>
+                <td>
+                    <button type="button" class="btn btn-secondary btn-sm open-recent-btn" data-id="${rec.id}">
+                        👁️ View Details
+                    </button>
+                </td>
+            `;
+            dashRecentTableBody.appendChild(tr);
+        });
+
+        document.querySelectorAll(".open-recent-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+                const id = btn.getAttribute("data-id");
+                openRecordDetail(id);
+            });
+        });
+    }
+
+    // Load Records History
     async function loadRecords() {
         const filterStatus = recordsStatusFilter ? recordsStatusFilter.value : "";
+        const filterCategory = recordsCategoryFilter ? recordsCategoryFilter.value : "";
+        const filterSearch = recordsSearchInput ? recordsSearchInput.value.trim() : "";
+
         recordsTableBody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 2rem; color: var(--text-muted);">Loading inspection records...</td></tr>`;
 
         try {
-            const url = filterStatus ? `/api/inspections?status=${encodeURIComponent(filterStatus)}` : "/api/inspections";
+            const params = new URLSearchParams();
+            if (filterStatus) params.append("status", filterStatus);
+            if (filterCategory) params.append("category", filterCategory);
+            if (filterSearch) params.append("q", filterSearch);
+
+            const queryString = params.toString();
+            const url = queryString ? `/api/inspections?${queryString}` : "/api/inspections";
             const res = await fetch(url);
             const data = await res.json();
 
@@ -696,6 +924,16 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (recordsStatusFilter) recordsStatusFilter.addEventListener("change", loadRecords);
+    if (recordsCategoryFilter) recordsCategoryFilter.addEventListener("change", loadRecords);
+    if (recordsSearchInput) recordsSearchInput.addEventListener("input", debounce(loadRecords, 300));
+    if (resetRecordsFiltersBtn) {
+        resetRecordsFiltersBtn.addEventListener("click", () => {
+            if (recordsStatusFilter) recordsStatusFilter.value = "";
+            if (recordsCategoryFilter) recordsCategoryFilter.value = "";
+            if (recordsSearchInput) recordsSearchInput.value = "";
+            loadRecords();
+        });
+    }
     if (refreshRecordsBtn) refreshRecordsBtn.addEventListener("click", loadRecords);
 
     // Update Summary Metric Cards
@@ -703,7 +941,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!statTotalInspections) return;
         const total = inspections.length;
         const openCount = inspections.filter(i => i.status === "Open").length;
-        const activeCount = inspections.filter(i => i.status === "Under Review" || i.status === "Repair in Progress").length;
+        const activeCount = inspections.filter(i => i.status === "In Progress" || i.status === "Under Review" || i.status === "Repair in Progress").length;
         const resolvedCount = inspections.filter(i => i.status === "Resolved").length;
 
         statTotalInspections.textContent = total;
@@ -875,6 +1113,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 detailStatusFeedback.style.display = "block";
 
                 loadRecordsHeaderCount();
+                loadDashboardStats();
             } catch (err) {
                 console.error("Status update error:", err);
                 alert(`Error updating inspection status:\n${err.message}`);
@@ -884,4 +1123,8 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
     }
+
+    // Initialize Dashboard and Records Count
+    loadDashboardStats();
+    loadRecordsHeaderCount();
 });

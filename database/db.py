@@ -13,7 +13,7 @@ from typing import Dict, Any, List, Optional
 
 
 DEFAULT_DB_PATH = os.path.join("data", "visionguard.db")
-ALLOWED_STATUSES = ["Open", "Under Review", "Repair in Progress", "Resolved"]
+ALLOWED_STATUSES = ["Open", "In Progress", "Under Review", "Repair in Progress", "Resolved"]
 DEFAULT_STATUS = "Open"
 
 
@@ -202,30 +202,148 @@ def get_inspections(
     status: Optional[str] = None,
     limit: int = 100,
     offset: int = 0,
+    category: Optional[str] = None,
+    search_query: Optional[str] = None,
     db_path: str = DEFAULT_DB_PATH
 ) -> List[Dict[str, Any]]:
-    """Retrieves saved inspections, ordered chronologically newest first."""
+    """Retrieves saved inspections with optional filters, ordered chronologically newest first."""
     init_db(db_path)
     conn = get_db_connection(db_path)
     cursor = conn.cursor()
 
-    if status and status in ALLOWED_STATUSES:
-        cursor.execute("""
-        SELECT * FROM defect_inspections
-        WHERE status = ?
-        ORDER BY uploaded_at DESC, id DESC
-        LIMIT ? OFFSET ?;
-        """, (status, limit, offset))
-    else:
-        cursor.execute("""
-        SELECT * FROM defect_inspections
-        ORDER BY uploaded_at DESC, id DESC
-        LIMIT ? OFFSET ?;
-        """, (limit, offset))
+    conditions = []
+    params = []
 
+    if status and status.strip():
+        st = status.strip()
+        if st in ALLOWED_STATUSES:
+            conditions.append("status = ?")
+            params.append(st)
+        elif st.lower() in ["in progress group", "in-progress", "active"]:
+            conditions.append("status IN ('In Progress', 'Repair in Progress', 'Under Review')")
+
+    if category and category.strip():
+        cat = category.strip()
+        if cat.lower() in ["sound", "none", "clean"]:
+            conditions.append("(defect_count = 0 OR defect_type LIKE '%None%')")
+        else:
+            conditions.append("(defect_type LIKE ? OR detections_json LIKE ?)")
+            params.append(f"%{cat}%")
+            params.append(f"%{cat}%")
+
+    if search_query and search_query.strip():
+        q_term = f"%{search_query.strip()}%"
+        conditions.append("(road_name LIKE ? OR location_notes LIKE ? OR image_name LIKE ?)")
+        params.extend([q_term, q_term, q_term])
+
+    where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+
+    query = f"""
+    SELECT * FROM defect_inspections
+    {where_clause}
+    ORDER BY uploaded_at DESC, id DESC
+    LIMIT ? OFFSET ?;
+    """
+    params.extend([limit, offset])
+
+    cursor.execute(query, tuple(params))
     rows = cursor.fetchall()
     conn.close()
     return [row_to_dict(r) for r in rows]
+
+
+def get_dashboard_analytics(db_path: str = DEFAULT_DB_PATH) -> Dict[str, Any]:
+    """Calculates summary metrics and defect category distribution from actual SQLite records."""
+    init_db(db_path)
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+
+    # Total inspections count
+    cursor.execute("SELECT COUNT(*) as count FROM defect_inspections;")
+    total_inspections = cursor.fetchone()["count"]
+
+    # Total detected defects (sum across all inspections)
+    cursor.execute("SELECT COALESCE(SUM(defect_count), 0) as total_defects FROM defect_inspections;")
+    total_defects = cursor.fetchone()["total_defects"]
+
+    # Status counts
+    cursor.execute("SELECT COUNT(*) as count FROM defect_inspections WHERE status = 'Open';")
+    open_records = cursor.fetchone()["count"]
+
+    cursor.execute("""
+    SELECT COUNT(*) as count FROM defect_inspections 
+    WHERE status IN ('In Progress', 'Repair in Progress', 'Under Review');
+    """)
+    in_progress_records = cursor.fetchone()["count"]
+
+    cursor.execute("SELECT COUNT(*) as count FROM defect_inspections WHERE status = 'Resolved';")
+    resolved_records = cursor.fetchone()["count"]
+
+    # Defect category breakdown:
+    # 4 authentic classes: Longitudinal Crack, Transverse Crack, Alligator Crack, Pothole
+    category_counts = {
+        "Longitudinal Crack": 0,
+        "Transverse Crack": 0,
+        "Alligator Crack": 0,
+        "Pothole": 0,
+    }
+
+    cursor.execute("SELECT detections_json, defect_type FROM defect_inspections WHERE defect_count > 0;")
+    rows = cursor.fetchall()
+
+    for row in rows:
+        dets_raw = row["detections_json"]
+        parsed = False
+        if dets_raw:
+            try:
+                dets = json.loads(dets_raw)
+                if isinstance(dets, list) and len(dets) > 0:
+                    parsed = True
+                    for d in dets:
+                        cat = (d.get("distress_category") or "").lower()
+                        cls_name = (d.get("class_name") or "").lower()
+                        if "longitudinal" in cat or "d00" in cls_name:
+                            category_counts["Longitudinal Crack"] += 1
+                        elif "transverse" in cat or "d10" in cls_name:
+                            category_counts["Transverse Crack"] += 1
+                        elif "alligator" in cat or "d20" in cls_name:
+                            category_counts["Alligator Crack"] += 1
+                        elif "pothole" in cat or "d40" in cls_name:
+                            category_counts["Pothole"] += 1
+            except Exception:
+                parsed = False
+
+        if not parsed:
+            dt = (row["defect_type"] or "").lower()
+            if "longitudinal" in dt:
+                category_counts["Longitudinal Crack"] += 1
+            if "transverse" in dt:
+                category_counts["Transverse Crack"] += 1
+            if "alligator" in dt:
+                category_counts["Alligator Crack"] += 1
+            if "pothole" in dt:
+                category_counts["Pothole"] += 1
+
+    # Recent inspections (newest 5)
+    cursor.execute("""
+    SELECT * FROM defect_inspections
+    ORDER BY uploaded_at DESC, id DESC
+    LIMIT 5;
+    """)
+    recent_rows = cursor.fetchall()
+    recent_inspections = [row_to_dict(r) for r in recent_rows]
+
+    conn.close()
+
+    return {
+        "total_inspections": total_inspections,
+        "total_defects": total_defects,
+        "open_records": open_records,
+        "in_progress_records": in_progress_records,
+        "resolved_records": resolved_records,
+        "defect_categories": category_counts,
+        "recent_inspections": recent_inspections,
+    }
 
 
 def get_inspection_by_id(inspection_id: int, db_path: str = DEFAULT_DB_PATH) -> Optional[Dict[str, Any]]:
