@@ -26,9 +26,21 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 import cv2
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, send_file
 
-from database.db import init_db, check_db_health
+from database.db import (
+    init_db,
+    check_db_health,
+    get_db_connection,
+    row_to_dict,
+    save_inspection,
+    get_inspections,
+    get_inspection_by_id,
+    update_inspection_status,
+    delete_inspection,
+    ALLOWED_STATUSES,
+    DEFAULT_DB_PATH,
+)
 from ai.preprocessing.image_ops import (
     validate_image_stream,
     load_image_as_opencv,
@@ -65,8 +77,9 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
     if test_config:
         app.config.update(test_config)
 
-    # Initialize persistence
-    init_db()
+    # Initialize persistence with configured database path
+    db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+    init_db(db_path)
 
     # Initialize DefectDetectionService
     app.detector = detector or DefectDetectionService()
@@ -131,7 +144,8 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
         """
         Telemetry and health check reporting database and AI model status.
         """
-        db_health = check_db_health()
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        db_health = check_db_health(db_path)
         return jsonify({
             "status": "healthy",
             "database": db_health,
@@ -293,6 +307,18 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
                 500,
             )
 
+        # Persist original uploaded image to data/uploads
+        uploads_dir = os.path.join("data", "uploads")
+        orig_filename = f"orig_{uuid.uuid4().hex[:8]}_{filename}"
+        orig_path = os.path.join(uploads_dir, orig_filename)
+        try:
+            os.makedirs(uploads_dir, exist_ok=True)
+            with open(orig_path, "wb") as f_orig:
+                f_orig.write(raw_bytes)
+        except Exception as e:
+            logger.warning(f"Failed to persist original image: {e}")
+            orig_path = None
+
         # Optionally persist annotated image to data/processed
         processed_dir = os.path.join("data", "processed")
         saved_filename = f"annotated_{uuid.uuid4().hex[:8]}_{filename}"
@@ -314,12 +340,229 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
             "detections": detections,
             "defect_count": len(detections),
             "annotated_image": annotated_b64,
+            "original_file_path": orig_path,
             "processed_file_path": saved_path,
             "disclaimer": (
                 "Notice: Detection confidence measures model statistical likelihood, "
                 "not physical crack severity, cavity depth, or roadway structural safety."
             ),
         }), 200
+
+    # -------------------------------------------------------------------------
+    # Inspection Records API Routes
+    # -------------------------------------------------------------------------
+    @app.route("/api/inspections", methods=["GET"])
+    def api_get_inspections():
+        """
+        Lists saved inspection records with optional status filtering.
+        Query params: status, limit (default 100), offset (default 0).
+        """
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        status_filter = request.args.get("status")
+        if status_filter and status_filter not in ALLOWED_STATUSES:
+            return jsonify({
+                "status": "error",
+                "error_code": "INVALID_STATUS_FILTER",
+                "message": f"Status '{status_filter}' is invalid. Allowed: {ALLOWED_STATUSES}",
+            }), 400
+
+        try:
+            limit = min(200, max(1, int(request.args.get("limit", 100))))
+            offset = max(0, int(request.args.get("offset", 0)))
+        except (TypeError, ValueError):
+            limit = 100
+            offset = 0
+
+        inspections = get_inspections(status=status_filter, limit=limit, offset=offset, db_path=db_path)
+        return jsonify({
+            "status": "success",
+            "count": len(inspections),
+            "inspections": inspections,
+        }), 200
+
+    @app.route("/api/inspections", methods=["POST"])
+    def api_save_inspection():
+        """
+        Saves a completed road inspection into the database.
+        Stores authentic detection coordinates, confidence, metadata, and status.
+        """
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        payload = request.get_json(silent=True) or {}
+
+        image_name = payload.get("image_name") or payload.get("filename")
+        if not image_name or not str(image_name).strip():
+            return jsonify({
+                "status": "error",
+                "error_code": "MISSING_IMAGE_NAME",
+                "message": "Field 'image_name' is required to save an inspection record.",
+            }), 400
+
+        status = payload.get("status", "Open")
+        if status not in ALLOWED_STATUSES:
+            return jsonify({
+                "status": "error",
+                "error_code": "INVALID_STATUS",
+                "message": f"Status '{status}' is invalid. Allowed: {ALLOWED_STATUSES}",
+            }), 400
+
+        road_name = payload.get("road_name", "")
+        if road_name and len(str(road_name)) > 150:
+            return jsonify({
+                "status": "error",
+                "error_code": "ROAD_NAME_TOO_LONG",
+                "message": "Road/location name cannot exceed 150 characters.",
+            }), 400
+
+        original_image_path = payload.get("original_image_path", "").strip()
+        if original_image_path:
+            conn = get_db_connection(db_path)
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT * FROM defect_inspections WHERE original_image_path = ? AND original_image_path != '' LIMIT 1;",
+                (original_image_path,)
+            )
+            existing = cursor.fetchone()
+            conn.close()
+            if existing:
+                existing_dict = row_to_dict(existing)
+                return jsonify({
+                    "status": "error",
+                    "error_code": "DUPLICATE_INSPECTION",
+                    "message": f"This inspection has already been saved as Record #{existing_dict['id']}.",
+                    "inspection": existing_dict,
+                }), 409
+
+        try:
+            record = save_inspection(payload, db_path=db_path)
+            return jsonify({
+                "status": "success",
+                "message": "Inspection record saved successfully.",
+                "inspection": record,
+            }), 201
+        except Exception as e:
+            logger.exception(f"Failed to persist inspection record: {e}")
+            return jsonify({
+                "status": "error",
+                "error_code": "PERSISTENCE_FAILED",
+                "message": f"Database save error: {str(e)}",
+            }), 500
+
+    @app.route("/api/inspections/<int:inspection_id>", methods=["GET"])
+    def api_get_inspection_detail(inspection_id: int):
+        """
+        Retrieves full details of a specific inspection by ID.
+        """
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        record = get_inspection_by_id(inspection_id, db_path=db_path)
+        if not record:
+            return jsonify({
+                "status": "error",
+                "error_code": "INSPECTION_NOT_FOUND",
+                "message": f"Inspection record #{inspection_id} not found.",
+            }), 404
+
+        disclaimer_text = (
+            "VisionGuard AI defect detections represent 2D camera bounding boxes only. "
+            "Confidence scores indicate visual recognition likelihood, not defect severity or structural safety. "
+            "Pixel bounding boxes do not provide real-world crack dimensions or structural load capacity. "
+            "Status classifications are administrative workflow tracking and do not prove physical road repair."
+        )
+        record["disclaimer"] = disclaimer_text
+
+        return jsonify({
+            "status": "success",
+            "inspection": record,
+            "disclaimer": disclaimer_text,
+        }), 200
+
+    @app.route("/api/inspections/<int:inspection_id>/status", methods=["PATCH"])
+    def api_update_inspection_status(inspection_id: int):
+        """
+        Updates the status of an inspection record.
+        Allowed initial states: Open, Under Review, Repair in Progress, Resolved.
+        """
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        payload = request.get_json(silent=True) or {}
+        new_status = payload.get("status")
+        notes = payload.get("notes")
+
+        if not new_status:
+            return jsonify({
+                "status": "error",
+                "error_code": "MISSING_STATUS",
+                "message": "Field 'status' is required.",
+            }), 400
+
+        if new_status not in ALLOWED_STATUSES:
+            return jsonify({
+                "status": "error",
+                "error_code": "INVALID_STATUS",
+                "message": f"Status '{new_status}' is invalid. Allowed: {ALLOWED_STATUSES}",
+            }), 400
+
+        try:
+            updated = update_inspection_status(
+                inspection_id,
+                new_status,
+                notes=notes,
+                db_path=db_path
+            )
+            if not updated:
+                return jsonify({
+                    "status": "error",
+                    "error_code": "INSPECTION_NOT_FOUND",
+                    "message": f"Inspection record #{inspection_id} not found.",
+                }), 404
+
+            disclaimer_text = (
+                "Notice: Status changes represent administrative workflow tracking. "
+                "A 'Resolved' or 'Repair in Progress' status does not prove physical road repair "
+                "and does not verify or certify that physical roadway engineering repairs have taken place."
+            )
+            updated["disclaimer"] = disclaimer_text
+
+            return jsonify({
+                "status": "success",
+                "message": f"Inspection #{inspection_id} status updated to '{new_status}'.",
+                "disclaimer": disclaimer_text,
+                "status_disclaimer": disclaimer_text,
+                "inspection": updated,
+            }), 200
+        except Exception as e:
+            logger.exception(f"Failed to update inspection #{inspection_id} status: {e}")
+            return jsonify({
+                "status": "error",
+                "error_code": "UPDATE_FAILED",
+                "message": f"Status update failed: {str(e)}",
+            }), 500
+
+    @app.route("/api/inspections/<int:inspection_id>/image/<img_type>", methods=["GET"])
+    def api_get_inspection_image(inspection_id: int, img_type: str):
+        """
+        Serves the original or annotated image file for a saved inspection.
+        img_type: 'original' or 'annotated'.
+        """
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        record = get_inspection_by_id(inspection_id, db_path=db_path)
+        if not record:
+            return jsonify({"status": "error", "message": f"Inspection #{inspection_id} not found."}), 404
+
+        if img_type == "original":
+            target_path = record.get("original_image_path") or record.get("file_path")
+        elif img_type == "annotated":
+            target_path = record.get("annotated_image_path")
+        else:
+            return jsonify({"status": "error", "message": "Invalid image type. Use 'original' or 'annotated'."}), 400
+
+        if not target_path or not os.path.exists(target_path):
+            return jsonify({
+                "status": "error",
+                "error_code": "IMAGE_FILE_NOT_FOUND",
+                "message": f"Image file '{target_path or ''}' does not exist on disk.",
+            }), 404
+
+        abs_target = os.path.abspath(target_path)
+        return send_file(abs_target)
 
     return app
 
