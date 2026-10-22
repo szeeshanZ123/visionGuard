@@ -19,6 +19,14 @@
                     <p class="tagline">Infrastructure Defect Detection & Inspection Platform</p>
                 </div>
             </div>
+            <nav class="nav-tabs" id="navTabs">
+                <button type="button" class="nav-tab-btn active" id="tabNewInspectionBtn">
+                    <span>🔬</span> New Inspection
+                </button>
+                <button type="button" class="nav-tab-btn" id="tabRecordsBtn">
+                    <span>📋</span> Inspection Records <span class="badge badge-secondary" id="recordsCountBadgeHeader">0</span>
+                </button>
+            </nav>
             <div class="telemetry-bar" id="telemetryBar">
                 <span class="badge badge-info" id="dbStatusBadge">Database: Checking...</span>
                 <span class="badge badge-warning" id="modelStatusBadge">Model: Checking...</span>
@@ -38,8 +46,10 @@
             </div>
         </div>
 
-        <!-- Ingestion Guidelines Callout -->
-        <section class="guidelines-card">
+        <!-- New Inspection Section Wrapper -->
+        <div id="newInspectionSection">
+            <!-- Ingestion Guidelines Callout -->
+            <section class="guidelines-card">
             <div class="guidelines-header" id="guidelinesToggle">
                 <span class="icon">ℹ️</span>
                 <strong>Capture & Ingestion Guidelines</strong>
@@ -236,7 +246,258 @@
                 </div>
             </div>
 
+            <!-- Save Inspection Record Section -->
+            <div class="card save-inspection-card" id="saveInspectionCard">
+                <div class="card-header-row">
+                    <div>
+                        <h3>💾 Save to Inspection Records</h3>
+                        <p class="card-subtitle">Log this inspection into SQLite database for infrastructure tracking and work order management.</p>
+                    </div>
+                    <span class="badge badge-info" id="saveCardStatusBadge">Ready to Save</span>
+                </div>
+                <div class="save-form-grid">
+                    <div class="form-group">
+                        <label for="saveRoadNameInput">Road / Highway / Location Name <span class="text-muted">(Optional)</span>:</label>
+                        <input type="text" id="saveRoadNameInput" class="form-control" placeholder="e.g. Western Express Highway, KM 14" maxlength="150">
+                    </div>
+                    <div class="form-group">
+                        <label for="saveStatusSelect">Initial Status:</label>
+                        <select id="saveStatusSelect" class="form-control">
+                            <option value="Open" selected>🔵 Open</option>
+                            <option value="Under Review">🟡 Under Review</option>
+                            <option value="Repair in Progress">🟠 Repair in Progress</option>
+                            <option value="Resolved">🟢 Resolved</option>
+                        </select>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="saveNotesInput">Location Notes / Inspection Observations <span class="text-muted">(Optional)</span>:</label>
+                        <textarea id="saveNotesInput" class="form-control" rows="2" placeholder="e.g. Northbound slow lane near flyover expansion joint; noticeable surface crack propagation."></textarea>
+                    </div>
+                </div>
+                <div class="save-actions">
+                    <button type="button" class="btn btn-primary" id="saveInspectionBtn">
+                        <span class="btn-text">Save Inspection Record</span>
+                        <span class="spinner" id="saveSpinner" style="display: none;"></span>
+                    </button>
+                    <span class="save-feedback" id="saveFeedback" style="display: none;"></span>
+                </div>
+            </div>
+
             <!-- Strict Civil Engineering Disclaimer -->
+            <div class="alert alert-disclaimer">
+                <div class="alert-icon">🛡️</div>
+                <div class="alert-content">
+                    <strong>Civil Engineering Disclaimer & Safety Boundary:</strong>
+                    <p>
+                        VisionGuard AI detections and confidence ratings reflect <em>statistical model certainty</em>, 
+                        <strong>not physical pavement failure severity, cavity depth, or roadway structural safety</strong>. 
+                        A photograph alone cannot certify roadway load-bearing capacity, sub-base condition, or asphalt thickness. 
+                        Bounding boxes represent pixel localization and do not measure millimeter crack width without physical ground-plane calibration.
+                    </p>
+                </div>
+            </div>
+        </section>
+        </div><!-- /#newInspectionSection -->
+
+        <!-- Inspection Records & History Section -->
+        <section class="records-container" id="recordsSection" style="display: none;">
+            <div class="records-header">
+                <div>
+                    <h2>📋 Inspection Records & Work Orders</h2>
+                    <p>Historical registry of road surface distress inspections persisted in local database.</p>
+                </div>
+                <div class="records-actions">
+                    <div class="filter-group">
+                        <label for="recordsStatusFilter">Filter by Status:</label>
+                        <select id="recordsStatusFilter" class="form-control form-control-sm">
+                            <option value="">All Statuses</option>
+                            <option value="Open">🔵 Open</option>
+                            <option value="Under Review">🟡 Under Review</option>
+                            <option value="Repair in Progress">🟠 Repair in Progress</option>
+                            <option value="Resolved">🟢 Resolved</option>
+                        </select>
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-sm" id="refreshRecordsBtn">🔄 Refresh</button>
+                </div>
+            </div>
+
+            <!-- Telemetry Stats Summary for Records -->
+            <div class="metrics-row records-summary-row" id="recordsSummaryRow">
+                <div class="metric-card">
+                    <span class="metric-label">Total Inspections</span>
+                    <strong class="metric-value" id="statTotalInspections">0</strong>
+                    <span class="metric-caption">Persisted in SQLite</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Open / Action Required</span>
+                    <strong class="metric-value text-info" id="statOpenInspections">0</strong>
+                    <span class="metric-caption">Awaiting review</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Under Review / Repair</span>
+                    <strong class="metric-value text-warning" id="statActiveInspections">0</strong>
+                    <span class="metric-caption">Work in progress</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Resolved</span>
+                    <strong class="metric-value text-success" id="statResolvedInspections">0</strong>
+                    <span class="metric-caption">Workflow closed</span>
+                </div>
+            </div>
+
+            <!-- Table of Records -->
+            <div class="card records-card">
+                <div class="table-responsive">
+                    <table class="data-table" id="recordsTable">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Date & Time</th>
+                                <th>Road / Location</th>
+                                <th>Distress Count</th>
+                                <th>Defect Category</th>
+                                <th>Confidence</th>
+                                <th>Mode</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recordsTableBody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Empty State -->
+                <div class="empty-state" id="recordsEmptyState" style="display: none;">
+                    <div class="empty-icon">📭</div>
+                    <h3>No Inspection Records Found</h3>
+                    <p>No saved road surface inspections match the current filter. Inspect a road surface and click "Save Inspection Record" to track defects here.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Inspection Record Full Details Section -->
+        <section class="record-detail-container" id="recordDetailSection" style="display: none;">
+            <div class="detail-top-nav">
+                <button type="button" class="btn btn-secondary btn-sm" id="backToRecordsBtn">← Back to Inspection Records</button>
+                <span class="record-id-title" id="detailRecordIdHeader">Inspection Record #--</span>
+            </div>
+
+            <!-- Status Management Card -->
+            <div class="card status-manager-card">
+                <div class="status-manager-header">
+                    <div>
+                        <h3>Status & Workflow Tracking</h3>
+                        <p class="card-subtitle">Manage remediation lifecycle for this road distress record.</p>
+                    </div>
+                    <div class="status-current-badge-wrap">
+                        <span>Current Status:</span>
+                        <span class="badge" id="detailCurrentStatusBadge">Open</span>
+                    </div>
+                </div>
+                <div class="status-form-row">
+                    <div class="form-group">
+                        <label for="detailStatusSelect">Change Status To:</label>
+                        <select id="detailStatusSelect" class="form-control">
+                            <option value="Open">🔵 Open</option>
+                            <option value="Under Review">🟡 Under Review</option>
+                            <option value="Repair in Progress">🟠 Repair in Progress</option>
+                            <option value="Resolved">🟢 Resolved</option>
+                        </select>
+                    </div>
+                    <div class="form-group flex-grow">
+                        <label for="detailStatusNotes">Status Update Notes / Remarks:</label>
+                        <input type="text" id="detailStatusNotes" class="form-control" placeholder="e.g. Dispatched maintenance crew to verify crack propagation; scheduled for sealing.">
+                    </div>
+                    <div class="form-group form-group-btn">
+                        <button type="button" class="btn btn-primary" id="updateStatusBtn">
+                            <span class="btn-text">Update Status</span>
+                            <span class="spinner" id="updateStatusSpinner" style="display: none;"></span>
+                        </button>
+                    </div>
+                </div>
+                <div class="status-update-feedback" id="detailStatusFeedback" style="display: none;"></div>
+                
+                <!-- Mandatory Status Disclaimer -->
+                <div class="alert alert-disclaimer alert-sm" style="margin-top: 0.75rem;">
+                    <div class="alert-icon">ℹ️</div>
+                    <div class="alert-content">
+                        <strong>Status Tracking Notice:</strong>
+                        <p>Status updates represent user-entered administrative workflow tracking only. Changing a status to "Resolved" or "Repair in Progress" indicates a clerical workflow marker and does not prove, certify, or guarantee that physical road repair or engineering remediation has occurred.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Side-by-Side Images for Saved Record -->
+            <div class="comparison-grid">
+                <div class="image-column">
+                    <div class="image-column-header">
+                        <h3>Original Road Image</h3>
+                        <span class="caption" id="detailOrigCaption">Saved Reference</span>
+                    </div>
+                    <div class="image-display-box">
+                        <img id="detailOriginalImg" src="" alt="Original Surface Image">
+                    </div>
+                </div>
+                <div class="image-column">
+                    <div class="image-column-header">
+                        <h3>Authentic AI Detection Overlay</h3>
+                        <span class="caption" id="detailAnnotatedCaption">YOLOv8 Overlay</span>
+                    </div>
+                    <div class="image-display-box">
+                        <img id="detailAnnotatedImg" src="" alt="Detection Overlay">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detail Telemetry Metrics -->
+            <div class="metrics-row">
+                <div class="metric-card">
+                    <span class="metric-label">Road / Location</span>
+                    <strong class="metric-value text-sm" id="detailRoadName">--</strong>
+                    <span class="metric-caption" id="detailLocationNotes">--</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Defects Detected</span>
+                    <strong class="metric-value" id="detailDefectCount">0</strong>
+                    <span class="metric-caption" id="detailDefectTypes">--</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Top Detection Confidence</span>
+                    <strong class="metric-value" id="detailTopConf">--%</strong>
+                    <span class="metric-caption">Statistical Likelihood</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Inspected Timestamp</span>
+                    <strong class="metric-value text-sm" id="detailTimestamp">--</strong>
+                    <span class="metric-caption" id="detailInspectionMode">Standard Mode</span>
+                </div>
+            </div>
+
+            <!-- Detections Table for Saved Record -->
+            <div class="card detections-card">
+                <h3>Detected Road Distresses (Authentic Model Coordinates)</h3>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Distress Category</th>
+                                <th>Class ID</th>
+                                <th>Statistical Confidence</th>
+                                <th>Source</th>
+                                <th>Bounding Box [x1, y1, x2, y2]</th>
+                                <th>Pixel Extent (W × H)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detailDetectionsTableBody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Engineering Disclaimer -->
             <div class="alert alert-disclaimer">
                 <div class="alert-icon">🛡️</div>
                 <div class="alert-content">

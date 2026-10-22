@@ -416,8 +416,472 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         }
 
+        // Store last inspection for database persistence
+        lastInspectionResult = data;
+
+        // Reset Save Inspection Card
+        const saveRoadNameInput = document.getElementById("saveRoadNameInput");
+        const saveNotesInput = document.getElementById("saveNotesInput");
+        const saveStatusSelect = document.getElementById("saveStatusSelect");
+        const saveInspectionBtn = document.getElementById("saveInspectionBtn");
+        const saveSpinner = document.getElementById("saveSpinner");
+        const saveFeedback = document.getElementById("saveFeedback");
+        const saveCardStatusBadge = document.getElementById("saveCardStatusBadge");
+
+        if (saveRoadNameInput) saveRoadNameInput.value = "";
+        if (saveNotesInput) saveNotesInput.value = "";
+        if (saveStatusSelect) saveStatusSelect.value = "Open";
+        if (saveInspectionBtn) {
+            saveInspectionBtn.disabled = false;
+            saveInspectionBtn.querySelector(".btn-text").textContent = "Save Inspection Record";
+        }
+        if (saveSpinner) saveSpinner.style.display = "none";
+        if (saveFeedback) saveFeedback.style.display = "none";
+        if (saveCardStatusBadge) {
+            saveCardStatusBadge.textContent = "Ready to Save";
+            saveCardStatusBadge.className = "badge badge-info";
+        }
+        isSaving = false;
+
         // Show container and scroll
         resultsContainer.style.display = "flex";
         resultsContainer.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    // -------------------------------------------------------------------------
+    // 6. Inspection Records Feature: Tab Navigation, Persistence & Status Lifecycle
+    // -------------------------------------------------------------------------
+    let lastInspectionResult = null;
+    let isSaving = false;
+    let currentDetailId = null;
+
+    const tabNewInspectionBtn = document.getElementById("tabNewInspectionBtn");
+    const tabRecordsBtn = document.getElementById("tabRecordsBtn");
+    const newInspectionSection = document.getElementById("newInspectionSection");
+    const recordsSection = document.getElementById("recordsSection");
+    const recordDetailSection = document.getElementById("recordDetailSection");
+    const recordsCountBadgeHeader = document.getElementById("recordsCountBadgeHeader");
+
+    const saveInspectionBtn = document.getElementById("saveInspectionBtn");
+    const saveSpinner = document.getElementById("saveSpinner");
+    const saveFeedback = document.getElementById("saveFeedback");
+    const saveCardStatusBadge = document.getElementById("saveCardStatusBadge");
+    const saveRoadNameInput = document.getElementById("saveRoadNameInput");
+    const saveNotesInput = document.getElementById("saveNotesInput");
+    const saveStatusSelect = document.getElementById("saveStatusSelect");
+
+    const recordsStatusFilter = document.getElementById("recordsStatusFilter");
+    const refreshRecordsBtn = document.getElementById("refreshRecordsBtn");
+    const recordsTable = document.getElementById("recordsTable");
+    const recordsTableBody = document.getElementById("recordsTableBody");
+    const recordsEmptyState = document.getElementById("recordsEmptyState");
+
+    const statTotalInspections = document.getElementById("statTotalInspections");
+    const statOpenInspections = document.getElementById("statOpenInspections");
+    const statActiveInspections = document.getElementById("statActiveInspections");
+    const statResolvedInspections = document.getElementById("statResolvedInspections");
+
+    const backToRecordsBtn = document.getElementById("backToRecordsBtn");
+    const detailRecordIdHeader = document.getElementById("detailRecordIdHeader");
+    const detailCurrentStatusBadge = document.getElementById("detailCurrentStatusBadge");
+    const detailStatusSelect = document.getElementById("detailStatusSelect");
+    const detailStatusNotes = document.getElementById("detailStatusNotes");
+    const updateStatusBtn = document.getElementById("updateStatusBtn");
+    const updateStatusSpinner = document.getElementById("updateStatusSpinner");
+    const detailStatusFeedback = document.getElementById("detailStatusFeedback");
+
+    const detailOriginalImg = document.getElementById("detailOriginalImg");
+    const detailAnnotatedImg = document.getElementById("detailAnnotatedImg");
+    const detailRoadName = document.getElementById("detailRoadName");
+    const detailLocationNotes = document.getElementById("detailLocationNotes");
+    const detailDefectCount = document.getElementById("detailDefectCount");
+    const detailDefectTypes = document.getElementById("detailDefectTypes");
+    const detailTopConf = document.getElementById("detailTopConf");
+    const detailTimestamp = document.getElementById("detailTimestamp");
+    const detailInspectionMode = document.getElementById("detailInspectionMode");
+    const detailDetectionsTableBody = document.getElementById("detailDetectionsTableBody");
+
+    // Helper: Map status to badge class
+    function getStatusBadgeClass(status) {
+        switch (status) {
+            case "Open": return "badge badge-status-open";
+            case "Under Review": return "badge badge-status-review";
+            case "Repair in Progress": return "badge badge-status-repair";
+            case "Resolved": return "badge badge-status-resolved";
+            default: return "badge badge-secondary";
+        }
+    }
+
+    // Helper: Format ISO timestamp
+    function formatDateTime(dtStr) {
+        if (!dtStr) return "--";
+        try {
+            const dt = new Date(dtStr);
+            if (isNaN(dt.getTime())) return dtStr;
+            return dt.toLocaleDateString() + " " + dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        } catch (_) {
+            return dtStr;
+        }
+    }
+
+    // View Navigation
+    function switchView(viewName) {
+        if (viewName === "new") {
+            tabNewInspectionBtn.classList.add("active");
+            tabRecordsBtn.classList.remove("active");
+            newInspectionSection.style.display = "block";
+            recordsSection.style.display = "none";
+            recordDetailSection.style.display = "none";
+        } else if (viewName === "records") {
+            tabNewInspectionBtn.classList.remove("active");
+            tabRecordsBtn.classList.add("active");
+            newInspectionSection.style.display = "none";
+            recordsSection.style.display = "flex";
+            recordDetailSection.style.display = "none";
+            loadRecords();
+        } else if (viewName === "detail") {
+            tabNewInspectionBtn.classList.remove("active");
+            tabRecordsBtn.classList.add("active");
+            newInspectionSection.style.display = "none";
+            recordsSection.style.display = "none";
+            recordDetailSection.style.display = "flex";
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+    }
+
+    if (tabNewInspectionBtn) tabNewInspectionBtn.addEventListener("click", () => switchView("new"));
+    if (tabRecordsBtn) tabRecordsBtn.addEventListener("click", () => switchView("records"));
+    if (backToRecordsBtn) backToRecordsBtn.addEventListener("click", () => switchView("records"));
+
+    // Initial Count Fetch
+    async function loadRecordsHeaderCount() {
+        try {
+            const res = await fetch("/api/inspections?limit=1");
+            const data = await res.json();
+            if (data.status === "success" && recordsCountBadgeHeader) {
+                // Fetch full count via list or health
+                const healthRes = await fetch("/api/health");
+                const healthData = await healthRes.json();
+                const total = (healthData.database && healthData.database.records_count) || data.count || 0;
+                recordsCountBadgeHeader.textContent = total;
+            }
+        } catch (_) {}
+    }
+    loadRecordsHeaderCount();
+
+    // Save Inspection Action (with duplicate protection)
+    if (saveInspectionBtn) {
+        saveInspectionBtn.addEventListener("click", async () => {
+            if (!lastInspectionResult || isSaving) return;
+
+            isSaving = true;
+            saveInspectionBtn.disabled = true;
+            saveSpinner.style.display = "inline-block";
+            saveInspectionBtn.querySelector(".btn-text").textContent = "Saving to SQLite...";
+
+            const roadName = saveRoadNameInput ? saveRoadNameInput.value.trim() : "";
+            const locationNotes = saveNotesInput ? saveNotesInput.value.trim() : "";
+            const status = saveStatusSelect ? saveStatusSelect.value : "Open";
+
+            const payload = {
+                image_name: lastInspectionResult.filename,
+                original_image_path: lastInspectionResult.original_file_path || "",
+                annotated_image_path: lastInspectionResult.processed_file_path || "",
+                road_name: roadName,
+                location_notes: locationNotes,
+                inspection_mode: lastInspectionResult.inspection_mode || "standard",
+                confidence_threshold: lastInspectionResult.confidence_threshold || 0.25,
+                detections: lastInspectionResult.detections || [],
+                status: status,
+            };
+
+            try {
+                const res = await fetch("/api/inspections", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                });
+                const data = await res.json();
+
+                if (res.status === 409 && data.inspection) {
+                    const savedRecord = data.inspection;
+                    saveInspectionBtn.querySelector(".btn-text").textContent = `Already Saved as Record #${savedRecord.id}`;
+                    saveCardStatusBadge.textContent = `Saved (#${savedRecord.id})`;
+                    saveCardStatusBadge.className = "badge badge-info";
+
+                    saveFeedback.innerHTML = `
+                        <span style="color: var(--text-secondary); display: inline-flex; align-items: center; gap: 0.4rem;">
+                            <span>ℹ️</span> ${data.message || "This inspection is already saved."}
+                            <button type="button" class="btn btn-secondary btn-sm" id="viewSavedRecordBtn" style="margin-left: 0.5rem; padding: 0.25rem 0.65rem; font-size: 0.8rem;">
+                                View in Records History →
+                            </button>
+                        </span>
+                    `;
+                    saveFeedback.style.display = "inline-block";
+
+                    const viewBtn = document.getElementById("viewSavedRecordBtn");
+                    if (viewBtn) {
+                        viewBtn.addEventListener("click", () => {
+                            switchView("records");
+                            openRecordDetail(savedRecord.id);
+                        });
+                    }
+
+                    loadRecordsHeaderCount();
+                    return;
+                }
+
+                if (!res.ok || data.status !== "success") {
+                    throw new Error(data.message || `Save failed (HTTP ${res.status})`);
+                }
+
+                const savedRecord = data.inspection;
+                saveInspectionBtn.querySelector(".btn-text").textContent = `✅ Saved as Record #${savedRecord.id}`;
+                saveCardStatusBadge.textContent = `Saved (#${savedRecord.id})`;
+                saveCardStatusBadge.className = "badge badge-success";
+
+                saveFeedback.innerHTML = `
+                    <span style="color: var(--success); display: inline-flex; align-items: center; gap: 0.4rem;">
+                        <span>✓</span> Successfully persisted to database.
+                        <button type="button" class="btn btn-secondary btn-sm" id="viewSavedRecordBtn" style="margin-left: 0.5rem; padding: 0.25rem 0.65rem; font-size: 0.8rem;">
+                            View in Records History →
+                        </button>
+                    </span>
+                `;
+                saveFeedback.style.display = "inline-block";
+
+                const viewBtn = document.getElementById("viewSavedRecordBtn");
+                if (viewBtn) {
+                    viewBtn.addEventListener("click", () => {
+                        switchView("records");
+                        openRecordDetail(savedRecord.id);
+                    });
+                }
+
+                loadRecordsHeaderCount();
+            } catch (err) {
+                console.error("Save inspection failed:", err);
+                alert(`Error saving inspection record:\n${err.message}`);
+                saveInspectionBtn.disabled = false;
+                saveInspectionBtn.querySelector(".btn-text").textContent = "Retry Save";
+                isSaving = false;
+            } finally {
+                saveSpinner.style.display = "none";
+            }
+        });
+    }
+
+    // Load Records History
+    async function loadRecords() {
+        const filterStatus = recordsStatusFilter ? recordsStatusFilter.value : "";
+        recordsTableBody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 2rem; color: var(--text-muted);">Loading inspection records...</td></tr>`;
+
+        try {
+            const url = filterStatus ? `/api/inspections?status=${encodeURIComponent(filterStatus)}` : "/api/inspections";
+            const res = await fetch(url);
+            const data = await res.json();
+
+            if (!res.ok || data.status !== "success") {
+                throw new Error(data.message || "Failed to load inspections");
+            }
+
+            const inspections = data.inspections || [];
+            renderRecordsTable(inspections);
+            updateRecordsStats(inspections);
+            loadRecordsHeaderCount();
+        } catch (err) {
+            console.error("Load records error:", err);
+            recordsTableBody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--danger); padding: 1.5rem;">Failed to load records: ${err.message}</td></tr>`;
+        }
+    }
+
+    if (recordsStatusFilter) recordsStatusFilter.addEventListener("change", loadRecords);
+    if (refreshRecordsBtn) refreshRecordsBtn.addEventListener("click", loadRecords);
+
+    // Update Summary Metric Cards
+    function updateRecordsStats(inspections) {
+        if (!statTotalInspections) return;
+        const total = inspections.length;
+        const openCount = inspections.filter(i => i.status === "Open").length;
+        const activeCount = inspections.filter(i => i.status === "Under Review" || i.status === "Repair in Progress").length;
+        const resolvedCount = inspections.filter(i => i.status === "Resolved").length;
+
+        statTotalInspections.textContent = total;
+        statOpenInspections.textContent = openCount;
+        statActiveInspections.textContent = activeCount;
+        statResolvedInspections.textContent = resolvedCount;
+    }
+
+    // Render Records Table
+    function renderRecordsTable(inspections) {
+        recordsTableBody.innerHTML = "";
+        if (!inspections || inspections.length === 0) {
+            recordsEmptyState.style.display = "block";
+            recordsTable.style.display = "none";
+            return;
+        }
+
+        recordsEmptyState.style.display = "none";
+        recordsTable.style.display = "table";
+
+        inspections.forEach(rec => {
+            const tr = document.createElement("tr");
+            const roadDisplay = rec.road_name ? `<strong>${rec.road_name}</strong>` : '<span style="color: var(--text-muted); font-style: italic;">Unspecified Location</span>';
+            const countDisplay = rec.defect_count > 0 
+                ? `<span class="badge badge-warning" style="font-weight: 700;">${rec.defect_count} Defect${rec.defect_count === 1 ? "" : "s"}</span>`
+                : `<span class="badge badge-success">0 (Sound)</span>`;
+            
+            const confDisplay = rec.defect_count > 0 && rec.confidence ? `${(rec.confidence * 100).toFixed(1)}%` : "N/A";
+            const modeDisplay = (rec.inspection_mode || "standard") === "tiled" ? "🔬 Tiled" : "⚡ Standard";
+            const statusClass = getStatusBadgeClass(rec.status);
+
+            tr.innerHTML = `
+                <td><strong>#${rec.id}</strong></td>
+                <td><span style="font-size: 0.82rem; color: var(--text-secondary);">${formatDateTime(rec.uploaded_at)}</span></td>
+                <td>
+                    ${roadDisplay}
+                    ${rec.location_notes ? `<div style="font-size: 0.75rem; color: var(--text-muted); max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${rec.location_notes}</div>` : ""}
+                </td>
+                <td>${countDisplay}</td>
+                <td><span style="font-size: 0.82rem;">${rec.defect_type || "--"}</span></td>
+                <td><strong>${confDisplay}</strong></td>
+                <td><span style="font-size: 0.78rem; color: var(--text-secondary);">${modeDisplay}</span></td>
+                <td><span class="${statusClass}">${rec.status}</span></td>
+                <td>
+                    <button type="button" class="btn btn-secondary btn-sm open-record-btn" data-id="${rec.id}">
+                        👁️ View Details
+                    </button>
+                </td>
+            `;
+            recordsTableBody.appendChild(tr);
+        });
+
+        // Bind Open Details clicks
+        document.querySelectorAll(".open-record-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+                const id = btn.getAttribute("data-id");
+                openRecordDetail(id);
+            });
+        });
+    }
+
+    // Open Record Detail View
+    async function openRecordDetail(id) {
+        currentDetailId = id;
+        switchView("detail");
+
+        detailRecordIdHeader.textContent = `Inspection Record #${id} — Loading...`;
+        detailStatusFeedback.style.display = "none";
+        detailDetectionsTableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">Loading inspection telemetry...</td></tr>`;
+
+        try {
+            const res = await fetch(`/api/inspections/${id}`);
+            const data = await res.json();
+            if (!res.ok || data.status !== "success") {
+                throw new Error(data.message || `Record #${id} not found.`);
+            }
+
+            const rec = data.inspection;
+
+            // Header & Status
+            detailRecordIdHeader.textContent = `Inspection Record #${rec.id} — ${rec.road_name || rec.image_name}`;
+            detailCurrentStatusBadge.textContent = rec.status;
+            detailCurrentStatusBadge.className = getStatusBadgeClass(rec.status);
+            if (detailStatusSelect) detailStatusSelect.value = rec.status;
+            if (detailStatusNotes) detailStatusNotes.value = rec.notes || rec.location_notes || "";
+
+            // Images via safe streaming endpoints
+            detailOriginalImg.src = `/api/inspections/${id}/image/original`;
+            detailAnnotatedImg.src = `/api/inspections/${id}/image/annotated`;
+
+            // Telemetry
+            detailRoadName.textContent = rec.road_name || "Unspecified Location";
+            detailLocationNotes.textContent = rec.location_notes || "No notes entered";
+            detailDefectCount.textContent = rec.defect_count;
+            detailDefectTypes.textContent = rec.defect_type || "None";
+            detailTopConf.textContent = (rec.defect_count > 0 && rec.confidence) ? `${(rec.confidence * 100).toFixed(1)}%` : "N/A";
+            detailTimestamp.textContent = formatDateTime(rec.uploaded_at);
+            detailInspectionMode.textContent = (rec.inspection_mode === "tiled" ? "Tiled Slicing" : "Standard Full-Frame") + ` (≥ ${rec.confidence_threshold.toFixed(2)})`;
+
+            // Detections Table
+            const detections = rec.detections || [];
+            detailDetectionsTableBody.innerHTML = "";
+            if (detections.length === 0) {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `<td colspan="7" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">✅ No defects detected at confidence threshold ≥ ${rec.confidence_threshold.toFixed(2)}.</td>`;
+                detailDetectionsTableBody.appendChild(tr);
+            } else {
+                detections.forEach((det, idx) => {
+                    const tr = document.createElement("tr");
+                    const bbox = det.bbox || {};
+                    const coords = `[${bbox.x1}, ${bbox.y1}, ${bbox.x2}, ${bbox.y2}]`;
+                    const extent = `${bbox.width} × ${bbox.height} px`;
+                    const src = det.source || "global";
+                    const srcBadge = src === "tiled"
+                        ? '<span class="badge badge-info" style="font-size: 0.72rem; padding: 2px 6px;">🔬 Tiled</span>'
+                        : '<span class="badge badge-secondary" style="font-size: 0.72rem; padding: 2px 6px;">⚡ Full-Frame</span>';
+
+                    tr.innerHTML = `
+                        <td><strong>${idx + 1}</strong></td>
+                        <td><span class="badge badge-info">${det.distress_category || det.class_name}</span></td>
+                        <td><code>${det.class_name || "D" + det.class_id}</code></td>
+                        <td><strong>${((det.confidence || 0) * 100).toFixed(1)}%</strong></td>
+                        <td>${srcBadge}</td>
+                        <td><code>${coords}</code></td>
+                        <td>${extent}</td>
+                    `;
+                    detailDetectionsTableBody.appendChild(tr);
+                });
+            }
+        } catch (err) {
+            console.error("Open detail error:", err);
+            alert(`Failed to load inspection detail:\n${err.message}`);
+            switchView("records");
+        }
+    }
+
+    // Status Update Action
+    if (updateStatusBtn) {
+        updateStatusBtn.addEventListener("click", async () => {
+            if (!currentDetailId) return;
+
+            const newStatus = detailStatusSelect ? detailStatusSelect.value : "";
+            const notes = detailStatusNotes ? detailStatusNotes.value.trim() : "";
+
+            updateStatusBtn.disabled = true;
+            updateStatusSpinner.style.display = "inline-block";
+            detailStatusFeedback.style.display = "none";
+
+            try {
+                const res = await fetch(`/api/inspections/${currentDetailId}/status`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ status: newStatus, notes: notes }),
+                });
+                const data = await res.json();
+
+                if (!res.ok || data.status !== "success") {
+                    throw new Error(data.message || `Update failed (HTTP ${res.status})`);
+                }
+
+                detailCurrentStatusBadge.textContent = newStatus;
+                detailCurrentStatusBadge.className = getStatusBadgeClass(newStatus);
+
+                detailStatusFeedback.innerHTML = `
+                    <div class="alert alert-success alert-sm" style="margin-top: 0.75rem;">
+                        <strong>✓ Status Updated:</strong> Inspection #${currentDetailId} is now marked as <strong>${newStatus}</strong>.
+                    </div>
+                `;
+                detailStatusFeedback.style.display = "block";
+
+                loadRecordsHeaderCount();
+            } catch (err) {
+                console.error("Status update error:", err);
+                alert(`Error updating inspection status:\n${err.message}`);
+            } finally {
+                updateStatusBtn.disabled = false;
+                updateStatusSpinner.style.display = "none";
+            }
+        });
     }
 });
