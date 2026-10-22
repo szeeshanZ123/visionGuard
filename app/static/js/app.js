@@ -421,6 +421,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Reset Save Inspection Card
         const saveRoadNameInput = document.getElementById("saveRoadNameInput");
+        const saveAreaInput = document.getElementById("saveAreaInput");
+        const saveCityInput = document.getElementById("saveCityInput");
+        const saveLatInput = document.getElementById("saveLatInput");
+        const saveLonInput = document.getElementById("saveLonInput");
         const saveNotesInput = document.getElementById("saveNotesInput");
         const saveStatusSelect = document.getElementById("saveStatusSelect");
         const saveInspectionBtn = document.getElementById("saveInspectionBtn");
@@ -429,6 +433,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const saveCardStatusBadge = document.getElementById("saveCardStatusBadge");
 
         if (saveRoadNameInput) saveRoadNameInput.value = "";
+        if (saveAreaInput) saveAreaInput.value = "";
+        if (saveCityInput) saveCityInput.value = "";
+        if (saveLatInput) saveLatInput.value = "";
+        if (saveLonInput) saveLonInput.value = "";
         if (saveNotesInput) saveNotesInput.value = "";
         if (saveStatusSelect) saveStatusSelect.value = "Open";
         if (saveInspectionBtn) {
@@ -458,11 +466,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const tabDashboardBtn = document.getElementById("tabDashboardBtn");
     const tabNewInspectionBtn = document.getElementById("tabNewInspectionBtn");
     const tabRecordsBtn = document.getElementById("tabRecordsBtn");
+    const tabMapBtn = document.getElementById("tabMapBtn");
     const dashboardSection = document.getElementById("dashboardSection");
     const newInspectionSection = document.getElementById("newInspectionSection");
     const recordsSection = document.getElementById("recordsSection");
     const recordDetailSection = document.getElementById("recordDetailSection");
+    const mapSection = document.getElementById("mapSection");
     const recordsCountBadgeHeader = document.getElementById("recordsCountBadgeHeader");
+    const mapCountBadgeHeader = document.getElementById("mapCountBadgeHeader");
 
     const refreshDashboardBtn = document.getElementById("refreshDashboardBtn");
     const dashStartInspectionBtn = document.getElementById("dashStartInspectionBtn");
@@ -507,6 +518,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const saveFeedback = document.getElementById("saveFeedback");
     const saveCardStatusBadge = document.getElementById("saveCardStatusBadge");
     const saveRoadNameInput = document.getElementById("saveRoadNameInput");
+    const saveAreaInput = document.getElementById("saveAreaInput");
+    const saveCityInput = document.getElementById("saveCityInput");
+    const saveLatInput = document.getElementById("saveLatInput");
+    const saveLonInput = document.getElementById("saveLonInput");
     const saveNotesInput = document.getElementById("saveNotesInput");
     const saveStatusSelect = document.getElementById("saveStatusSelect");
 
@@ -544,6 +559,196 @@ document.addEventListener("DOMContentLoaded", () => {
     const detailInspectionMode = document.getElementById("detailInspectionMode");
     const detailDetectionsTableBody = document.getElementById("detailDetectionsTableBody");
 
+    const detailGpsBadge = document.getElementById("detailGpsBadge");
+    const detailLocRoad = document.getElementById("detailLocRoad");
+    const detailLocArea = document.getElementById("detailLocArea");
+    const detailLocCity = document.getElementById("detailLocCity");
+    const detailLocCoords = document.getElementById("detailLocCoords");
+    const detailLocNotes = document.getElementById("detailLocNotes");
+
+    // Defect Map DOM Elements (Phase 4.2)
+    const mapTelemetryBadge = document.getElementById("mapTelemetryBadge");
+    const refreshMapBtn = document.getElementById("refreshMapBtn");
+    const mapCategoryFilter = document.getElementById("mapCategoryFilter");
+    const mapStatusFilter = document.getElementById("mapStatusFilter");
+    const mapSearchInput = document.getElementById("mapSearchInput");
+    const resetMapFiltersBtn = document.getElementById("resetMapFiltersBtn");
+    const mapErrorBanner = document.getElementById("mapErrorBanner");
+    const mapErrorMsg = document.getElementById("mapErrorMsg");
+    const mapEmptyState = document.getElementById("mapEmptyState");
+    const mapEmptyNewInspBtn = document.getElementById("mapEmptyNewInspBtn");
+    const mapEmptyViewRecordsBtn = document.getElementById("mapEmptyViewRecordsBtn");
+    const mapLayoutWrapper = document.getElementById("mapLayoutWrapper");
+    const legendCountD00 = document.getElementById("legendCountD00");
+    const legendCountD10 = document.getElementById("legendCountD10");
+    const legendCountD20 = document.getElementById("legendCountD20");
+    const legendCountD40 = document.getElementById("legendCountD40");
+    const legendCountSound = document.getElementById("legendCountSound");
+
+    // Leaflet Map State
+    let defectMapInstance = null;
+    let markersLayerGroup = null;
+    let cachedMapRecords = [];
+
+    // Safe HTML Escaping for Popups and Labels
+    function escapeHtml(str) {
+        if (!str) return "";
+        return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    // Coordinate validation strictly adhering to Phase 4.2 specs:
+    // Only accept genuine numbers: -90 <= lat <= 90 and -180 <= lon <= 180.
+    // Never fabricate coordinates or default missing GPS.
+    function isValidCoordinate(lat, lon) {
+        if (lat === null || lat === undefined || lon === null || lon === undefined) {
+            return false;
+        }
+        if (typeof lat === "string" && lat.trim() === "") return false;
+        if (typeof lon === "string" && lon.trim() === "") return false;
+        const numLat = parseFloat(lat);
+        const numLon = parseFloat(lon);
+        if (isNaN(numLat) || isNaN(numLon)) {
+            return false;
+        }
+        if (numLat < -90 || numLat > 90 || numLon < -180 || numLon > 180) {
+            return false;
+        }
+        return true;
+    }
+
+    // Determine pin style and defect category classification
+    function getMarkerConfig(rec) {
+        if (!rec.defect_count || rec.defect_count === 0) {
+            return {
+                category: "Sound",
+                code: "OK",
+                pinClass: "pin-sound",
+                label: "Sound Surface (0 Defects)",
+                color: "#10b981"
+            };
+        }
+        const defType = (rec.defect_type || "").toLowerCase();
+        if (defType.includes("pothole") || defType.includes("d40")) {
+            return {
+                category: "Pothole",
+                code: "D40",
+                pinClass: "pin-d40",
+                label: "Pothole (D40)",
+                color: "#ef4444"
+            };
+        } else if (defType.includes("alligator") || defType.includes("d20")) {
+            return {
+                category: "Alligator",
+                code: "D20",
+                pinClass: "pin-d20",
+                label: "Alligator Crack (D20)",
+                color: "#f59e0b"
+            };
+        } else if (defType.includes("transverse") || defType.includes("d10")) {
+            return {
+                category: "Transverse",
+                code: "D10",
+                pinClass: "pin-d10",
+                label: "Transverse Crack (D10)",
+                color: "#a855f7"
+            };
+        } else {
+            return {
+                category: "Longitudinal",
+                code: "D00",
+                pinClass: "pin-d00",
+                label: "Longitudinal Crack (D00)",
+                color: "#3b82f6"
+            };
+        }
+    }
+
+    // Build rich popup HTML according to Phase 4.2 requirements
+    function buildMapPopup(rec, markerCfg) {
+        const road = rec.road_name ? rec.road_name.trim() : "Unspecified Road";
+        const area = rec.area ? rec.area.trim() : "";
+        const city = rec.city ? rec.city.trim() : "";
+        const subLoc = [area, city].filter(Boolean).join(", ");
+        const latStr = Number(rec.latitude).toFixed(5);
+        const lonStr = Number(rec.longitude).toFixed(5);
+        const statusClass = getStatusBadgeClass(rec.status);
+        const countDisplay = rec.defect_count > 0 
+            ? `${rec.defect_count} Defect${rec.defect_count === 1 ? "" : "s"}` 
+            : "Sound Surface (0 Defects)";
+        const catDisplay = rec.defect_count > 0 ? (rec.defect_type || markerCfg.label) : "Sound Surface";
+
+        return `
+            <div class="map-popup-card">
+                <div class="map-popup-header">
+                    <div class="map-popup-location">
+                        <strong>#${rec.id} • ${escapeHtml(road)}</strong>
+                        ${subLoc ? `<div class="sub-location">📍 ${escapeHtml(subLoc)}</div>` : ""}
+                    </div>
+                    <span class="${statusClass}" style="font-size: 0.72rem; padding: 2px 7px;">${escapeHtml(rec.status)}</span>
+                </div>
+                <div class="map-popup-coords">GPS: ${latStr}°, ${lonStr}°</div>
+                <div class="map-popup-metrics">
+                    <div class="metric-mini">
+                        <span class="label">Defects</span>
+                        <strong>${countDisplay}</strong>
+                    </div>
+                    <div class="metric-mini">
+                        <span class="label">Class</span>
+                        <strong title="${escapeHtml(catDisplay)}">${escapeHtml(catDisplay)}</strong>
+                    </div>
+                </div>
+                ${rec.location_notes ? `<div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.4rem; max-height: 40px; overflow: hidden; text-overflow: ellipsis;">📝 ${escapeHtml(rec.location_notes)}</div>` : ""}
+                <div class="map-popup-actions">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="window.openRecordDetailFromMap(${rec.id}); return false;" style="width: 100%; font-size: 0.8rem; padding: 0.35rem 0.5rem;">
+                        👁️ View Full Inspection Details →
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    // Expose detail opener to window scope so Leaflet popup HTML onclick reliably fires
+    window.openRecordDetailFromMap = function(id) {
+        openRecordDetail(id);
+    };
+
+    // Helper: Format location display for table rows
+    function formatLocationDisplay(rec) {
+        const road = rec.road_name ? rec.road_name.trim() : "";
+        const area = rec.area ? rec.area.trim() : "";
+        const city = rec.city ? rec.city.trim() : "";
+
+        let html = "";
+        if (road) {
+            html += `<strong>${road}</strong>`;
+            const sub = [];
+            if (area) sub.push(area);
+            if (city) sub.push(city);
+            if (sub.length > 0) {
+                html += `<div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px;">${sub.join(", ")}</div>`;
+            }
+        } else if (area || city) {
+            const sub = [];
+            if (area) sub.push(area);
+            if (city) sub.push(city);
+            html += `<strong>${sub.join(", ")}</strong>`;
+        } else {
+            html += '<span style="color: var(--text-muted); font-style: italic;">Unspecified Location</span>';
+        }
+
+        if (rec.latitude !== null && rec.latitude !== undefined && rec.longitude !== null && rec.longitude !== undefined) {
+            const latStr = Number(rec.latitude).toFixed(4);
+            const lonStr = Number(rec.longitude).toFixed(4);
+            html += `<div class="geo-tag-pill" title="GPS: ${rec.latitude}, ${rec.longitude}">📍 ${latStr}, ${lonStr}</div>`;
+        }
+        return html;
+    }
+
     // Helper: Map status to badge class
     function getStatusBadgeClass(status) {
         switch (status) {
@@ -574,49 +779,302 @@ document.addEventListener("DOMContentLoaded", () => {
             if (tabDashboardBtn) tabDashboardBtn.classList.add("active");
             if (tabNewInspectionBtn) tabNewInspectionBtn.classList.remove("active");
             if (tabRecordsBtn) tabRecordsBtn.classList.remove("active");
+            if (tabMapBtn) tabMapBtn.classList.remove("active");
             if (dashboardSection) dashboardSection.style.display = "flex";
             if (newInspectionSection) newInspectionSection.style.display = "none";
             if (recordsSection) recordsSection.style.display = "none";
             if (recordDetailSection) recordDetailSection.style.display = "none";
+            if (mapSection) mapSection.style.display = "none";
             loadDashboardStats();
             window.scrollTo({ top: 0, behavior: "smooth" });
         } else if (viewName === "new") {
             if (tabDashboardBtn) tabDashboardBtn.classList.remove("active");
             if (tabNewInspectionBtn) tabNewInspectionBtn.classList.add("active");
             if (tabRecordsBtn) tabRecordsBtn.classList.remove("active");
+            if (tabMapBtn) tabMapBtn.classList.remove("active");
             if (dashboardSection) dashboardSection.style.display = "none";
             if (newInspectionSection) newInspectionSection.style.display = "block";
             if (recordsSection) recordsSection.style.display = "none";
             if (recordDetailSection) recordDetailSection.style.display = "none";
+            if (mapSection) mapSection.style.display = "none";
         } else if (viewName === "records") {
             if (tabDashboardBtn) tabDashboardBtn.classList.remove("active");
             if (tabNewInspectionBtn) tabNewInspectionBtn.classList.remove("active");
             if (tabRecordsBtn) tabRecordsBtn.classList.add("active");
+            if (tabMapBtn) tabMapBtn.classList.remove("active");
             if (dashboardSection) dashboardSection.style.display = "none";
             if (newInspectionSection) newInspectionSection.style.display = "none";
             if (recordsSection) recordsSection.style.display = "flex";
             if (recordDetailSection) recordDetailSection.style.display = "none";
+            if (mapSection) mapSection.style.display = "none";
             loadRecords();
+        } else if (viewName === "map") {
+            if (tabDashboardBtn) tabDashboardBtn.classList.remove("active");
+            if (tabNewInspectionBtn) tabNewInspectionBtn.classList.remove("active");
+            if (tabRecordsBtn) tabRecordsBtn.classList.remove("active");
+            if (tabMapBtn) tabMapBtn.classList.add("active");
+            if (dashboardSection) dashboardSection.style.display = "none";
+            if (newInspectionSection) newInspectionSection.style.display = "none";
+            if (recordsSection) recordsSection.style.display = "none";
+            if (recordDetailSection) recordDetailSection.style.display = "none";
+            if (mapSection) mapSection.style.display = "flex";
+            initDefectMap();
+            loadMapRecords();
+            window.scrollTo({ top: 0, behavior: "smooth" });
         } else if (viewName === "detail") {
             if (tabDashboardBtn) tabDashboardBtn.classList.remove("active");
             if (tabNewInspectionBtn) tabNewInspectionBtn.classList.remove("active");
             if (tabRecordsBtn) tabRecordsBtn.classList.add("active");
+            if (tabMapBtn) tabMapBtn.classList.remove("active");
             if (dashboardSection) dashboardSection.style.display = "none";
             if (newInspectionSection) newInspectionSection.style.display = "none";
             if (recordsSection) recordsSection.style.display = "none";
             if (recordDetailSection) recordDetailSection.style.display = "flex";
+            if (mapSection) mapSection.style.display = "none";
             window.scrollTo({ top: 0, behavior: "smooth" });
         }
+
+        try {
+            if (viewName !== "detail" && window.location.hash !== "#" + viewName) {
+                history.replaceState(null, "", "#" + viewName);
+            }
+        } catch (_) {}
     }
 
     if (tabDashboardBtn) tabDashboardBtn.addEventListener("click", () => switchView("dashboard"));
     if (tabNewInspectionBtn) tabNewInspectionBtn.addEventListener("click", () => switchView("new"));
     if (tabRecordsBtn) tabRecordsBtn.addEventListener("click", () => switchView("records"));
+    if (tabMapBtn) tabMapBtn.addEventListener("click", () => switchView("map"));
     if (backToRecordsBtn) backToRecordsBtn.addEventListener("click", () => switchView("records"));
     if (dashStartInspectionBtn) dashStartInspectionBtn.addEventListener("click", () => switchView("new"));
     if (dashEmptyNewInspectionBtn) dashEmptyNewInspectionBtn.addEventListener("click", () => switchView("new"));
     if (dashViewAllRecordsBtn) dashViewAllRecordsBtn.addEventListener("click", () => switchView("records"));
     if (refreshDashboardBtn) refreshDashboardBtn.addEventListener("click", loadDashboardStats);
+
+    // Initialize Leaflet Map
+    function initDefectMap() {
+        if (typeof L === "undefined") {
+            if (mapErrorBanner && mapErrorMsg) {
+                mapErrorBanner.style.display = "flex";
+                mapErrorMsg.textContent = "Leaflet mapping library is currently unavailable. Please verify network connectivity to load map tiles and scripts.";
+            }
+            return;
+        }
+
+        if (!defectMapInstance) {
+            const mapContainer = document.getElementById("defectMap");
+            if (!mapContainer) return;
+
+            defectMapInstance = L.map("defectMap", {
+                center: [20.5937, 78.9629],
+                zoom: 5,
+                minZoom: 3,
+                maxZoom: 19,
+                zoomControl: true,
+            });
+
+            const osmTiles = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                maxZoom: 19,
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors | VisionGuard AI',
+            });
+
+            osmTiles.on("tileerror", (err) => {
+                console.warn("Leaflet tile error:", err);
+                if (mapErrorBanner && mapErrorMsg) {
+                    mapErrorBanner.style.display = "flex";
+                    mapErrorMsg.textContent = "Some map tiles could not be loaded from OpenStreetMap. Please verify internet connection.";
+                }
+            });
+
+            osmTiles.addTo(defectMapInstance);
+            markersLayerGroup = L.featureGroup().addTo(defectMapInstance);
+        }
+
+        setTimeout(() => {
+            if (defectMapInstance) {
+                defectMapInstance.invalidateSize();
+            }
+        }, 120);
+    }
+
+    // Load Records from Flask API for Defect Map
+    async function loadMapRecords() {
+        if (mapErrorBanner) mapErrorBanner.style.display = "none";
+        try {
+            const res = await fetch("/api/inspections?limit=500");
+            const data = await res.json();
+            if (!res.ok || data.status !== "success") {
+                throw new Error(data.message || `Failed to fetch inspections (HTTP ${res.status})`);
+            }
+            cachedMapRecords = data.inspections || [];
+            renderMapMarkers();
+        } catch (err) {
+            console.error("Map records load error:", err);
+            if (mapErrorBanner && mapErrorMsg) {
+                mapErrorBanner.style.display = "flex";
+                mapErrorMsg.textContent = `Could not load defect records from server: ${err.message}`;
+            }
+        }
+    }
+
+    // Check if record matches category, status, and keyword filters
+    function filterMapRecord(rec, catFilter, statusFilter, kwFilter) {
+        if (!isValidCoordinate(rec.latitude, rec.longitude)) return false;
+
+        if (statusFilter && rec.status !== statusFilter) {
+            return false;
+        }
+
+        if (catFilter) {
+            const cfg = getMarkerConfig(rec);
+            if (catFilter === "Sound") {
+                if (cfg.category !== "Sound") return false;
+            } else if (catFilter === "Longitudinal") {
+                if (cfg.category !== "Longitudinal") return false;
+            } else if (catFilter === "Transverse") {
+                if (cfg.category !== "Transverse") return false;
+            } else if (catFilter === "Alligator") {
+                if (cfg.category !== "Alligator") return false;
+            } else if (catFilter === "Pothole") {
+                if (cfg.category !== "Pothole") return false;
+            } else {
+                const dt = (rec.defect_type || "").toLowerCase();
+                if (!dt.includes(catFilter.toLowerCase())) return false;
+            }
+        }
+
+        if (kwFilter) {
+            const q = kwFilter.toLowerCase();
+            const road = (rec.road_name || "").toLowerCase();
+            const area = (rec.area || "").toLowerCase();
+            const city = (rec.city || "").toLowerCase();
+            const notes = (rec.location_notes || "").toLowerCase();
+            const idStr = String(rec.id);
+            if (!road.includes(q) && !area.includes(q) && !city.includes(q) && !notes.includes(q) && !idStr.includes(q)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    // Update legend counters based on all valid geotagged records
+    function updateMapLegendCounts(geotaggedRecords) {
+        let d00 = 0, d10 = 0, d20 = 0, d40 = 0, sound = 0;
+        geotaggedRecords.forEach(rec => {
+            const cfg = getMarkerConfig(rec);
+            if (cfg.category === "Sound") sound++;
+            else if (cfg.category === "Pothole") d40++;
+            else if (cfg.category === "Alligator") d20++;
+            else if (cfg.category === "Transverse") d10++;
+            else d00++;
+        });
+
+        if (legendCountD00) legendCountD00.textContent = `${d00} record${d00 === 1 ? "" : "s"}`;
+        if (legendCountD10) legendCountD10.textContent = `${d10} record${d10 === 1 ? "" : "s"}`;
+        if (legendCountD20) legendCountD20.textContent = `${d20} record${d20 === 1 ? "" : "s"}`;
+        if (legendCountD40) legendCountD40.textContent = `${d40} record${d40 === 1 ? "" : "s"}`;
+        if (legendCountSound) legendCountSound.textContent = `${sound} record${sound === 1 ? "" : "s"}`;
+    }
+
+    // Render Markers on Leaflet Map
+    function renderMapMarkers() {
+        if (!defectMapInstance || !markersLayerGroup) return;
+
+        // Clear existing markers to prevent duplicates
+        markersLayerGroup.clearLayers();
+
+        const catFilter = mapCategoryFilter ? mapCategoryFilter.value : "";
+        const statusFilter = mapStatusFilter ? mapStatusFilter.value : "";
+        const kwFilter = mapSearchInput ? mapSearchInput.value.trim() : "";
+
+        // Genuine coordinates only
+        const validGeotagged = cachedMapRecords.filter(r => isValidCoordinate(r.latitude, r.longitude));
+        const totalGeotagged = validGeotagged.length;
+
+        updateMapLegendCounts(validGeotagged);
+
+        if (totalGeotagged === 0) {
+            if (mapEmptyState) mapEmptyState.style.display = "block";
+            if (mapLayoutWrapper) mapLayoutWrapper.style.display = "none";
+            if (mapTelemetryBadge) mapTelemetryBadge.textContent = "Mapped: 0 / 0";
+            if (mapCountBadgeHeader) mapCountBadgeHeader.textContent = "0";
+            return;
+        }
+
+        if (mapEmptyState) mapEmptyState.style.display = "none";
+        if (mapLayoutWrapper) mapLayoutWrapper.style.display = "grid";
+
+        const filtered = validGeotagged.filter(rec => filterMapRecord(rec, catFilter, statusFilter, kwFilter));
+        const markerList = [];
+
+        filtered.forEach(rec => {
+            const markerCfg = getMarkerConfig(rec);
+            const lat = parseFloat(rec.latitude);
+            const lon = parseFloat(rec.longitude);
+
+            const customIcon = L.divIcon({
+                className: "custom-defect-marker",
+                html: `<div class="marker-bubble ${markerCfg.pinClass}" title="#${rec.id}: ${escapeHtml(markerCfg.label)}"><span>${markerCfg.code}</span></div>`,
+                iconSize: [30, 30],
+                iconAnchor: [15, 30],
+                popupAnchor: [0, -32],
+            });
+
+            const marker = L.marker([lat, lon], { icon: customIcon });
+            const popupHtml = buildMapPopup(rec, markerCfg);
+            marker.bindPopup(popupHtml, { maxWidth: 300, minWidth: 240 });
+
+            markersLayerGroup.addLayer(marker);
+            markerList.push(marker);
+        });
+
+        if (mapTelemetryBadge) {
+            mapTelemetryBadge.textContent = `Mapped: ${markerList.length} / ${totalGeotagged}`;
+        }
+        if (mapCountBadgeHeader) {
+            mapCountBadgeHeader.textContent = totalGeotagged;
+        }
+
+        // Fit map viewport safely
+        if (markerList.length === 0) {
+            // Keep current view or overview
+        } else if (markerList.length === 1) {
+            const pos = markerList[0].getLatLng();
+            defectMapInstance.setView(pos, 14);
+        } else {
+            try {
+                defectMapInstance.fitBounds(markersLayerGroup.getBounds().pad(0.12), { maxZoom: 16 });
+            } catch (_) {}
+        }
+    }
+
+    // Map Filter Event Listeners
+    if (mapCategoryFilter) mapCategoryFilter.addEventListener("change", renderMapMarkers);
+    if (mapStatusFilter) mapStatusFilter.addEventListener("change", renderMapMarkers);
+    if (mapSearchInput) mapSearchInput.addEventListener("input", debounce(renderMapMarkers, 250));
+    if (resetMapFiltersBtn) {
+        resetMapFiltersBtn.addEventListener("click", () => {
+            if (mapCategoryFilter) mapCategoryFilter.value = "";
+            if (mapStatusFilter) mapStatusFilter.value = "";
+            if (mapSearchInput) mapSearchInput.value = "";
+            renderMapMarkers();
+        });
+    }
+    if (refreshMapBtn) refreshMapBtn.addEventListener("click", loadMapRecords);
+    if (mapEmptyNewInspBtn) mapEmptyNewInspBtn.addEventListener("click", () => switchView("new"));
+    if (mapEmptyViewRecordsBtn) mapEmptyViewRecordsBtn.addEventListener("click", () => switchView("records"));
+
+    // Fetch count of geotagged records for header badge
+    async function loadMapHeaderCount() {
+        try {
+            const res = await fetch("/api/inspections?has_coords=true&limit=500");
+            const data = await res.json();
+            if (data.status === "success" && mapCountBadgeHeader) {
+                mapCountBadgeHeader.textContent = data.count || 0;
+            }
+        } catch (_) {}
+    }
 
     // Initial Count Fetch
     async function loadRecordsHeaderCount() {
@@ -624,13 +1082,13 @@ document.addEventListener("DOMContentLoaded", () => {
             const res = await fetch("/api/inspections?limit=1");
             const data = await res.json();
             if (data.status === "success" && recordsCountBadgeHeader) {
-                // Fetch full count via list or health
                 const healthRes = await fetch("/api/health");
                 const healthData = await healthRes.json();
                 const total = (healthData.database && healthData.database.records_count) || data.count || 0;
                 recordsCountBadgeHeader.textContent = total;
             }
         } catch (_) {}
+        loadMapHeaderCount();
     }
     loadRecordsHeaderCount();
 
@@ -645,14 +1103,48 @@ document.addEventListener("DOMContentLoaded", () => {
             saveInspectionBtn.querySelector(".btn-text").textContent = "Saving to SQLite...";
 
             const roadName = saveRoadNameInput ? saveRoadNameInput.value.trim() : "";
+            const area = saveAreaInput ? saveAreaInput.value.trim() : "";
+            const city = saveCityInput ? saveCityInput.value.trim() : "";
+            const latStr = saveLatInput ? saveLatInput.value.trim() : "";
+            const lonStr = saveLonInput ? saveLonInput.value.trim() : "";
             const locationNotes = saveNotesInput ? saveNotesInput.value.trim() : "";
             const status = saveStatusSelect ? saveStatusSelect.value : "Open";
+
+            let latVal = null;
+            if (latStr !== "") {
+                latVal = parseFloat(latStr);
+                if (isNaN(latVal) || latVal < -90 || latVal > 90) {
+                    alert("Latitude must be a valid number between -90.0 and +90.0 degrees.");
+                    isSaving = false;
+                    saveInspectionBtn.disabled = false;
+                    saveSpinner.style.display = "none";
+                    saveInspectionBtn.querySelector(".btn-text").textContent = "Save Inspection Record";
+                    return;
+                }
+            }
+
+            let lonVal = null;
+            if (lonStr !== "") {
+                lonVal = parseFloat(lonStr);
+                if (isNaN(lonVal) || lonVal < -180 || lonVal > 180) {
+                    alert("Longitude must be a valid number between -180.0 and +180.0 degrees.");
+                    isSaving = false;
+                    saveInspectionBtn.disabled = false;
+                    saveSpinner.style.display = "none";
+                    saveInspectionBtn.querySelector(".btn-text").textContent = "Save Inspection Record";
+                    return;
+                }
+            }
 
             const payload = {
                 image_name: lastInspectionResult.filename,
                 original_image_path: lastInspectionResult.original_file_path || "",
                 annotated_image_path: lastInspectionResult.processed_file_path || "",
                 road_name: roadName,
+                area: area,
+                city: city,
+                latitude: latVal,
+                longitude: lonVal,
                 location_notes: locationNotes,
                 inspection_mode: lastInspectionResult.inspection_mode || "standard",
                 confidence_threshold: lastInspectionResult.confidence_threshold || 0.25,
@@ -859,7 +1351,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         inspections.forEach(rec => {
             const tr = document.createElement("tr");
-            const roadDisplay = rec.road_name ? `<strong>${rec.road_name}</strong>` : '<span style="color: var(--text-muted); font-style: italic;">Unspecified Location</span>';
+            const roadDisplay = formatLocationDisplay(rec);
             const countDisplay = rec.defect_count > 0 
                 ? `<span class="badge badge-warning" style="font-weight: 700;">${rec.defect_count} Defect${rec.defect_count === 1 ? "" : "s"}</span>`
                 : `<span class="badge badge-success">0 (Sound)</span>`;
@@ -964,7 +1456,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         inspections.forEach(rec => {
             const tr = document.createElement("tr");
-            const roadDisplay = rec.road_name ? `<strong>${rec.road_name}</strong>` : '<span style="color: var(--text-muted); font-style: italic;">Unspecified Location</span>';
+            const roadDisplay = formatLocationDisplay(rec);
             const countDisplay = rec.defect_count > 0 
                 ? `<span class="badge badge-warning" style="font-weight: 700;">${rec.defect_count} Defect${rec.defect_count === 1 ? "" : "s"}</span>`
                 : `<span class="badge badge-success">0 (Sound)</span>`;
@@ -978,7 +1470,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <td><span style="font-size: 0.82rem; color: var(--text-secondary);">${formatDateTime(rec.uploaded_at)}</span></td>
                 <td>
                     ${roadDisplay}
-                    ${rec.location_notes ? `<div style="font-size: 0.75rem; color: var(--text-muted); max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${rec.location_notes}</div>` : ""}
+                    ${rec.location_notes ? `<div style="font-size: 0.75rem; color: var(--text-muted); max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px;">${rec.location_notes}</div>` : ""}
                 </td>
                 <td>${countDisplay}</td>
                 <td><span style="font-size: 0.82rem;">${rec.defect_type || "--"}</span></td>
@@ -1022,7 +1514,8 @@ document.addEventListener("DOMContentLoaded", () => {
             const rec = data.inspection;
 
             // Header & Status
-            detailRecordIdHeader.textContent = `Inspection Record #${rec.id} — ${rec.road_name || rec.image_name}`;
+            const locTitle = [rec.road_name, rec.area, rec.city].filter(Boolean).join(", ") || rec.image_name;
+            detailRecordIdHeader.textContent = `Inspection Record #${rec.id} — ${locTitle}`;
             detailCurrentStatusBadge.textContent = rec.status;
             detailCurrentStatusBadge.className = getStatusBadgeClass(rec.status);
             if (detailStatusSelect) detailStatusSelect.value = rec.status;
@@ -1033,13 +1526,40 @@ document.addEventListener("DOMContentLoaded", () => {
             detailAnnotatedImg.src = `/api/inspections/${id}/image/annotated`;
 
             // Telemetry
-            detailRoadName.textContent = rec.road_name || "Unspecified Location";
+            const locSummary = [rec.road_name, rec.area, rec.city].filter(Boolean).join(", ");
+            detailRoadName.textContent = locSummary || "Unspecified Location";
             detailLocationNotes.textContent = rec.location_notes || "No notes entered";
             detailDefectCount.textContent = rec.defect_count;
             detailDefectTypes.textContent = rec.defect_type || "None";
             detailTopConf.textContent = (rec.defect_count > 0 && rec.confidence) ? `${(rec.confidence * 100).toFixed(1)}%` : "N/A";
             detailTimestamp.textContent = formatDateTime(rec.uploaded_at);
             detailInspectionMode.textContent = (rec.inspection_mode === "tiled" ? "Tiled Slicing" : "Standard Full-Frame") + ` (≥ ${rec.confidence_threshold.toFixed(2)})`;
+
+            // Spatial Location Card
+            if (detailLocRoad) detailLocRoad.textContent = rec.road_name || "Unspecified";
+            if (detailLocArea) detailLocArea.textContent = rec.area || "Not Specified";
+            if (detailLocCity) detailLocCity.textContent = rec.city || "Not Specified";
+            
+            const hasCoords = (rec.latitude !== null && rec.latitude !== undefined && rec.longitude !== null && rec.longitude !== undefined);
+            if (detailLocCoords) {
+                if (hasCoords) {
+                    detailLocCoords.innerHTML = `<strong>${Number(rec.latitude).toFixed(6)}°, ${Number(rec.longitude).toFixed(6)}°</strong>`;
+                } else {
+                    detailLocCoords.textContent = "Coordinates not recorded";
+                }
+            }
+
+            if (detailGpsBadge) {
+                if (hasCoords) {
+                    detailGpsBadge.textContent = "📍 GPS Geotagged";
+                    detailGpsBadge.className = "badge gps-badge-active";
+                } else {
+                    detailGpsBadge.textContent = "GPS: Not Recorded";
+                    detailGpsBadge.className = "badge gps-badge-none";
+                }
+            }
+
+            if (detailLocNotes) detailLocNotes.textContent = rec.location_notes || "No notes entered";
 
             // Detections Table
             const detections = rec.detections || [];
@@ -1127,4 +1647,22 @@ document.addEventListener("DOMContentLoaded", () => {
     // Initialize Dashboard and Records Count
     loadDashboardStats();
     loadRecordsHeaderCount();
+
+    // Hash Route Support (e.g. #map, #records, #new, #dashboard)
+    function checkHashRoute() {
+        const hash = (window.location.hash || "").toLowerCase().replace("#", "").trim();
+        if (hash === "map" || hash === "defect-map") {
+            switchView("map");
+        } else if (hash === "records") {
+            switchView("records");
+        } else if (hash === "new" || hash === "inspect") {
+            switchView("new");
+        } else if (hash === "dashboard") {
+            switchView("dashboard");
+        }
+    }
+    window.addEventListener("hashchange", checkHashRoute);
+    if (window.location.hash) {
+        checkHashRoute();
+    }
 });

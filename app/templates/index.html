@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VisionGuard AI — Infrastructure Defect Detection</title>
     <meta name="description" content="AI-Powered Infrastructure Defect Detection & Road Inspection Platform using genuine YOLOv8 computer vision.">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <link rel="stylesheet" href="/static/css/styles.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
 </head>
@@ -28,6 +29,9 @@
                 </button>
                 <button type="button" class="nav-tab-btn" id="tabRecordsBtn">
                     <span>📋</span> Inspection Records <span class="badge badge-secondary" id="recordsCountBadgeHeader">0</span>
+                </button>
+                <button type="button" class="nav-tab-btn" id="tabMapBtn">
+                    <span>🗺️</span> Defect Map <span class="badge badge-secondary" id="mapCountBadgeHeader">0</span>
                 </button>
             </nav>
             <div class="telemetry-bar" id="telemetryBar">
@@ -461,7 +465,7 @@
                 </div>
                 <div class="save-form-grid">
                     <div class="form-group">
-                        <label for="saveRoadNameInput">Road / Highway / Location Name <span class="text-muted">(Optional)</span>:</label>
+                        <label for="saveRoadNameInput">Road / Highway / Corridor <span class="text-muted">(Optional)</span>:</label>
                         <input type="text" id="saveRoadNameInput" class="form-control" placeholder="e.g. Western Express Highway, KM 14" maxlength="150">
                     </div>
                     <div class="form-group">
@@ -473,6 +477,22 @@
                             <option value="Repair in Progress">🟠 Repair in Progress</option>
                             <option value="Resolved">🟢 Resolved</option>
                         </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="saveAreaInput">Area / Neighborhood / Landmark <span class="text-muted">(Optional)</span>:</label>
+                        <input type="text" id="saveAreaInput" class="form-control" placeholder="e.g. Bandra West / Sector 4" maxlength="100">
+                    </div>
+                    <div class="form-group">
+                        <label for="saveCityInput">City / Region <span class="text-muted">(Optional)</span>:</label>
+                        <input type="text" id="saveCityInput" class="form-control" placeholder="e.g. Mumbai" maxlength="100">
+                    </div>
+                    <div class="form-group">
+                        <label for="saveLatInput">Latitude <span class="text-muted">(GPS -90° to +90°, Optional)</span>:</label>
+                        <input type="number" id="saveLatInput" class="form-control" placeholder="e.g. 19.0760" step="any" min="-90" max="90">
+                    </div>
+                    <div class="form-group">
+                        <label for="saveLonInput">Longitude <span class="text-muted">(GPS -180° to +180°, Optional)</span>:</label>
+                        <input type="number" id="saveLonInput" class="form-control" placeholder="e.g. 72.8777" step="any" min="-180" max="180">
                     </div>
                     <div class="form-group full-width">
                         <label for="saveNotesInput">Location Notes / Inspection Observations <span class="text-muted">(Optional)</span>:</label>
@@ -537,7 +557,7 @@
                         </div>
                         <div class="filter-group flex-grow">
                             <label for="recordsSearchInput">Search Location:</label>
-                            <input type="text" id="recordsSearchInput" class="form-control form-control-sm" placeholder="Search road name or notes...">
+                            <input type="text" id="recordsSearchInput" class="form-control form-control-sm" placeholder="Search road, area, city, or notes...">
                         </div>
                         <div class="filter-buttons">
                             <button type="button" class="btn btn-secondary btn-sm" id="resetRecordsFiltersBtn" title="Reset all filters">✕ Reset</button>
@@ -701,6 +721,39 @@
                 </div>
             </div>
 
+            <!-- Location & Geographic Metadata Card -->
+            <div class="card location-detail-card" id="detailLocationCard">
+                <div class="card-header-row">
+                    <div>
+                        <h3>📍 Location & Spatial Metadata</h3>
+                        <p class="card-subtitle">Verified inspection location and geographic coordinates for mapping.</p>
+                    </div>
+                    <span class="badge" id="detailGpsBadge">GPS: Not Recorded</span>
+                </div>
+                <div class="location-detail-grid">
+                    <div class="loc-item">
+                        <span class="loc-label">Road / Highway</span>
+                        <strong id="detailLocRoad">--</strong>
+                    </div>
+                    <div class="loc-item">
+                        <span class="loc-label">Area / Landmark</span>
+                        <span id="detailLocArea">--</span>
+                    </div>
+                    <div class="loc-item">
+                        <span class="loc-label">City / Region</span>
+                        <span id="detailLocCity">--</span>
+                    </div>
+                    <div class="loc-item">
+                        <span class="loc-label">Coordinates</span>
+                        <span id="detailLocCoords">--</span>
+                    </div>
+                    <div class="loc-item full-width">
+                        <span class="loc-label">Location Notes & Observations</span>
+                        <span id="detailLocNotes">--</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- Detections Table for Saved Record -->
             <div class="card detections-card">
                 <h3>Detected Road Distresses (Authentic Model Coordinates)</h3>
@@ -738,6 +791,134 @@
                 </div>
             </div>
         </section>
+
+        <!-- Defect Map Section -->
+        <section class="map-container" id="mapSection" style="display: none;">
+            <div class="map-header">
+                <div>
+                    <h2>🗺️ Interactive Infrastructure Defect Map</h2>
+                    <p>Geospatial visualization of road distress inspections persisted with GPS coordinates.</p>
+                </div>
+                <div class="map-header-telemetry">
+                    <span class="badge badge-info" id="mapTelemetryBadge">Mapped: 0 / 0</span>
+                    <button type="button" class="btn btn-secondary btn-sm" id="refreshMapBtn">🔄 Refresh Map</button>
+                </div>
+            </div>
+
+            <!-- Map Filter Bar -->
+            <div class="card map-filter-card">
+                <div class="filter-controls-row">
+                    <div class="filter-group">
+                        <label for="mapCategoryFilter">Defect Category:</label>
+                        <select id="mapCategoryFilter" class="form-control form-control-sm">
+                            <option value="">All Categories</option>
+                            <option value="Longitudinal">Longitudinal Crack (D00)</option>
+                            <option value="Transverse">Transverse Crack (D10)</option>
+                            <option value="Alligator">Alligator Crack (D20)</option>
+                            <option value="Pothole">Pothole (D40)</option>
+                            <option value="Sound">Sound Surface (0 Defects)</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="mapStatusFilter">Workflow Status:</label>
+                        <select id="mapStatusFilter" class="form-control form-control-sm">
+                            <option value="">All Statuses</option>
+                            <option value="Open">🔵 Open</option>
+                            <option value="In Progress">🟠 In Progress</option>
+                            <option value="Under Review">🟡 Under Review</option>
+                            <option value="Repair in Progress">🟠 Repair in Progress</option>
+                            <option value="Resolved">🟢 Resolved</option>
+                        </select>
+                    </div>
+                    <div class="filter-group flex-grow">
+                        <label for="mapSearchInput">Search Location:</label>
+                        <input type="text" id="mapSearchInput" class="form-control form-control-sm" placeholder="Filter by road, area, or city...">
+                    </div>
+                    <div class="filter-buttons">
+                        <button type="button" class="btn btn-secondary btn-sm" id="resetMapFiltersBtn" title="Reset all map filters">✕ Reset</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notice / Error Banner for Map -->
+            <div class="alert alert-warning" id="mapErrorBanner" style="display: none;">
+                <div class="alert-icon">⚠️</div>
+                <div class="alert-content">
+                    <strong id="mapErrorTitle">Map Service Alert</strong>
+                    <p id="mapErrorMsg"></p>
+                </div>
+            </div>
+
+            <!-- Empty State when 0 records have coordinates -->
+            <div class="card empty-map-card" id="mapEmptyState" style="display: none;">
+                <div class="empty-state">
+                    <div class="empty-icon">📍</div>
+                    <h3>No Geotagged Defect Inspections Found</h3>
+                    <p id="mapEmptyMsg">There are saved inspection records in SQLite, but none currently have recorded GPS latitude and longitude coordinates.</p>
+                    <div style="margin-top: 1rem; display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
+                        <button type="button" class="btn btn-primary btn-sm" id="mapEmptyNewInspBtn">➕ Inspect & Geotag Road</button>
+                        <button type="button" class="btn btn-secondary btn-sm" id="mapEmptyViewRecordsBtn">📋 View Inspection Records</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Map Layout Wrapper: Map Viewport + Category Legend -->
+            <div class="map-layout" id="mapLayoutWrapper">
+                <div class="map-viewport-wrap">
+                    <div id="defectMap" class="defect-map"></div>
+                </div>
+
+                <!-- Legend & Summary Panel -->
+                <div class="card map-legend-card">
+                    <h3>Map Legend & Distress Classes</h3>
+                    <div class="legend-list">
+                        <div class="legend-item">
+                            <span class="legend-pin pin-d00"></span>
+                            <div class="legend-item-text">
+                                <strong>Longitudinal Crack (D00)</strong>
+                                <span class="legend-caption" id="legendCountD00">0 records</span>
+                            </div>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-pin pin-d10"></span>
+                            <div class="legend-item-text">
+                                <strong>Transverse Crack (D10)</strong>
+                                <span class="legend-caption" id="legendCountD10">0 records</span>
+                            </div>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-pin pin-d20"></span>
+                            <div class="legend-item-text">
+                                <strong>Alligator Crack (D20)</strong>
+                                <span class="legend-caption" id="legendCountD20">0 records</span>
+                            </div>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-pin pin-d40"></span>
+                            <div class="legend-item-text">
+                                <strong>Pothole (D40)</strong>
+                                <span class="legend-caption" id="legendCountD40">0 records</span>
+                            </div>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-pin pin-sound"></span>
+                            <div class="legend-item-text">
+                                <strong>Sound Surface (0 Defects)</strong>
+                                <span class="legend-caption" id="legendCountSound">0 records</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="legend-notice alert alert-disclaimer alert-sm" style="margin-top: 1.25rem;">
+                        <div class="alert-icon">ℹ️</div>
+                        <div class="alert-content">
+                            <strong>Geospatial Notice:</strong>
+                            <p>Map pins mark photographic capture coordinates. Pins do not indicate real-world crack lengths, pothole depth, or surveyed road centerline alignment.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
     </main>
 
     <!-- Footer -->
@@ -745,6 +926,7 @@
         <p>© VisionGuard AI • Built with Python, Flask, OpenCV & YOLOv8 • Strict adherence to genuine AI models (No mock predictions).</p>
     </footer>
 
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="/static/js/app.js"></script>
 </body>
 </html>
