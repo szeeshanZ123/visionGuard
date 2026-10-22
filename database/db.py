@@ -48,6 +48,10 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
         original_image_path TEXT,
         annotated_image_path TEXT,
         road_name TEXT,
+        area TEXT,
+        city TEXT,
+        latitude REAL,
+        longitude REAL,
         location_notes TEXT,
         inspection_mode TEXT DEFAULT 'standard',
         confidence_threshold REAL DEFAULT 0.25,
@@ -65,6 +69,10 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
         ("original_image_path", "TEXT"),
         ("annotated_image_path", "TEXT"),
         ("road_name", "TEXT"),
+        ("area", "TEXT"),
+        ("city", "TEXT"),
+        ("latitude", "REAL"),
+        ("longitude", "REAL"),
         ("location_notes", "TEXT"),
         ("inspection_mode", "TEXT DEFAULT 'standard'"),
         ("confidence_threshold", "REAL DEFAULT 0.25"),
@@ -97,7 +105,7 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
 
 
 def row_to_dict(row: sqlite3.Row) -> Dict[str, Any]:
-    """Converts a sqlite3.Row into a dict and parses detections_json safely."""
+    """Converts a sqlite3.Row into a dict and parses detections_json and location fields safely."""
     d = dict(row)
     # Parse detections_json
     raw_json = d.get("detections_json")
@@ -108,6 +116,31 @@ def row_to_dict(row: sqlite3.Row) -> Dict[str, Any]:
             d["detections"] = []
     else:
         d["detections"] = []
+
+    # Ensure latitude and longitude are float or None
+    lat = d.get("latitude")
+    if lat is not None:
+        try:
+            d["latitude"] = float(lat)
+        except (ValueError, TypeError):
+            d["latitude"] = None
+    else:
+        d["latitude"] = None
+
+    lon = d.get("longitude")
+    if lon is not None:
+        try:
+            d["longitude"] = float(lon)
+        except (ValueError, TypeError):
+            d["longitude"] = None
+    else:
+        d["longitude"] = None
+
+    d["road_name"] = d.get("road_name") or ""
+    d["area"] = d.get("area") or ""
+    d["city"] = d.get("city") or ""
+    d["location_notes"] = d.get("location_notes") or d.get("notes") or ""
+
     return d
 
 
@@ -124,8 +157,27 @@ def save_inspection(data: Dict[str, Any], db_path: str = DEFAULT_DB_PATH) -> Dic
     original_image_path = data.get("original_image_path") or data.get("file_path") or ""
     annotated_image_path = data.get("annotated_image_path") or data.get("processed_file_path") or ""
     road_name = (data.get("road_name") or "").strip()
+    area = (data.get("area") or "").strip()
+    city = (data.get("city") or "").strip()
     location_notes = (data.get("location_notes") or data.get("notes") or "").strip()
     inspection_mode = data.get("inspection_mode", "standard")
+
+    # Coordinates validation & conversion
+    lat_raw = data.get("latitude")
+    latitude = None
+    if lat_raw is not None and str(lat_raw).strip() != "":
+        try:
+            latitude = round(float(lat_raw), 6)
+        except (ValueError, TypeError):
+            latitude = None
+
+    lon_raw = data.get("longitude")
+    longitude = None
+    if lon_raw is not None and str(lon_raw).strip() != "":
+        try:
+            longitude = round(float(lon_raw), 6)
+        except (ValueError, TypeError):
+            longitude = None
 
     try:
         confidence_threshold = float(data.get("confidence_threshold", 0.25))
@@ -168,9 +220,10 @@ def save_inspection(data: Dict[str, Any], db_path: str = DEFAULT_DB_PATH) -> Dic
     cursor.execute("""
     INSERT INTO defect_inspections (
         image_name, file_path, status, defect_type, confidence, notes,
-        original_image_path, annotated_image_path, road_name, location_notes,
+        original_image_path, annotated_image_path, road_name, area, city,
+        latitude, longitude, location_notes,
         inspection_mode, confidence_threshold, defect_count, detections_json
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     """, (
         image_name,
         original_image_path,
@@ -181,6 +234,10 @@ def save_inspection(data: Dict[str, Any], db_path: str = DEFAULT_DB_PATH) -> Dic
         original_image_path,
         annotated_image_path,
         road_name,
+        area,
+        city,
+        latitude,
+        longitude,
         location_notes,
         inspection_mode,
         round(confidence_threshold, 4),
@@ -204,6 +261,7 @@ def get_inspections(
     offset: int = 0,
     category: Optional[str] = None,
     search_query: Optional[str] = None,
+    has_coords: Optional[bool] = None,
     db_path: str = DEFAULT_DB_PATH
 ) -> List[Dict[str, Any]]:
     """Retrieves saved inspections with optional filters, ordered chronologically newest first."""
@@ -233,8 +291,13 @@ def get_inspections(
 
     if search_query and search_query.strip():
         q_term = f"%{search_query.strip()}%"
-        conditions.append("(road_name LIKE ? OR location_notes LIKE ? OR image_name LIKE ?)")
-        params.extend([q_term, q_term, q_term])
+        conditions.append("(road_name LIKE ? OR area LIKE ? OR city LIKE ? OR location_notes LIKE ? OR image_name LIKE ?)")
+        params.extend([q_term, q_term, q_term, q_term, q_term])
+
+    if has_coords is True:
+        conditions.append("latitude IS NOT NULL AND longitude IS NOT NULL")
+    elif has_coords is False:
+        conditions.append("(latitude IS NULL OR longitude IS NULL)")
 
     where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
 
@@ -396,6 +459,73 @@ def update_inspection_status(
     updated_row = cursor.fetchone()
     conn.close()
 
+    return row_to_dict(updated_row)
+
+
+def update_inspection(
+    inspection_id: int,
+    data: Dict[str, Any],
+    db_path: str = DEFAULT_DB_PATH
+) -> Optional[Dict[str, Any]]:
+    """
+    Updates an inspection record with status and/or location metadata.
+    Returns the updated record or None if record does not exist.
+    """
+    init_db(db_path)
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM defect_inspections WHERE id = ?;", (inspection_id,))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        return None
+
+    current = dict(row)
+    new_status = data.get("status") if "status" in data else current["status"]
+    if new_status not in ALLOWED_STATUSES:
+        conn.close()
+        raise ValueError(f"Invalid status '{new_status}'. Must be one of: {ALLOWED_STATUSES}")
+
+    road_name = data.get("road_name") if "road_name" in data else current.get("road_name")
+    area = data.get("area") if "area" in data else current.get("area")
+    city = data.get("city") if "city" in data else current.get("city")
+
+    if "latitude" in data:
+        lat_raw = data.get("latitude")
+        latitude = round(float(lat_raw), 6) if (lat_raw is not None and str(lat_raw).strip() != "") else None
+    else:
+        latitude = current.get("latitude")
+
+    if "longitude" in data:
+        lon_raw = data.get("longitude")
+        longitude = round(float(lon_raw), 6) if (lon_raw is not None and str(lon_raw).strip() != "") else None
+    else:
+        longitude = current.get("longitude")
+
+    notes = data.get("notes") if "notes" in data else (data.get("location_notes") if "location_notes" in data else current.get("notes"))
+
+    cursor.execute("""
+    UPDATE defect_inspections
+    SET status = ?, road_name = ?, area = ?, city = ?, latitude = ?, longitude = ?,
+        notes = ?, location_notes = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?;
+    """, (
+        new_status,
+        (road_name or "").strip() if road_name else "",
+        (area or "").strip() if area else "",
+        (city or "").strip() if city else "",
+        latitude,
+        longitude,
+        (notes or "").strip() if notes else "",
+        (notes or "").strip() if notes else "",
+        inspection_id
+    ))
+    conn.commit()
+
+    cursor.execute("SELECT * FROM defect_inspections WHERE id = ?;", (inspection_id,))
+    updated_row = cursor.fetchone()
+    conn.close()
     return row_to_dict(updated_row)
 
 

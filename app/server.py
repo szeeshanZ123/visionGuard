@@ -38,6 +38,7 @@ from database.db import (
     get_dashboard_analytics,
     get_inspection_by_id,
     update_inspection_status,
+    update_inspection,
     delete_inspection,
     ALLOWED_STATUSES,
     DEFAULT_DB_PATH,
@@ -392,9 +393,13 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
 
         category_filter = request.args.get("category")
         search_query = request.args.get("q") or request.args.get("search")
+        has_coords_raw = request.args.get("has_coords")
+        has_coords = None
+        if has_coords_raw is not None:
+            has_coords = has_coords_raw.strip().lower() in ["true", "1", "yes"]
 
         try:
-            limit = min(200, max(1, int(request.args.get("limit", 100))))
+            limit = min(500, max(1, int(request.args.get("limit", 100))))
             offset = max(0, int(request.args.get("offset", 0)))
         except (TypeError, ValueError):
             limit = 100
@@ -406,6 +411,7 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
             offset=offset,
             category=category_filter if category_filter and category_filter.lower() != "all" else None,
             search_query=search_query,
+            has_coords=has_coords,
             db_path=db_path
         )
         return jsonify({
@@ -414,11 +420,40 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
             "inspections": inspections,
         }), 200
 
+    def validate_coordinates(latitude, longitude):
+        """
+        Validates optional geographic coordinates.
+        Returns (is_valid, parsed_lat, parsed_lon, error_msg).
+        Coordinates can be None or empty string when unknown.
+        Latitude must be between -90.0 and 90.0.
+        Longitude must be between -180.0 and 180.0.
+        """
+        parsed_lat = None
+        parsed_lon = None
+
+        if latitude is not None and str(latitude).strip() != "":
+            try:
+                parsed_lat = float(latitude)
+            except (ValueError, TypeError):
+                return False, None, None, f"Latitude '{latitude}' is not a valid numeric coordinate."
+            if not (-90.0 <= parsed_lat <= 90.0):
+                return False, None, None, f"Latitude {parsed_lat} is out of bounds. Must be between -90.0 and 90.0 degrees."
+
+        if longitude is not None and str(longitude).strip() != "":
+            try:
+                parsed_lon = float(longitude)
+            except (ValueError, TypeError):
+                return False, None, None, f"Longitude '{longitude}' is not a valid numeric coordinate."
+            if not (-180.0 <= parsed_lon <= 180.0):
+                return False, None, None, f"Longitude {parsed_lon} is out of bounds. Must be between -180.0 and 180.0 degrees."
+
+        return True, parsed_lat, parsed_lon, None
+
     @app.route("/api/inspections", methods=["POST"])
     def api_save_inspection():
         """
         Saves a completed road inspection into the database.
-        Stores authentic detection coordinates, confidence, metadata, and status.
+        Stores authentic detection coordinates, confidence, metadata, location, and status.
         """
         db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
         payload = request.get_json(silent=True) or {}
@@ -439,6 +474,7 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
                 "message": f"Status '{status}' is invalid. Allowed: {ALLOWED_STATUSES}",
             }), 400
 
+        # Location metadata validation
         road_name = payload.get("road_name", "")
         if road_name and len(str(road_name)) > 150:
             return jsonify({
@@ -446,6 +482,36 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
                 "error_code": "ROAD_NAME_TOO_LONG",
                 "message": "Road/location name cannot exceed 150 characters.",
             }), 400
+
+        area = payload.get("area", "")
+        if area and len(str(area)) > 100:
+            return jsonify({
+                "status": "error",
+                "error_code": "AREA_TOO_LONG",
+                "message": "Area/neighborhood name cannot exceed 100 characters.",
+            }), 400
+
+        city = payload.get("city", "")
+        if city and len(str(city)) > 100:
+            return jsonify({
+                "status": "error",
+                "error_code": "CITY_TOO_LONG",
+                "message": "City name cannot exceed 100 characters.",
+            }), 400
+
+        # Validate GPS Coordinates
+        lat_input = payload.get("latitude")
+        lon_input = payload.get("longitude")
+        is_valid_coords, parsed_lat, parsed_lon, coord_err = validate_coordinates(lat_input, lon_input)
+        if not is_valid_coords:
+            return jsonify({
+                "status": "error",
+                "error_code": "INVALID_COORDINATES",
+                "message": coord_err,
+            }), 400
+
+        payload["latitude"] = parsed_lat
+        payload["longitude"] = parsed_lon
 
         original_image_path = payload.get("original_image_path", "").strip()
         if original_image_path:
@@ -514,11 +580,11 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
         """
         Updates the status of an inspection record.
         Allowed initial states: Open, Under Review, Repair in Progress, Resolved.
+        Also accepts optional location metadata updates.
         """
         db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
         payload = request.get_json(silent=True) or {}
         new_status = payload.get("status")
-        notes = payload.get("notes")
 
         if not new_status:
             return jsonify({
@@ -534,13 +600,43 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
                 "message": f"Status '{new_status}' is invalid. Allowed: {ALLOWED_STATUSES}",
             }), 400
 
-        try:
-            updated = update_inspection_status(
-                inspection_id,
-                new_status,
-                notes=notes,
-                db_path=db_path
+        # Validate coordinates if provided
+        if "latitude" in payload or "longitude" in payload:
+            is_valid_coords, parsed_lat, parsed_lon, coord_err = validate_coordinates(
+                payload.get("latitude"), payload.get("longitude")
             )
+            if not is_valid_coords:
+                return jsonify({
+                    "status": "error",
+                    "error_code": "INVALID_COORDINATES",
+                    "message": coord_err,
+                }), 400
+            payload["latitude"] = parsed_lat
+            payload["longitude"] = parsed_lon
+
+        if "road_name" in payload and payload["road_name"] and len(str(payload["road_name"])) > 150:
+            return jsonify({
+                "status": "error",
+                "error_code": "ROAD_NAME_TOO_LONG",
+                "message": "Road/location name cannot exceed 150 characters.",
+            }), 400
+
+        if "area" in payload and payload["area"] and len(str(payload["area"])) > 100:
+            return jsonify({
+                "status": "error",
+                "error_code": "AREA_TOO_LONG",
+                "message": "Area/neighborhood name cannot exceed 100 characters.",
+            }), 400
+
+        if "city" in payload and payload["city"] and len(str(payload["city"])) > 100:
+            return jsonify({
+                "status": "error",
+                "error_code": "CITY_TOO_LONG",
+                "message": "City name cannot exceed 100 characters.",
+            }), 400
+
+        try:
+            updated = update_inspection(inspection_id, payload, db_path=db_path)
             if not updated:
                 return jsonify({
                     "status": "error",
@@ -568,6 +664,77 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
                 "status": "error",
                 "error_code": "UPDATE_FAILED",
                 "message": f"Status update failed: {str(e)}",
+            }), 500
+
+    @app.route("/api/inspections/<int:inspection_id>", methods=["PATCH", "PUT"])
+    def api_update_inspection(inspection_id: int):
+        """
+        Updates location metadata, notes, and/or status for an existing inspection.
+        """
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        payload = request.get_json(silent=True) or {}
+
+        if "status" in payload and payload["status"] not in ALLOWED_STATUSES:
+            return jsonify({
+                "status": "error",
+                "error_code": "INVALID_STATUS",
+                "message": f"Status '{payload['status']}' is invalid. Allowed: {ALLOWED_STATUSES}",
+            }), 400
+
+        if "latitude" in payload or "longitude" in payload:
+            is_valid_coords, parsed_lat, parsed_lon, coord_err = validate_coordinates(
+                payload.get("latitude"), payload.get("longitude")
+            )
+            if not is_valid_coords:
+                return jsonify({
+                    "status": "error",
+                    "error_code": "INVALID_COORDINATES",
+                    "message": coord_err,
+                }), 400
+            payload["latitude"] = parsed_lat
+            payload["longitude"] = parsed_lon
+
+        if "road_name" in payload and payload["road_name"] and len(str(payload["road_name"])) > 150:
+            return jsonify({
+                "status": "error",
+                "error_code": "ROAD_NAME_TOO_LONG",
+                "message": "Road/location name cannot exceed 150 characters.",
+            }), 400
+
+        if "area" in payload and payload["area"] and len(str(payload["area"])) > 100:
+            return jsonify({
+                "status": "error",
+                "error_code": "AREA_TOO_LONG",
+                "message": "Area/neighborhood name cannot exceed 100 characters.",
+            }), 400
+
+        if "city" in payload and payload["city"] and len(str(payload["city"])) > 100:
+            return jsonify({
+                "status": "error",
+                "error_code": "CITY_TOO_LONG",
+                "message": "City name cannot exceed 100 characters.",
+            }), 400
+
+        try:
+            updated = update_inspection(inspection_id, payload, db_path=db_path)
+            if not updated:
+                return jsonify({
+                    "status": "error",
+                    "error_code": "INSPECTION_NOT_FOUND",
+                    "message": f"Inspection record #{inspection_id} not found.",
+                }), 404
+
+            return jsonify({
+                "status": "success",
+                "message": f"Inspection #{inspection_id} updated successfully.",
+                "inspection": updated,
+            }), 200
+        except Exception as e:
+            logger.exception(f"Failed to update inspection #{inspection_id}: {e}")
+            return jsonify({
+                "status": "error",
+                "error_code": "UPDATE_FAILED",
+                "message": f"Inspection update failed: {str(e)}",
             }), 500
 
     @app.route("/api/inspections/<int:inspection_id>/image/<img_type>", methods=["GET"])
