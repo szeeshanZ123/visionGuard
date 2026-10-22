@@ -3,13 +3,15 @@ Database access and schema management for VisionGuard AI.
 
 Follows the VisionGuard AI Architecture:
 - Local SQLite persistence for inspection logs, defect records, and metadata.
-- Prepares table schemas for defect inspection persistence and audit logs.
+- Prepares table schemas for defect inspection persistence, location metadata,
+  maintenance deadlines, and chronological audit activity logs.
 """
 
 import sqlite3
 import os
 import json
-from typing import Dict, Any, List, Optional
+import datetime
+from typing import Dict, Any, List, Optional, Tuple
 
 
 DEFAULT_DB_PATH = os.path.join("data", "visionguard.db")
@@ -57,6 +59,7 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
         confidence_threshold REAL DEFAULT 0.25,
         defect_count INTEGER DEFAULT 0,
         detections_json TEXT DEFAULT '[]',
+        target_repair_date TEXT,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """)
@@ -78,12 +81,29 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
         ("confidence_threshold", "REAL DEFAULT 0.25"),
         ("defect_count", "INTEGER DEFAULT 0"),
         ("detections_json", "TEXT DEFAULT '[]'"),
+        ("target_repair_date", "TEXT"),
         ("updated_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
     ]
 
     for col_name, col_type in columns_to_add:
         if col_name not in existing_cols:
             cursor.execute(f"ALTER TABLE defect_inspections ADD COLUMN {col_name} {col_type};")
+
+    # Table for chronological maintenance audit activity history (Phase 4.4)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS maintenance_activity_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        inspection_id INTEGER NOT NULL,
+        action_type TEXT NOT NULL,
+        previous_status TEXT,
+        new_status TEXT,
+        previous_target_date TEXT,
+        new_target_date TEXT,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (inspection_id) REFERENCES defect_inspections(id) ON DELETE CASCADE
+    );
+    """)
 
     # Table for system audit logs / metadata
     cursor.execute("""
@@ -104,8 +124,164 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
     conn.close()
 
 
-def row_to_dict(row: sqlite3.Row) -> Dict[str, Any]:
-    """Converts a sqlite3.Row into a dict and parses detections_json and location fields safely."""
+def validate_target_repair_date(date_str: Any) -> Tuple[bool, Optional[str], Optional[str]]:
+    """
+    Validates optional target repair date.
+    Returns: (is_valid, parsed_date_str_or_none, error_message_or_none)
+    """
+    if date_str is None or str(date_str).strip() == "":
+        return True, None, None
+
+    val = str(date_str).strip()
+    try:
+        dt = datetime.datetime.strptime(val[:10], "%Y-%m-%d")
+        if dt.year < 2000 or dt.year > 2100:
+            return False, None, "Target repair date year must be between 2000 and 2100."
+        return True, dt.date().isoformat(), None
+    except (ValueError, TypeError):
+        return False, None, "Target repair date must be a valid calendar date in YYYY-MM-DD format."
+
+
+def compute_maintenance_status(
+    target_repair_date_str: Optional[str],
+    status: str,
+    ref_date: Optional[datetime.date] = None
+) -> Dict[str, Any]:
+    """
+    Computes maintenance urgency and deadline classification.
+    Adheres strictly to the rule: Resolved records are NEVER classified as overdue active repairs.
+    """
+    if ref_date is None:
+        ref_date = datetime.date.today()
+
+    if status == "Resolved":
+        return {
+            "urgency": "resolved",
+            "maintenance_urgency": "resolved",
+            "label": "Resolved",
+            "maintenance_label": "Resolved",
+            "is_overdue": False,
+            "days_remaining": None,
+        }
+
+    if not target_repair_date_str or not str(target_repair_date_str).strip():
+        return {
+            "urgency": "none",
+            "maintenance_urgency": "none",
+            "label": "No Target Date",
+            "maintenance_label": "No Target Date",
+            "is_overdue": False,
+            "days_remaining": None,
+        }
+
+    try:
+        due_date = datetime.datetime.strptime(str(target_repair_date_str)[:10], "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        return {
+            "urgency": "none",
+            "maintenance_urgency": "none",
+            "label": "Invalid Date",
+            "maintenance_label": "Invalid Date",
+            "is_overdue": False,
+            "days_remaining": None,
+        }
+
+    delta_days = (due_date - ref_date).days
+    if delta_days < 0:
+        overdue_by = abs(delta_days)
+        lbl = f"Overdue by {overdue_by} day{'s' if overdue_by != 1 else ''}"
+        return {
+            "urgency": "overdue",
+            "maintenance_urgency": "overdue",
+            "label": lbl,
+            "maintenance_label": lbl,
+            "is_overdue": True,
+            "days_remaining": delta_days,
+        }
+    elif delta_days == 0:
+        return {
+            "urgency": "due_today",
+            "maintenance_urgency": "due_today",
+            "label": "Due Today",
+            "maintenance_label": "Due Today",
+            "is_overdue": False,
+            "days_remaining": 0,
+        }
+    else:
+        lbl = f"Due in {delta_days} day{'s' if delta_days != 1 else ''}"
+        return {
+            "urgency": "upcoming",
+            "maintenance_urgency": "upcoming",
+            "label": lbl,
+            "maintenance_label": lbl,
+            "is_overdue": False,
+            "days_remaining": delta_days,
+        }
+
+
+def log_maintenance_activity(
+    inspection_id: int,
+    action_type: str,
+    previous_status: Optional[str] = None,
+    new_status: Optional[str] = None,
+    previous_target_date: Optional[str] = None,
+    new_target_date: Optional[str] = None,
+    notes: Optional[str] = None,
+    created_at: Optional[str] = None,
+    db_path: str = DEFAULT_DB_PATH
+) -> int:
+    """Records a chronological maintenance audit activity entry."""
+    init_db(db_path)
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+
+    if created_at:
+        cursor.execute("""
+        INSERT INTO maintenance_activity_log (
+            inspection_id, action_type, previous_status, new_status,
+            previous_target_date, new_target_date, notes, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+        """, (
+            inspection_id, action_type, previous_status, new_status,
+            previous_target_date, new_target_date, (notes or "").strip(), created_at
+        ))
+    else:
+        cursor.execute("""
+        INSERT INTO maintenance_activity_log (
+            inspection_id, action_type, previous_status, new_status,
+            previous_target_date, new_target_date, notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?);
+        """, (
+            inspection_id, action_type, previous_status, new_status,
+            previous_target_date, new_target_date, (notes or "").strip()
+        ))
+
+    log_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return log_id
+
+
+def get_inspection_activity(inspection_id: int, db_path: str = DEFAULT_DB_PATH) -> List[Dict[str, Any]]:
+    """Returns chronological maintenance activity logs for an inspection record."""
+    init_db(db_path)
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    SELECT id, inspection_id, action_type, previous_status, new_status,
+           previous_target_date, new_target_date, notes, created_at
+    FROM maintenance_activity_log
+    WHERE inspection_id = ?
+    ORDER BY created_at ASC, id ASC;
+    """, (inspection_id,))
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def row_to_dict(row: sqlite3.Row, ref_date: Optional[datetime.date] = None) -> Dict[str, Any]:
+    """Converts a sqlite3.Row into a dict and parses detections_json, location, and maintenance deadline fields safely."""
     d = dict(row)
     # Parse detections_json
     raw_json = d.get("detections_json")
@@ -140,6 +316,16 @@ def row_to_dict(row: sqlite3.Row) -> Dict[str, Any]:
     d["area"] = d.get("area") or ""
     d["city"] = d.get("city") or ""
     d["location_notes"] = d.get("location_notes") or d.get("notes") or ""
+
+    # Maintenance deadline fields (Phase 4.4)
+    raw_target_date = d.get("target_repair_date")
+    status = d.get("status") or DEFAULT_STATUS
+    m_info = compute_maintenance_status(raw_target_date, status, ref_date=ref_date)
+    d["target_repair_date"] = raw_target_date if (raw_target_date and str(raw_target_date).strip()) else None
+    d["maintenance_urgency"] = m_info["urgency"]
+    d["maintenance_label"] = m_info["label"]
+    d["is_overdue"] = m_info["is_overdue"]
+    d["days_remaining"] = m_info["days_remaining"]
 
     return d
 
@@ -178,6 +364,13 @@ def save_inspection(data: Dict[str, Any], db_path: str = DEFAULT_DB_PATH) -> Dic
             longitude = round(float(lon_raw), 6)
         except (ValueError, TypeError):
             longitude = None
+
+    # Target repair date validation (Phase 4.4)
+    target_repair_date_raw = data.get("target_repair_date")
+    is_valid_date, target_repair_date, date_err = validate_target_repair_date(target_repair_date_raw)
+    if not is_valid_date:
+        conn.close()
+        raise ValueError(date_err)
 
     try:
         confidence_threshold = float(data.get("confidence_threshold", 0.25))
@@ -222,8 +415,9 @@ def save_inspection(data: Dict[str, Any], db_path: str = DEFAULT_DB_PATH) -> Dic
         image_name, file_path, status, defect_type, confidence, notes,
         original_image_path, annotated_image_path, road_name, area, city,
         latitude, longitude, location_notes,
-        inspection_mode, confidence_threshold, defect_count, detections_json
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        inspection_mode, confidence_threshold, defect_count, detections_json,
+        target_repair_date
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     """, (
         image_name,
         original_image_path,
@@ -243,9 +437,23 @@ def save_inspection(data: Dict[str, Any], db_path: str = DEFAULT_DB_PATH) -> Dic
         round(confidence_threshold, 4),
         defect_count,
         detections_json,
+        target_repair_date,
     ))
 
     inserted_id = cursor.lastrowid
+    conn.commit()
+
+    # Log initial creation in maintenance audit history
+    cursor.execute("""
+    INSERT INTO maintenance_activity_log (
+        inspection_id, action_type, new_status, new_target_date, notes
+    ) VALUES (?, 'created', ?, ?, ?);
+    """, (
+        inserted_id,
+        status,
+        target_repair_date,
+        location_notes or "Inspection record created and persisted in SQLite."
+    ))
     conn.commit()
 
     cursor.execute("SELECT * FROM defect_inspections WHERE id = ?;", (inserted_id,))
@@ -262,6 +470,8 @@ def get_inspections(
     category: Optional[str] = None,
     search_query: Optional[str] = None,
     has_coords: Optional[bool] = None,
+    deadline_filter: Optional[str] = None,
+    ref_date: Optional[datetime.date] = None,
     db_path: str = DEFAULT_DB_PATH
 ) -> List[Dict[str, Any]]:
     """Retrieves saved inspections with optional filters, ordered chronologically newest first."""
@@ -299,6 +509,25 @@ def get_inspections(
     elif has_coords is False:
         conditions.append("(latitude IS NULL OR longitude IS NULL)")
 
+    # Maintenance deadline filter (Phase 4.4)
+    ref_today = (ref_date or datetime.date.today()).isoformat()
+    if deadline_filter and deadline_filter.strip():
+        dl = deadline_filter.strip().lower()
+        if dl == "overdue":
+            # Active/unresolved defects whose target repair date has passed
+            conditions.append("status != 'Resolved' AND target_repair_date IS NOT NULL AND target_repair_date != '' AND target_repair_date < ?")
+            params.append(ref_today)
+        elif dl == "due_today":
+            conditions.append("status != 'Resolved' AND target_repair_date = ?")
+            params.append(ref_today)
+        elif dl == "upcoming":
+            conditions.append("status != 'Resolved' AND target_repair_date > ?")
+            params.append(ref_today)
+        elif dl == "resolved":
+            conditions.append("status = 'Resolved'")
+        elif dl in ["no_deadline", "none"]:
+            conditions.append("(target_repair_date IS NULL OR target_repair_date = '')")
+
     where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
 
     query = f"""
@@ -312,11 +541,14 @@ def get_inspections(
     cursor.execute(query, tuple(params))
     rows = cursor.fetchall()
     conn.close()
-    return [row_to_dict(r) for r in rows]
+    return [row_to_dict(r, ref_date=ref_date) for r in rows]
 
 
-def get_dashboard_analytics(db_path: str = DEFAULT_DB_PATH) -> Dict[str, Any]:
-    """Calculates summary metrics and defect category distribution from actual SQLite records."""
+def get_dashboard_analytics(
+    ref_date: Optional[datetime.date] = None,
+    db_path: str = DEFAULT_DB_PATH
+) -> Dict[str, Any]:
+    """Calculates summary metrics, defect category distribution, and maintenance deadlines from actual SQLite records."""
     init_db(db_path)
     conn = get_db_connection(db_path)
     cursor = conn.cursor()
@@ -329,21 +561,17 @@ def get_dashboard_analytics(db_path: str = DEFAULT_DB_PATH) -> Dict[str, Any]:
     cursor.execute("SELECT COALESCE(SUM(defect_count), 0) as total_defects FROM defect_inspections;")
     total_defects = cursor.fetchone()["total_defects"]
 
-    # Status counts
+    # Workflow status distribution
     cursor.execute("SELECT COUNT(*) as count FROM defect_inspections WHERE status = 'Open';")
     open_records = cursor.fetchone()["count"]
 
-    cursor.execute("""
-    SELECT COUNT(*) as count FROM defect_inspections 
-    WHERE status IN ('In Progress', 'Repair in Progress', 'Under Review');
-    """)
+    cursor.execute("SELECT COUNT(*) as count FROM defect_inspections WHERE status IN ('In Progress', 'Repair in Progress', 'Under Review');")
     in_progress_records = cursor.fetchone()["count"]
 
     cursor.execute("SELECT COUNT(*) as count FROM defect_inspections WHERE status = 'Resolved';")
     resolved_records = cursor.fetchone()["count"]
 
-    # Defect category breakdown:
-    # 4 authentic classes: Longitudinal Crack, Transverse Crack, Alligator Crack, Pothole
+    # Defect categories breakdown
     category_counts = {
         "Longitudinal Crack": 0,
         "Transverse Crack": 0,
@@ -387,6 +615,43 @@ def get_dashboard_analytics(db_path: str = DEFAULT_DB_PATH) -> Dict[str, Any]:
             if "pothole" in dt:
                 category_counts["Pothole"] += 1
 
+    # Maintenance Deadlines Metrics (Phase 4.4)
+    today_str = (ref_date or datetime.date.today()).isoformat()
+
+    cursor.execute("""
+    SELECT COUNT(*) as count FROM defect_inspections
+    WHERE status != 'Resolved' AND target_repair_date IS NOT NULL AND target_repair_date != '' AND target_repair_date < ?;
+    """, (today_str,))
+    overdue_count = cursor.fetchone()["count"]
+
+    cursor.execute("""
+    SELECT COUNT(*) as count FROM defect_inspections
+    WHERE status != 'Resolved' AND target_repair_date = ?;
+    """, (today_str,))
+    due_today_count = cursor.fetchone()["count"]
+
+    cursor.execute("""
+    SELECT COUNT(*) as count FROM defect_inspections
+    WHERE status != 'Resolved' AND target_repair_date > ?;
+    """, (today_str,))
+    upcoming_count = cursor.fetchone()["count"]
+
+    cursor.execute("""
+    SELECT COUNT(*) as count FROM defect_inspections
+    WHERE target_repair_date IS NULL OR target_repair_date = '';
+    """)
+    no_deadline_count = cursor.fetchone()["count"]
+
+    # Actionable upcoming / overdue records list (top 5)
+    cursor.execute("""
+    SELECT * FROM defect_inspections
+    WHERE status != 'Resolved' AND target_repair_date IS NOT NULL AND target_repair_date != ''
+    ORDER BY target_repair_date ASC
+    LIMIT 5;
+    """)
+    actionable_rows = cursor.fetchall()
+    actionable_maintenance = [row_to_dict(r, ref_date=ref_date) for r in actionable_rows]
+
     # Recent inspections (newest 5)
     cursor.execute("""
     SELECT * FROM defect_inspections
@@ -394,7 +659,7 @@ def get_dashboard_analytics(db_path: str = DEFAULT_DB_PATH) -> Dict[str, Any]:
     LIMIT 5;
     """)
     recent_rows = cursor.fetchall()
-    recent_inspections = [row_to_dict(r) for r in recent_rows]
+    recent_inspections = [row_to_dict(r, ref_date=ref_date) for r in recent_rows]
 
     conn.close()
 
@@ -406,31 +671,56 @@ def get_dashboard_analytics(db_path: str = DEFAULT_DB_PATH) -> Dict[str, Any]:
         "resolved_records": resolved_records,
         "defect_categories": category_counts,
         "recent_inspections": recent_inspections,
+        "maintenance_summary": {
+            "overdue_count": overdue_count,
+            "due_today_count": due_today_count,
+            "upcoming_count": upcoming_count,
+            "resolved_count": resolved_records,
+            "no_deadline_count": no_deadline_count,
+            "actionable_count": overdue_count + due_today_count + upcoming_count,
+            "actionable_maintenance": actionable_maintenance,
+        }
     }
 
 
-def get_inspection_by_id(inspection_id: int, db_path: str = DEFAULT_DB_PATH) -> Optional[Dict[str, Any]]:
-    """Fetches full details of a single inspection record by ID."""
+def get_inspection_by_id(
+    inspection_id: int,
+    ref_date: Optional[datetime.date] = None,
+    db_path: str = DEFAULT_DB_PATH
+) -> Optional[Dict[str, Any]]:
+    """Fetches full details of a single inspection record by ID, including activity history."""
     init_db(db_path)
     conn = get_db_connection(db_path)
     cursor = conn.cursor()
 
     cursor.execute("SELECT * FROM defect_inspections WHERE id = ?;", (inspection_id,))
     row = cursor.fetchone()
+    if not row:
+        conn.close()
+        return None
+
+    res = row_to_dict(row, ref_date=ref_date)
+    cursor.execute("""
+    SELECT * FROM maintenance_activity_log
+    WHERE inspection_id = ?
+    ORDER BY created_at ASC, id ASC;
+    """, (inspection_id,))
+    res["activity_log"] = [dict(r) for r in cursor.fetchall()]
     conn.close()
 
-    return row_to_dict(row) if row else None
+    return res
 
 
 def update_inspection_status(
     inspection_id: int,
     new_status: str,
     notes: Optional[str] = None,
+    target_repair_date: Optional[str] = None,
     db_path: str = DEFAULT_DB_PATH
 ) -> Optional[Dict[str, Any]]:
     """
-    Updates the status and optional notes of an inspection record.
-    Returns the updated record or None if record does not exist.
+    Updates the status and optional notes/target repair date of an inspection record.
+    Logs transition activity to maintenance_activity_log.
     """
     if new_status not in ALLOWED_STATUSES:
         raise ValueError(f"Invalid status '{new_status}'. Must be one of: {ALLOWED_STATUSES}")
@@ -439,19 +729,44 @@ def update_inspection_status(
     conn = get_db_connection(db_path)
     cursor = conn.cursor()
 
-    cursor.execute("SELECT id, notes FROM defect_inspections WHERE id = ?;", (inspection_id,))
+    cursor.execute("SELECT id, status, notes, target_repair_date FROM defect_inspections WHERE id = ?;", (inspection_id,))
     row = cursor.fetchone()
     if not row:
         conn.close()
         return None
 
+    old_status = row["status"]
+    old_target_date = row["target_repair_date"]
     updated_notes = notes if notes is not None else row["notes"]
+
+    new_target_date = old_target_date
+    if target_repair_date is not None:
+        is_valid_date, parsed_date, date_err = validate_target_repair_date(target_repair_date)
+        if not is_valid_date:
+            conn.close()
+            raise ValueError(date_err)
+        new_target_date = parsed_date
 
     cursor.execute("""
     UPDATE defect_inspections
-    SET status = ?, notes = ?, location_notes = ?, updated_at = CURRENT_TIMESTAMP
+    SET status = ?, notes = ?, location_notes = ?, target_repair_date = ?, updated_at = CURRENT_TIMESTAMP
     WHERE id = ?;
-    """, (new_status, updated_notes, updated_notes, inspection_id))
+    """, (new_status, updated_notes, updated_notes, new_target_date, inspection_id))
+
+    # Log activity
+    if new_status != old_status:
+        cursor.execute("""
+        INSERT INTO maintenance_activity_log (
+            inspection_id, action_type, previous_status, new_status, notes
+        ) VALUES (?, 'status_change', ?, ?, ?);
+        """, (inspection_id, old_status, new_status, (notes or "").strip()))
+
+    if new_target_date != old_target_date:
+        cursor.execute("""
+        INSERT INTO maintenance_activity_log (
+            inspection_id, action_type, previous_target_date, new_target_date, notes
+        ) VALUES (?, 'target_date_change', ?, ?, ?);
+        """, (inspection_id, old_target_date, new_target_date, (notes or "").strip()))
 
     conn.commit()
 
@@ -468,8 +783,8 @@ def update_inspection(
     db_path: str = DEFAULT_DB_PATH
 ) -> Optional[Dict[str, Any]]:
     """
-    Updates an inspection record with status and/or location metadata.
-    Returns the updated record or None if record does not exist.
+    Updates an inspection record with status, location, target deadline, and/or notes.
+    Logs transition events to maintenance_activity_log.
     """
     init_db(db_path)
     conn = get_db_connection(db_path)
@@ -503,12 +818,23 @@ def update_inspection(
     else:
         longitude = current.get("longitude")
 
+    # Target repair date (Phase 4.4)
+    old_target_date = current.get("target_repair_date")
+    if "target_repair_date" in data:
+        is_valid_date, parsed_date, date_err = validate_target_repair_date(data.get("target_repair_date"))
+        if not is_valid_date:
+            conn.close()
+            raise ValueError(date_err)
+        new_target_date = parsed_date
+    else:
+        new_target_date = old_target_date
+
     notes = data.get("notes") if "notes" in data else (data.get("location_notes") if "location_notes" in data else current.get("notes"))
 
     cursor.execute("""
     UPDATE defect_inspections
     SET status = ?, road_name = ?, area = ?, city = ?, latitude = ?, longitude = ?,
-        notes = ?, location_notes = ?, updated_at = CURRENT_TIMESTAMP
+        notes = ?, location_notes = ?, target_repair_date = ?, updated_at = CURRENT_TIMESTAMP
     WHERE id = ?;
     """, (
         new_status,
@@ -519,8 +845,26 @@ def update_inspection(
         longitude,
         (notes or "").strip() if notes else "",
         (notes or "").strip() if notes else "",
+        new_target_date,
         inspection_id
     ))
+
+    # Activity log
+    old_status = current.get("status")
+    if new_status != old_status:
+        cursor.execute("""
+        INSERT INTO maintenance_activity_log (
+            inspection_id, action_type, previous_status, new_status, notes
+        ) VALUES (?, 'status_change', ?, ?, ?);
+        """, (inspection_id, old_status, new_status, (notes or "").strip()))
+
+    if new_target_date != old_target_date:
+        cursor.execute("""
+        INSERT INTO maintenance_activity_log (
+            inspection_id, action_type, previous_target_date, new_target_date, notes
+        ) VALUES (?, 'target_date_change', ?, ?, ?);
+        """, (inspection_id, old_target_date, new_target_date, (notes or "").strip()))
+
     conn.commit()
 
     cursor.execute("SELECT * FROM defect_inspections WHERE id = ?;", (inspection_id,))

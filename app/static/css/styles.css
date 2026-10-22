@@ -1486,3 +1486,303 @@ body {
     width: 100%;
 }
 
+/* =========================================================================
+   Phase 4.4: Maintenance Deadlines, Alerts & Activity History Styles
+   ========================================================================= */
+
+/* In-App Follow-up Alert Banner */
+.maintenance-alert-banner {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(245, 158, 11, 0.12) 100%);
+    border: 1px solid rgba(239, 68, 68, 0.45);
+    color: #fef2f2;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+    animation: fadeInSlide 0.3s ease-out;
+}
+
+@keyframes fadeInSlide {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.maintenance-alert-banner .alert-heading-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.25rem;
+    flex-wrap: wrap;
+}
+
+.maintenance-alert-banner .alert-heading-row strong {
+    font-size: 1.05rem;
+    color: #fca5a5;
+    letter-spacing: -0.01em;
+}
+
+.maintenance-alert-actions {
+    display: flex;
+    gap: 0.6rem;
+    margin-top: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.btn-outline-warning {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.5);
+    padding: 0.35rem 0.75rem;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-outline-warning:hover {
+    background: rgba(245, 158, 11, 0.3);
+    color: #ffffff;
+    border-color: #f59e0b;
+}
+
+.btn-outline-secondary {
+    background: rgba(148, 163, 184, 0.1);
+    color: #cbd5e1;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    padding: 0.35rem 0.75rem;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-outline-secondary:hover {
+    background: rgba(148, 163, 184, 0.25);
+    color: #ffffff;
+    border-color: #94a3b8;
+}
+
+/* Dashboard Maintenance Deadlines Card */
+.dash-maintenance-card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+    box-shadow: var(--shadow);
+}
+
+.maintenance-deadlines-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.85rem;
+    margin-top: 1rem;
+}
+
+.deadline-stat-box {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 0.9rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    user-select: none;
+}
+
+.deadline-stat-box:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.deadline-stat-box.box-overdue {
+    border-left: 4px solid var(--danger);
+}
+.deadline-stat-box.box-overdue:hover {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.45);
+}
+
+.deadline-stat-box.box-today {
+    border-left: 4px solid var(--warning);
+}
+.deadline-stat-box.box-today:hover {
+    background: rgba(245, 158, 11, 0.12);
+    border-color: rgba(245, 158, 11, 0.45);
+}
+
+.deadline-stat-box.box-upcoming {
+    border-left: 4px solid var(--primary);
+}
+.deadline-stat-box.box-upcoming:hover {
+    background: rgba(59, 130, 246, 0.12);
+    border-color: rgba(59, 130, 246, 0.45);
+}
+
+.deadline-stat-box.box-resolved {
+    border-left: 4px solid var(--success);
+}
+.deadline-stat-box.box-resolved:hover {
+    background: rgba(16, 185, 129, 0.12);
+    border-color: rgba(16, 185, 129, 0.45);
+}
+
+.deadline-stat-box.box-none {
+    border-left: 4px solid var(--text-muted);
+}
+.deadline-stat-box.box-none:hover {
+    background: rgba(100, 116, 139, 0.15);
+    border-color: rgba(100, 116, 139, 0.45);
+}
+
+.deadline-stat-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.deadline-stat-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.deadline-stat-num {
+    font-size: 1.4rem;
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+.deadline-stat-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-top: 0.15rem;
+}
+
+.deadline-stat-sub {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+/* Deadline Badges */
+.badge-deadline-overdue {
+    background-color: rgba(239, 68, 68, 0.18);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.45);
+    font-weight: 700;
+    letter-spacing: 0.01em;
+}
+
+.badge-deadline-today {
+    background-color: rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.5);
+    font-weight: 700;
+    letter-spacing: 0.01em;
+}
+
+.badge-deadline-upcoming {
+    background-color: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.35);
+    font-weight: 600;
+}
+
+.badge-deadline-resolved {
+    background-color: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    font-weight: 600;
+}
+
+.badge-deadline-none {
+    background-color: rgba(100, 116, 139, 0.15);
+    color: #94a3b8;
+    border: 1px solid rgba(100, 116, 139, 0.3);
+    font-weight: 500;
+}
+
+/* Detail View Deadline Card */
+.deadline-detail-card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+}
+
+.deadline-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+    padding: 1rem;
+    background: rgba(15, 23, 42, 0.6);
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Activity History Timeline Card & Table */
+.activity-history-card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+}
+
+.activity-table th {
+    background-color: rgba(15, 23, 42, 0.7);
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.activity-table td {
+    font-size: 0.82rem;
+    vertical-align: middle;
+}
+
+.activity-action-badge {
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    display: inline-block;
+}
+
+.action-created {
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.35);
+}
+
+.action-status-change {
+    background: rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.action-target-date-change {
+    background: rgba(168, 85, 247, 0.2);
+    color: #c084fc;
+    border: 1px solid rgba(168, 85, 247, 0.35);
+}
+
+.action-update {
+    background: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.transition-arrow {
+    color: var(--text-muted);
+    font-weight: bold;
+    margin: 0 0.3rem;
+}
+

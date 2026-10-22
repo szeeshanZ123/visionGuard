@@ -43,6 +43,25 @@
 
     <!-- Main Container -->
     <main class="main-container">
+        <!-- Maintenance Follow-up Alert Banner (In-App Local Notification) -->
+        <div class="alert alert-warning maintenance-alert-banner" id="maintenanceAlertBanner" style="display: none;">
+            <div class="alert-icon">⏰</div>
+            <div class="alert-content">
+                <div class="alert-heading-row">
+                    <strong id="maintenanceAlertTitle">Maintenance Follow-Up Attention Required</strong>
+                    <span class="badge badge-deadline-overdue" id="maintenanceAlertCountBadge">0 Overdue</span>
+                </div>
+                <p id="maintenanceAlertMsg">Saved inspection work orders require administrative remediation review based on scheduled target repair dates.</p>
+                <div class="maintenance-alert-actions">
+                    <button type="button" class="btn btn-sm btn-outline-warning" id="viewOverdueRecordsBtn">⚠️ Review Overdue Repairs</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="viewDueTodayRecordsBtn">🔔 Review Due Today</button>
+                </div>
+                <small class="text-muted" style="display: block; margin-top: 0.35rem; font-size: 0.75rem;">
+                    ℹ️ <em>Local In-App Reminder: Generated from local database deadlines; no external dispatches (email/SMS) were transmitted.</em>
+                </small>
+            </div>
+        </div>
+
         <!-- System Notice Banner (e.g. Model Missing) -->
         <div class="alert alert-warning" id="systemNoticeBanner" style="display: none;">
             <div class="alert-icon">⚠️</div>
@@ -92,6 +111,59 @@
                     <span class="metric-label">Resolved Records</span>
                     <strong class="metric-value text-success" id="dashResolvedRecords">0</strong>
                     <span class="metric-caption">Workflow closed</span>
+                </div>
+            </div>
+
+            <!-- Maintenance Deadlines Overview Card (Phase 4.4) -->
+            <div class="card dash-maintenance-card" id="dashMaintenanceCard">
+                <div class="card-header-row">
+                    <div>
+                        <h3>⏰ Maintenance Deadlines & Remediation Timelines</h3>
+                        <p class="card-subtitle">Real-time scheduling compliance computed dynamically from target repair dates in SQLite</p>
+                    </div>
+                    <span class="badge badge-info" id="maintenanceActionableBadge">0 Actionable</span>
+                </div>
+                <div class="maintenance-deadlines-grid">
+                    <div class="deadline-stat-box box-overdue" id="deadlineBoxOverdue" role="button" title="Click to filter overdue records">
+                        <div class="deadline-stat-icon">⚠️</div>
+                        <div class="deadline-stat-info">
+                            <strong class="deadline-stat-num text-danger" id="dashOverdueCount">0</strong>
+                            <span class="deadline-stat-label">Overdue Repairs</span>
+                            <span class="deadline-stat-sub">Target date passed</span>
+                        </div>
+                    </div>
+                    <div class="deadline-stat-box box-today" id="deadlineBoxToday" role="button" title="Click to filter records due today">
+                        <div class="deadline-stat-icon">🔔</div>
+                        <div class="deadline-stat-info">
+                            <strong class="deadline-stat-num text-warning" id="dashDueTodayCount">0</strong>
+                            <span class="deadline-stat-label">Due Today</span>
+                            <span class="deadline-stat-sub">Deadline is today</span>
+                        </div>
+                    </div>
+                    <div class="deadline-stat-box box-upcoming" id="deadlineBoxUpcoming" role="button" title="Click to filter upcoming records">
+                        <div class="deadline-stat-icon">📅</div>
+                        <div class="deadline-stat-info">
+                            <strong class="deadline-stat-num text-info" id="dashUpcomingCount">0</strong>
+                            <span class="deadline-stat-label">Upcoming Repairs</span>
+                            <span class="deadline-stat-sub">Scheduled future</span>
+                        </div>
+                    </div>
+                    <div class="deadline-stat-box box-resolved" id="deadlineBoxResolved" role="button" title="Click to filter resolved records">
+                        <div class="deadline-stat-icon">✅</div>
+                        <div class="deadline-stat-info">
+                            <strong class="deadline-stat-num text-success" id="dashResolvedMaintCount">0</strong>
+                            <span class="deadline-stat-label">Completed / Resolved</span>
+                            <span class="deadline-stat-sub">Workflow closed</span>
+                        </div>
+                    </div>
+                    <div class="deadline-stat-box box-none" id="deadlineBoxNone" role="button" title="Click to filter records without target date">
+                        <div class="deadline-stat-icon">⚪</div>
+                        <div class="deadline-stat-info">
+                            <strong class="deadline-stat-num text-muted" id="dashNoDeadlinesCount">0</strong>
+                            <span class="deadline-stat-label">No Target Date</span>
+                            <span class="deadline-stat-sub">Unscheduled</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -233,6 +305,7 @@
                                 <th>Defects Detected</th>
                                 <th>Top Confidence</th>
                                 <th>Current Status</th>
+                                <th>Target Deadline</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -479,6 +552,10 @@
                         </select>
                     </div>
                     <div class="form-group">
+                        <label for="saveTargetDateInput">Target Repair Date <span class="text-muted">(Optional)</span>:</label>
+                        <input type="date" id="saveTargetDateInput" class="form-control">
+                    </div>
+                    <div class="form-group">
                         <label for="saveAreaInput">Area / Neighborhood / Landmark <span class="text-muted">(Optional)</span>:</label>
                         <input type="text" id="saveAreaInput" class="form-control" placeholder="e.g. Bandra West / Sector 4" maxlength="100">
                     </div>
@@ -555,6 +632,17 @@
                                 <option value="Sound">Sound Surface (0 Defects)</option>
                             </select>
                         </div>
+                        <div class="filter-group">
+                            <label for="recordsDeadlineFilter">Deadline:</label>
+                            <select id="recordsDeadlineFilter" class="form-control form-control-sm">
+                                <option value="">All Deadlines</option>
+                                <option value="overdue">⚠️ Overdue Only</option>
+                                <option value="due_today">🔔 Due Today</option>
+                                <option value="upcoming">📅 Upcoming</option>
+                                <option value="resolved">✅ Resolved</option>
+                                <option value="no_deadline">⚪ No Deadline</option>
+                            </select>
+                        </div>
                         <div class="filter-group flex-grow">
                             <label for="recordsSearchInput">Search Location:</label>
                             <input type="text" id="recordsSearchInput" class="form-control form-control-sm" placeholder="Search road, area, city, or notes...">
@@ -605,6 +693,7 @@
                                 <th>Confidence</th>
                                 <th>Mode</th>
                                 <th>Status</th>
+                                <th>Target Deadline</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -652,13 +741,17 @@
                             <option value="Resolved">🟢 Resolved</option>
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label for="detailTargetDateInput">Target Repair Date:</label>
+                        <input type="date" id="detailTargetDateInput" class="form-control">
+                    </div>
                     <div class="form-group flex-grow">
                         <label for="detailStatusNotes">Status Update Notes / Remarks:</label>
                         <input type="text" id="detailStatusNotes" class="form-control" placeholder="e.g. Dispatched maintenance crew to verify crack propagation; scheduled for sealing.">
                     </div>
                     <div class="form-group form-group-btn">
                         <button type="button" class="btn btn-primary" id="updateStatusBtn">
-                            <span class="btn-text">Update Status</span>
+                            <span class="btn-text">Update Record</span>
                             <span class="spinner" id="updateStatusSpinner" style="display: none;"></span>
                         </button>
                     </div>
@@ -754,6 +847,61 @@
                 </div>
             </div>
 
+            <!-- Maintenance Timeline & Urgency Card (Phase 4.4) -->
+            <div class="card deadline-detail-card" id="detailDeadlineCard">
+                <div class="card-header-row">
+                    <div>
+                        <h3>⏰ Maintenance Timeline & Deadline Status</h3>
+                        <p class="card-subtitle">Remediation schedule compliance computed dynamically from target repair date</p>
+                    </div>
+                    <span class="badge" id="detailDeadlineBadge">No Target Date</span>
+                </div>
+                <div class="deadline-detail-grid">
+                    <div class="loc-item">
+                        <span class="loc-label">Target Repair Date</span>
+                        <strong id="detailTargetDateDisplay">Not Scheduled</strong>
+                    </div>
+                    <div class="loc-item">
+                        <span class="loc-label">Urgency Classification</span>
+                        <span id="detailUrgencyDisplay">Unscheduled</span>
+                    </div>
+                    <div class="loc-item">
+                        <span class="loc-label">Timeline Status</span>
+                        <span id="detailRemainingDisplay">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chronological Maintenance Activity History Card (Phase 4.4) -->
+            <div class="card activity-history-card" id="detailActivityCard">
+                <div class="card-header-row">
+                    <div>
+                        <h3>📜 Chronological Maintenance Activity History</h3>
+                        <p class="card-subtitle">Auditable log of status transitions, target date revisions, notes, and timestamps</p>
+                    </div>
+                    <span class="badge badge-secondary" id="detailActivityCountBadge">0 Events</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table activity-table" id="detailActivityTable">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Action</th>
+                                <th>Status Transition</th>
+                                <th>Target Date Revision</th>
+                                <th>Notes / Remarks</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detailActivityTableBody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="empty-state" id="detailActivityEmptyState" style="display: none; padding: 1.5rem;">
+                    <p class="text-muted">No maintenance activity recorded yet.</p>
+                </div>
+            </div>
+
             <!-- Detections Table for Saved Record -->
             <div class="card detections-card">
                 <h3>Detected Road Distresses (Authentic Model Coordinates)</h3>
@@ -828,6 +976,17 @@
                             <option value="Under Review">🟡 Under Review</option>
                             <option value="Repair in Progress">🟠 Repair in Progress</option>
                             <option value="Resolved">🟢 Resolved</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="mapDeadlineFilter">Deadline:</label>
+                        <select id="mapDeadlineFilter" class="form-control form-control-sm">
+                            <option value="">All Deadlines</option>
+                            <option value="overdue">⚠️ Overdue</option>
+                            <option value="due_today">🔔 Due Today</option>
+                            <option value="upcoming">📅 Upcoming</option>
+                            <option value="resolved">✅ Resolved</option>
+                            <option value="no_deadline">⚪ No Deadline</option>
                         </select>
                     </div>
                     <div class="filter-group flex-grow">

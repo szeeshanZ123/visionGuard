@@ -40,6 +40,8 @@ from database.db import (
     update_inspection_status,
     update_inspection,
     delete_inspection,
+    validate_target_repair_date,
+    get_inspection_activity,
     ALLOWED_STATUSES,
     DEFAULT_DB_PATH,
 )
@@ -398,6 +400,8 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
         if has_coords_raw is not None:
             has_coords = has_coords_raw.strip().lower() in ["true", "1", "yes"]
 
+        deadline_filter = request.args.get("deadline") or request.args.get("urgency")
+
         try:
             limit = min(500, max(1, int(request.args.get("limit", 100))))
             offset = max(0, int(request.args.get("offset", 0)))
@@ -412,6 +416,7 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
             category=category_filter if category_filter and category_filter.lower() != "all" else None,
             search_query=search_query,
             has_coords=has_coords,
+            deadline_filter=deadline_filter if deadline_filter and deadline_filter.lower() != "all" else None,
             db_path=db_path
         )
         return jsonify({
@@ -512,6 +517,20 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
 
         payload["latitude"] = parsed_lat
         payload["longitude"] = parsed_lon
+
+        # Validate Target Repair Date if supplied
+        target_repair_date = payload.get("target_repair_date")
+        if target_repair_date is not None and str(target_repair_date).strip() != "":
+            is_valid_date, norm_date, date_err = validate_target_repair_date(target_repair_date)
+            if not is_valid_date:
+                return jsonify({
+                    "status": "error",
+                    "error_code": "INVALID_TARGET_REPAIR_DATE",
+                    "message": date_err,
+                }), 400
+            payload["target_repair_date"] = norm_date
+        else:
+            payload["target_repair_date"] = None
 
         original_image_path = payload.get("original_image_path", "").strip()
         if original_image_path:
@@ -635,6 +654,21 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
                 "message": "City name cannot exceed 100 characters.",
             }), 400
 
+        # Validate target_repair_date if supplied
+        if "target_repair_date" in payload:
+            tr_date = payload.get("target_repair_date")
+            if tr_date is not None and str(tr_date).strip() != "":
+                is_valid_date, norm_date, date_err = validate_target_repair_date(tr_date)
+                if not is_valid_date:
+                    return jsonify({
+                        "status": "error",
+                        "error_code": "INVALID_TARGET_REPAIR_DATE",
+                        "message": date_err,
+                    }), 400
+                payload["target_repair_date"] = norm_date
+            else:
+                payload["target_repair_date"] = None
+
         try:
             updated = update_inspection(inspection_id, payload, db_path=db_path)
             if not updated:
@@ -715,6 +749,21 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
                 "message": "City name cannot exceed 100 characters.",
             }), 400
 
+        # Validate target_repair_date if supplied
+        if "target_repair_date" in payload:
+            tr_date = payload.get("target_repair_date")
+            if tr_date is not None and str(tr_date).strip() != "":
+                is_valid_date, norm_date, date_err = validate_target_repair_date(tr_date)
+                if not is_valid_date:
+                    return jsonify({
+                        "status": "error",
+                        "error_code": "INVALID_TARGET_REPAIR_DATE",
+                        "message": date_err,
+                    }), 400
+                payload["target_repair_date"] = norm_date
+            else:
+                payload["target_repair_date"] = None
+
         try:
             updated = update_inspection(inspection_id, payload, db_path=db_path)
             if not updated:
@@ -764,6 +813,27 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
 
         abs_target = os.path.abspath(target_path)
         return send_file(abs_target)
+
+    @app.route("/api/inspections/<int:inspection_id>/activity", methods=["GET"])
+    def api_get_inspection_activity_route(inspection_id: int):
+        """
+        Retrieves chronological maintenance activity history for an inspection record.
+        """
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        record = get_inspection_by_id(inspection_id, db_path=db_path)
+        if not record:
+            return jsonify({
+                "status": "error",
+                "error_code": "INSPECTION_NOT_FOUND",
+                "message": f"Inspection record #{inspection_id} not found.",
+            }), 404
+        activities = get_inspection_activity(inspection_id, db_path=db_path)
+        return jsonify({
+            "status": "success",
+            "inspection_id": inspection_id,
+            "count": len(activities),
+            "activities": activities,
+        }), 200
 
     return app
 

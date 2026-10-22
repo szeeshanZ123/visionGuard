@@ -518,6 +518,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const saveFeedback = document.getElementById("saveFeedback");
     const saveCardStatusBadge = document.getElementById("saveCardStatusBadge");
     const saveRoadNameInput = document.getElementById("saveRoadNameInput");
+    const saveTargetDateInput = document.getElementById("saveTargetDateInput");
     const saveAreaInput = document.getElementById("saveAreaInput");
     const saveCityInput = document.getElementById("saveCityInput");
     const saveLatInput = document.getElementById("saveLatInput");
@@ -525,8 +526,28 @@ document.addEventListener("DOMContentLoaded", () => {
     const saveNotesInput = document.getElementById("saveNotesInput");
     const saveStatusSelect = document.getElementById("saveStatusSelect");
 
+    // Phase 4.4: Maintenance Deadlines, Alerts & Activity Log Elements
+    const maintenanceAlertBanner = document.getElementById("maintenanceAlertBanner");
+    const maintenanceAlertTitle = document.getElementById("maintenanceAlertTitle");
+    const maintenanceAlertMsg = document.getElementById("maintenanceAlertMsg");
+    const maintenanceAlertCountBadge = document.getElementById("maintenanceAlertCountBadge");
+    const viewOverdueRecordsBtn = document.getElementById("viewOverdueRecordsBtn");
+    const viewDueTodayRecordsBtn = document.getElementById("viewDueTodayRecordsBtn");
+    const maintenanceActionableBadge = document.getElementById("maintenanceActionableBadge");
+    const dashOverdueCount = document.getElementById("dashOverdueCount");
+    const dashDueTodayCount = document.getElementById("dashDueTodayCount");
+    const dashUpcomingCount = document.getElementById("dashUpcomingCount");
+    const dashResolvedMaintCount = document.getElementById("dashResolvedMaintCount");
+    const dashNoDeadlinesCount = document.getElementById("dashNoDeadlinesCount");
+    const deadlineBoxOverdue = document.getElementById("deadlineBoxOverdue");
+    const deadlineBoxToday = document.getElementById("deadlineBoxToday");
+    const deadlineBoxUpcoming = document.getElementById("deadlineBoxUpcoming");
+    const deadlineBoxResolved = document.getElementById("deadlineBoxResolved");
+    const deadlineBoxNone = document.getElementById("deadlineBoxNone");
+
     const recordsStatusFilter = document.getElementById("recordsStatusFilter");
     const recordsCategoryFilter = document.getElementById("recordsCategoryFilter");
+    const recordsDeadlineFilter = document.getElementById("recordsDeadlineFilter");
     const recordsSearchInput = document.getElementById("recordsSearchInput");
     const resetRecordsFiltersBtn = document.getElementById("resetRecordsFiltersBtn");
     const refreshRecordsBtn = document.getElementById("refreshRecordsBtn");
@@ -543,10 +564,22 @@ document.addEventListener("DOMContentLoaded", () => {
     const detailRecordIdHeader = document.getElementById("detailRecordIdHeader");
     const detailCurrentStatusBadge = document.getElementById("detailCurrentStatusBadge");
     const detailStatusSelect = document.getElementById("detailStatusSelect");
+    const detailTargetDateInput = document.getElementById("detailTargetDateInput");
     const detailStatusNotes = document.getElementById("detailStatusNotes");
     const updateStatusBtn = document.getElementById("updateStatusBtn");
     const updateStatusSpinner = document.getElementById("updateStatusSpinner");
     const detailStatusFeedback = document.getElementById("detailStatusFeedback");
+
+    const detailDeadlineCard = document.getElementById("detailDeadlineCard");
+    const detailDeadlineBadge = document.getElementById("detailDeadlineBadge");
+    const detailTargetDateDisplay = document.getElementById("detailTargetDateDisplay");
+    const detailUrgencyDisplay = document.getElementById("detailUrgencyDisplay");
+    const detailRemainingDisplay = document.getElementById("detailRemainingDisplay");
+
+    const detailActivityCard = document.getElementById("detailActivityCard");
+    const detailActivityCountBadge = document.getElementById("detailActivityCountBadge");
+    const detailActivityTableBody = document.getElementById("detailActivityTableBody");
+    const detailActivityEmptyState = document.getElementById("detailActivityEmptyState");
 
     const detailOriginalImg = document.getElementById("detailOriginalImg");
     const detailAnnotatedImg = document.getElementById("detailAnnotatedImg");
@@ -566,11 +599,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const detailLocCoords = document.getElementById("detailLocCoords");
     const detailLocNotes = document.getElementById("detailLocNotes");
 
-    // Defect Map DOM Elements (Phase 4.2)
+    // Defect Map DOM Elements (Phase 4.2 & 4.4)
     const mapTelemetryBadge = document.getElementById("mapTelemetryBadge");
     const refreshMapBtn = document.getElementById("refreshMapBtn");
     const mapCategoryFilter = document.getElementById("mapCategoryFilter");
     const mapStatusFilter = document.getElementById("mapStatusFilter");
+    const mapDeadlineFilter = document.getElementById("mapDeadlineFilter");
     const mapSearchInput = document.getElementById("mapSearchInput");
     const resetMapFiltersBtn = document.getElementById("resetMapFiltersBtn");
     const mapErrorBanner = document.getElementById("mapErrorBanner");
@@ -692,6 +726,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     <span class="${statusClass}" style="font-size: 0.72rem; padding: 2px 7px;">${escapeHtml(rec.status)}</span>
                 </div>
                 <div class="map-popup-coords">GPS: ${latStr}°, ${lonStr}°</div>
+                <div style="margin-bottom: 0.4rem;">
+                    ${getDeadlineBadge(rec)}
+                </div>
                 <div class="map-popup-metrics">
                     <div class="metric-mini">
                         <span class="label">Defects</span>
@@ -759,6 +796,86 @@ document.addEventListener("DOMContentLoaded", () => {
             case "Resolved": return "badge badge-status-resolved";
             default: return "badge badge-secondary";
         }
+    }
+
+    // Helper: Map maintenance deadline urgency to badge HTML (Phase 4.4)
+    function getDeadlineBadge(rec) {
+        const urgency = rec.maintenance_urgency || (rec.status === "Resolved" ? "resolved" : "no_deadline");
+        const label = rec.maintenance_label || (rec.target_repair_date ? rec.target_repair_date : "No Target Date");
+        
+        switch (urgency) {
+            case "overdue":
+                return `<span class="badge badge-deadline-overdue" title="Overdue by ${Math.abs(rec.days_remaining || 0)} day(s)">⚠️ ${escapeHtml(label)}</span>`;
+            case "due_today":
+                return `<span class="badge badge-deadline-today" title="Deadline is today">🔔 ${escapeHtml(label)}</span>`;
+            case "upcoming":
+                return `<span class="badge badge-deadline-upcoming" title="Target: ${escapeHtml(rec.target_repair_date || '')}">📅 ${escapeHtml(label)}</span>`;
+            case "resolved":
+                return `<span class="badge badge-deadline-resolved" title="Remediation completed">✅ ${escapeHtml(label)}</span>`;
+            default:
+                return `<span class="badge badge-deadline-none">⚪ No Target Date</span>`;
+        }
+    }
+
+    // Helper: Render chronological activity history table
+    function renderActivityHistory(activities) {
+        if (!detailActivityTableBody) return;
+        detailActivityTableBody.innerHTML = "";
+
+        if (detailActivityCountBadge) {
+            detailActivityCountBadge.textContent = `${activities.length} Event${activities.length === 1 ? "" : "s"}`;
+        }
+
+        if (!activities || activities.length === 0) {
+            if (detailActivityEmptyState) detailActivityEmptyState.style.display = "block";
+            return;
+        }
+
+        if (detailActivityEmptyState) detailActivityEmptyState.style.display = "none";
+
+        activities.forEach(act => {
+            const tr = document.createElement("tr");
+            let actionBadge = "";
+            switch (act.action_type) {
+                case "created":
+                    actionBadge = `<span class="activity-action-badge action-created">Created</span>`;
+                    break;
+                case "status_change":
+                    actionBadge = `<span class="activity-action-badge action-status-change">Status</span>`;
+                    break;
+                case "target_date_change":
+                    actionBadge = `<span class="activity-action-badge action-target-date-change">Target Date</span>`;
+                    break;
+                default:
+                    actionBadge = `<span class="activity-action-badge action-update">${escapeHtml(act.action_type)}</span>`;
+                    break;
+            }
+
+            let statusTransition = "--";
+            if (act.previous_status && act.new_status && act.previous_status !== act.new_status) {
+                statusTransition = `<span>${escapeHtml(act.previous_status)}</span><span class="transition-arrow">→</span><strong>${escapeHtml(act.new_status)}</strong>`;
+            } else if (act.new_status) {
+                statusTransition = `<strong>${escapeHtml(act.new_status)}</strong>`;
+            }
+
+            let dateTransition = "--";
+            if (act.previous_target_date && act.new_target_date && act.previous_target_date !== act.new_target_date) {
+                dateTransition = `<span>${escapeHtml(act.previous_target_date)}</span><span class="transition-arrow">→</span><strong>${escapeHtml(act.new_target_date)}</strong>`;
+            } else if (act.new_target_date) {
+                dateTransition = `<strong>${escapeHtml(act.new_target_date)}</strong>`;
+            } else if (act.previous_target_date && !act.new_target_date) {
+                dateTransition = `<span style="color: var(--text-muted); text-decoration: line-through;">${escapeHtml(act.previous_target_date)}</span> (Cleared)`;
+            }
+
+            tr.innerHTML = `
+                <td><span style="font-size: 0.78rem; color: var(--text-secondary);">${formatDateTime(act.created_at)}</span></td>
+                <td>${actionBadge}</td>
+                <td>${statusTransition}</td>
+                <td>${dateTransition}</td>
+                <td><span style="font-size: 0.8rem; color: var(--text-primary);">${escapeHtml(act.notes || "No notes entered")}</span></td>
+            `;
+            detailActivityTableBody.appendChild(tr);
+        });
     }
 
     // Helper: Format ISO timestamp
@@ -851,6 +968,24 @@ document.addEventListener("DOMContentLoaded", () => {
     if (dashViewAllRecordsBtn) dashViewAllRecordsBtn.addEventListener("click", () => switchView("records"));
     if (refreshDashboardBtn) refreshDashboardBtn.addEventListener("click", loadDashboardStats);
 
+    // Quick filter handlers for Phase 4.4 Dashboard Deadline Cards & Alert Banner
+    function filterRecordsByDeadline(filterVal) {
+        if (recordsDeadlineFilter) recordsDeadlineFilter.value = filterVal;
+        if (recordsStatusFilter) recordsStatusFilter.value = "";
+        if (recordsCategoryFilter) recordsCategoryFilter.value = "";
+        if (recordsSearchInput) recordsSearchInput.value = "";
+        switchView("records");
+        loadRecords();
+    }
+
+    if (deadlineBoxOverdue) deadlineBoxOverdue.addEventListener("click", () => filterRecordsByDeadline("overdue"));
+    if (deadlineBoxToday) deadlineBoxToday.addEventListener("click", () => filterRecordsByDeadline("due_today"));
+    if (deadlineBoxUpcoming) deadlineBoxUpcoming.addEventListener("click", () => filterRecordsByDeadline("upcoming"));
+    if (deadlineBoxResolved) deadlineBoxResolved.addEventListener("click", () => filterRecordsByDeadline("resolved"));
+    if (deadlineBoxNone) deadlineBoxNone.addEventListener("click", () => filterRecordsByDeadline("no_deadline"));
+    if (viewOverdueRecordsBtn) viewOverdueRecordsBtn.addEventListener("click", () => filterRecordsByDeadline("overdue"));
+    if (viewDueTodayRecordsBtn) viewDueTodayRecordsBtn.addEventListener("click", () => filterRecordsByDeadline("due_today"));
+
     // Initialize Leaflet Map
     function initDefectMap() {
         if (typeof L === "undefined") {
@@ -917,12 +1052,19 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // Check if record matches category, status, and keyword filters
-    function filterMapRecord(rec, catFilter, statusFilter, kwFilter) {
+    // Check if record matches category, status, deadline, and keyword filters
+    function filterMapRecord(rec, catFilter, statusFilter, deadlineFilter, kwFilter) {
         if (!isValidCoordinate(rec.latitude, rec.longitude)) return false;
 
         if (statusFilter && rec.status !== statusFilter) {
             return false;
+        }
+
+        if (deadlineFilter) {
+            const urgency = rec.maintenance_urgency || (rec.status === "Resolved" ? "resolved" : "no_deadline");
+            if (urgency !== deadlineFilter) {
+                return false;
+            }
         }
 
         if (catFilter) {
@@ -986,6 +1128,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const catFilter = mapCategoryFilter ? mapCategoryFilter.value : "";
         const statusFilter = mapStatusFilter ? mapStatusFilter.value : "";
+        const deadlineFilter = mapDeadlineFilter ? mapDeadlineFilter.value : "";
         const kwFilter = mapSearchInput ? mapSearchInput.value.trim() : "";
 
         // Genuine coordinates only
@@ -1005,7 +1148,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (mapEmptyState) mapEmptyState.style.display = "none";
         if (mapLayoutWrapper) mapLayoutWrapper.style.display = "grid";
 
-        const filtered = validGeotagged.filter(rec => filterMapRecord(rec, catFilter, statusFilter, kwFilter));
+        const filtered = validGeotagged.filter(rec => filterMapRecord(rec, catFilter, statusFilter, deadlineFilter, kwFilter));
         const markerList = [];
 
         filtered.forEach(rec => {
@@ -1052,11 +1195,13 @@ document.addEventListener("DOMContentLoaded", () => {
     // Map Filter Event Listeners
     if (mapCategoryFilter) mapCategoryFilter.addEventListener("change", renderMapMarkers);
     if (mapStatusFilter) mapStatusFilter.addEventListener("change", renderMapMarkers);
+    if (mapDeadlineFilter) mapDeadlineFilter.addEventListener("change", renderMapMarkers);
     if (mapSearchInput) mapSearchInput.addEventListener("input", debounce(renderMapMarkers, 250));
     if (resetMapFiltersBtn) {
         resetMapFiltersBtn.addEventListener("click", () => {
             if (mapCategoryFilter) mapCategoryFilter.value = "";
             if (mapStatusFilter) mapStatusFilter.value = "";
+            if (mapDeadlineFilter) mapDeadlineFilter.value = "";
             if (mapSearchInput) mapSearchInput.value = "";
             renderMapMarkers();
         });
@@ -1136,6 +1281,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }
 
+            const targetRepairDate = saveTargetDateInput ? saveTargetDateInput.value.trim() : "";
+
             const payload = {
                 image_name: lastInspectionResult.filename,
                 original_image_path: lastInspectionResult.original_file_path || "",
@@ -1146,6 +1293,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 latitude: latVal,
                 longitude: lonVal,
                 location_notes: locationNotes,
+                target_repair_date: targetRepairDate || null,
                 inspection_mode: lastInspectionResult.inspection_mode || "standard",
                 confidence_threshold: lastInspectionResult.confidence_threshold || 0.25,
                 detections: lastInspectionResult.detections || [],
@@ -1262,6 +1410,49 @@ document.addEventListener("DOMContentLoaded", () => {
             dashInProgressRecords.textContent = inProgressRecords;
             dashResolvedRecords.textContent = resolvedRecords;
 
+            // Maintenance Deadlines Breakdown (Phase 4.4)
+            const maint = stats.maintenance_summary || {};
+            const overdueCount = maint.overdue_count || 0;
+            const dueTodayCount = maint.due_today_count || 0;
+            const upcomingCount = maint.upcoming_count || 0;
+            const resolvedMaintCount = maint.resolved_count || 0;
+            const noDeadlineCount = maint.no_deadline_count || 0;
+            const actionableCount = maint.actionable_maintenance || 0;
+
+            if (dashOverdueCount) dashOverdueCount.textContent = overdueCount;
+            if (dashDueTodayCount) dashDueTodayCount.textContent = dueTodayCount;
+            if (dashUpcomingCount) dashUpcomingCount.textContent = upcomingCount;
+            if (dashResolvedMaintCount) dashResolvedMaintCount.textContent = resolvedMaintCount;
+            if (dashNoDeadlinesCount) dashNoDeadlinesCount.textContent = noDeadlineCount;
+            if (maintenanceActionableBadge) maintenanceActionableBadge.textContent = `${actionableCount} Actionable`;
+
+            // Follow-up In-App Notification Alert Banner
+            if (maintenanceAlertBanner) {
+                if (overdueCount > 0 || dueTodayCount > 0) {
+                    maintenanceAlertBanner.style.display = "flex";
+                    if (maintenanceAlertCountBadge) {
+                        const parts = [];
+                        if (overdueCount > 0) parts.push(`${overdueCount} Overdue`);
+                        if (dueTodayCount > 0) parts.push(`${dueTodayCount} Due Today`);
+                        maintenanceAlertCountBadge.textContent = parts.join(" • ");
+                        maintenanceAlertCountBadge.className = overdueCount > 0 ? "badge badge-deadline-overdue" : "badge badge-deadline-today";
+                    }
+                    if (maintenanceAlertMsg) {
+                        let msgText = "";
+                        if (overdueCount > 0 && dueTodayCount > 0) {
+                            msgText = `Database registry highlights ${overdueCount} unremediated defect repair${overdueCount === 1 ? ' is' : 's are'} past deadline and ${dueTodayCount} repair${dueTodayCount === 1 ? ' is' : 's are'} scheduled for completion today.`;
+                        } else if (overdueCount > 0) {
+                            msgText = `Database registry highlights ${overdueCount} unremediated defect repair${overdueCount === 1 ? ' is' : 's are'} past scheduled deadline. Immediate follow-up recommended.`;
+                        } else {
+                            msgText = `Database registry highlights ${dueTodayCount} defect repair${dueTodayCount === 1 ? ' is' : 's are'} due for remediation today.`;
+                        }
+                        maintenanceAlertMsg.textContent = msgText;
+                    }
+                } else {
+                    maintenanceAlertBanner.style.display = "none";
+                }
+            }
+
             if (recordsCountBadgeHeader) recordsCountBadgeHeader.textContent = totalInspections;
 
             // Defect categories breakdown
@@ -1358,6 +1549,8 @@ document.addEventListener("DOMContentLoaded", () => {
             const confDisplay = rec.defect_count > 0 && rec.confidence ? `${(rec.confidence * 100).toFixed(1)}%` : "N/A";
             const statusClass = getStatusBadgeClass(rec.status);
 
+            const deadlineDisplay = getDeadlineBadge(rec);
+
             tr.innerHTML = `
                 <td><strong>#${rec.id}</strong></td>
                 <td>${roadDisplay}</td>
@@ -1365,6 +1558,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <td>${countDisplay}</td>
                 <td><strong>${confDisplay}</strong></td>
                 <td><span class="${statusClass}">${rec.status}</span></td>
+                <td>${deadlineDisplay}</td>
                 <td>
                     <button type="button" class="btn btn-secondary btn-sm open-recent-btn" data-id="${rec.id}">
                         👁️ View Details
@@ -1386,14 +1580,16 @@ document.addEventListener("DOMContentLoaded", () => {
     async function loadRecords() {
         const filterStatus = recordsStatusFilter ? recordsStatusFilter.value : "";
         const filterCategory = recordsCategoryFilter ? recordsCategoryFilter.value : "";
+        const filterDeadline = recordsDeadlineFilter ? recordsDeadlineFilter.value : "";
         const filterSearch = recordsSearchInput ? recordsSearchInput.value.trim() : "";
 
-        recordsTableBody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 2rem; color: var(--text-muted);">Loading inspection records...</td></tr>`;
+        recordsTableBody.innerHTML = `<tr><td colspan="10" style="text-align: center; padding: 2rem; color: var(--text-muted);">Loading inspection records...</td></tr>`;
 
         try {
             const params = new URLSearchParams();
             if (filterStatus) params.append("status", filterStatus);
             if (filterCategory) params.append("category", filterCategory);
+            if (filterDeadline) params.append("deadline", filterDeadline);
             if (filterSearch) params.append("q", filterSearch);
 
             const queryString = params.toString();
@@ -1411,17 +1607,19 @@ document.addEventListener("DOMContentLoaded", () => {
             loadRecordsHeaderCount();
         } catch (err) {
             console.error("Load records error:", err);
-            recordsTableBody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--danger); padding: 1.5rem;">Failed to load records: ${err.message}</td></tr>`;
+            recordsTableBody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--danger); padding: 1.5rem;">Failed to load records: ${err.message}</td></tr>`;
         }
     }
 
     if (recordsStatusFilter) recordsStatusFilter.addEventListener("change", loadRecords);
     if (recordsCategoryFilter) recordsCategoryFilter.addEventListener("change", loadRecords);
+    if (recordsDeadlineFilter) recordsDeadlineFilter.addEventListener("change", loadRecords);
     if (recordsSearchInput) recordsSearchInput.addEventListener("input", debounce(loadRecords, 300));
     if (resetRecordsFiltersBtn) {
         resetRecordsFiltersBtn.addEventListener("click", () => {
             if (recordsStatusFilter) recordsStatusFilter.value = "";
             if (recordsCategoryFilter) recordsCategoryFilter.value = "";
+            if (recordsDeadlineFilter) recordsDeadlineFilter.value = "";
             if (recordsSearchInput) recordsSearchInput.value = "";
             loadRecords();
         });
@@ -1465,6 +1663,8 @@ document.addEventListener("DOMContentLoaded", () => {
             const modeDisplay = (rec.inspection_mode || "standard") === "tiled" ? "🔬 Tiled" : "⚡ Standard";
             const statusClass = getStatusBadgeClass(rec.status);
 
+            const deadlineDisplay = getDeadlineBadge(rec);
+
             tr.innerHTML = `
                 <td><strong>#${rec.id}</strong></td>
                 <td><span style="font-size: 0.82rem; color: var(--text-secondary);">${formatDateTime(rec.uploaded_at)}</span></td>
@@ -1477,6 +1677,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <td><strong>${confDisplay}</strong></td>
                 <td><span style="font-size: 0.78rem; color: var(--text-secondary);">${modeDisplay}</span></td>
                 <td><span class="${statusClass}">${rec.status}</span></td>
+                <td>${deadlineDisplay}</td>
                 <td>
                     <button type="button" class="btn btn-secondary btn-sm open-record-btn" data-id="${rec.id}">
                         👁️ View Details
@@ -1561,6 +1762,54 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (detailLocNotes) detailLocNotes.textContent = rec.location_notes || "No notes entered";
 
+            // Target Repair Date & Deadline Card
+            if (detailTargetDateInput) {
+                detailTargetDateInput.value = rec.target_repair_date || "";
+            }
+            if (detailTargetDateDisplay) {
+                detailTargetDateDisplay.textContent = rec.target_repair_date || "Not Scheduled";
+            }
+            if (detailUrgencyDisplay) {
+                detailUrgencyDisplay.textContent = rec.maintenance_label || "No Target Date";
+            }
+            if (detailRemainingDisplay) {
+                if (rec.status === "Resolved") {
+                    detailRemainingDisplay.textContent = "Remediation Workflow Closed";
+                } else if (rec.maintenance_urgency === "overdue") {
+                    detailRemainingDisplay.textContent = `Overdue by ${Math.abs(rec.days_remaining || 0)} day(s)`;
+                } else if (rec.maintenance_urgency === "due_today") {
+                    detailRemainingDisplay.textContent = "Deadline is Today";
+                } else if (rec.maintenance_urgency === "upcoming") {
+                    detailRemainingDisplay.textContent = `${rec.days_remaining || 0} day(s) remaining`;
+                } else {
+                    detailRemainingDisplay.textContent = "No target date scheduled";
+                }
+            }
+            if (detailDeadlineBadge) {
+                const urg = rec.maintenance_urgency || (rec.status === "Resolved" ? "resolved" : "no_deadline");
+                detailDeadlineBadge.textContent = rec.maintenance_label || "No Target Date";
+                switch (urg) {
+                    case "overdue":
+                        detailDeadlineBadge.className = "badge badge-deadline-overdue";
+                        break;
+                    case "due_today":
+                        detailDeadlineBadge.className = "badge badge-deadline-today";
+                        break;
+                    case "upcoming":
+                        detailDeadlineBadge.className = "badge badge-deadline-upcoming";
+                        break;
+                    case "resolved":
+                        detailDeadlineBadge.className = "badge badge-deadline-resolved";
+                        break;
+                    default:
+                        detailDeadlineBadge.className = "badge badge-deadline-none";
+                        break;
+                }
+            }
+
+            // Render Chronological Activity History
+            renderActivityHistory(rec.activity_log || []);
+
             // Detections Table
             const detections = rec.detections || [];
             detailDetectionsTableBody.innerHTML = "";
@@ -1604,6 +1853,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!currentDetailId) return;
 
             const newStatus = detailStatusSelect ? detailStatusSelect.value : "";
+            const targetRepairDate = detailTargetDateInput ? detailTargetDateInput.value.trim() : "";
             const notes = detailStatusNotes ? detailStatusNotes.value.trim() : "";
 
             updateStatusBtn.disabled = true;
@@ -1614,7 +1864,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 const res = await fetch(`/api/inspections/${currentDetailId}/status`, {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ status: newStatus, notes: notes }),
+                    body: JSON.stringify({ 
+                        status: newStatus, 
+                        target_repair_date: targetRepairDate || null,
+                        notes: notes 
+                    }),
                 });
                 const data = await res.json();
 
@@ -1622,12 +1876,64 @@ document.addEventListener("DOMContentLoaded", () => {
                     throw new Error(data.message || `Update failed (HTTP ${res.status})`);
                 }
 
+                const updatedRec = data.inspection || {};
                 detailCurrentStatusBadge.textContent = newStatus;
                 detailCurrentStatusBadge.className = getStatusBadgeClass(newStatus);
 
+                // Update detail deadline views
+                if (detailTargetDateDisplay) {
+                    detailTargetDateDisplay.textContent = updatedRec.target_repair_date || "Not Scheduled";
+                }
+                if (detailUrgencyDisplay) {
+                    detailUrgencyDisplay.textContent = updatedRec.maintenance_label || "No Target Date";
+                }
+                if (detailRemainingDisplay) {
+                    if (updatedRec.status === "Resolved") {
+                        detailRemainingDisplay.textContent = "Remediation Workflow Closed";
+                    } else if (updatedRec.maintenance_urgency === "overdue") {
+                        detailRemainingDisplay.textContent = `Overdue by ${Math.abs(updatedRec.days_remaining || 0)} day(s)`;
+                    } else if (updatedRec.maintenance_urgency === "due_today") {
+                        detailRemainingDisplay.textContent = "Deadline is Today";
+                    } else if (updatedRec.maintenance_urgency === "upcoming") {
+                        detailRemainingDisplay.textContent = `${updatedRec.days_remaining || 0} day(s) remaining`;
+                    } else {
+                        detailRemainingDisplay.textContent = "No target date scheduled";
+                    }
+                }
+                if (detailDeadlineBadge) {
+                    const urg = updatedRec.maintenance_urgency || (updatedRec.status === "Resolved" ? "resolved" : "no_deadline");
+                    detailDeadlineBadge.textContent = updatedRec.maintenance_label || "No Target Date";
+                    switch (urg) {
+                        case "overdue":
+                            detailDeadlineBadge.className = "badge badge-deadline-overdue";
+                            break;
+                        case "due_today":
+                            detailDeadlineBadge.className = "badge badge-deadline-today";
+                            break;
+                        case "upcoming":
+                            detailDeadlineBadge.className = "badge badge-deadline-upcoming";
+                            break;
+                        case "resolved":
+                            detailDeadlineBadge.className = "badge badge-deadline-resolved";
+                            break;
+                        default:
+                            detailDeadlineBadge.className = "badge badge-deadline-none";
+                            break;
+                    }
+                }
+
+                // Refresh activity log
+                try {
+                    const actRes = await fetch(`/api/inspections/${currentDetailId}/activity`);
+                    const actData = await actRes.json();
+                    if (actData.status === "success") {
+                        renderActivityHistory(actData.activities || []);
+                    }
+                } catch (_) {}
+
                 detailStatusFeedback.innerHTML = `
                     <div class="alert alert-success alert-sm" style="margin-top: 0.75rem;">
-                        <strong>✓ Status Updated:</strong> Inspection #${currentDetailId} is now marked as <strong>${newStatus}</strong>.
+                        <strong>✓ Record Updated:</strong> Inspection #${currentDetailId} updated successfully.
                     </div>
                 `;
                 detailStatusFeedback.style.display = "block";
@@ -1636,7 +1942,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 loadDashboardStats();
             } catch (err) {
                 console.error("Status update error:", err);
-                alert(`Error updating inspection status:\n${err.message}`);
+                alert(`Error updating inspection record:\n${err.message}`);
             } finally {
                 updateStatusBtn.disabled = false;
                 updateStatusSpinner.style.display = "none";
