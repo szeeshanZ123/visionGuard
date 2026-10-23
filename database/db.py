@@ -85,6 +85,14 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
         ("updated_at", "TIMESTAMP"),
         ("created_by_user_id", "INTEGER"),
         ("created_by_username", "TEXT"),
+        ("assigned_to_user_id", "INTEGER"),
+        ("assigned_to_username", "TEXT"),
+        ("assigned_by_user_id", "INTEGER"),
+        ("assigned_by_username", "TEXT"),
+        ("assigned_at", "TIMESTAMP"),
+        ("assignment_instructions", "TEXT"),
+        ("assignment_status", "TEXT DEFAULT 'unassigned'"),
+        ("assignment_updated_at", "TIMESTAMP"),
     ]
 
     for col_name, col_type in columns_to_add:
@@ -115,6 +123,32 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
     for log_col, log_type in [("user_id", "INTEGER"), ("username", "TEXT")]:
         if log_col not in existing_log_cols:
             cursor.execute(f"ALTER TABLE maintenance_activity_log ADD COLUMN {log_col} {log_type};")
+
+    # Table for maintenance task assignments and reassignments (Phase 4.7)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS maintenance_assignments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        inspection_id INTEGER NOT NULL,
+        assigned_to_user_id INTEGER NOT NULL,
+        assigned_to_username TEXT NOT NULL,
+        assigned_by_user_id INTEGER NOT NULL,
+        assigned_by_username TEXT NOT NULL,
+        instructions TEXT,
+        status TEXT NOT NULL DEFAULT 'assigned',
+        assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        completed_at TIMESTAMP,
+        cancelled_at TIMESTAMP,
+        cancellation_reason TEXT,
+        FOREIGN KEY (inspection_id) REFERENCES defect_inspections(id) ON DELETE CASCADE,
+        FOREIGN KEY (assigned_to_user_id) REFERENCES users(id),
+        FOREIGN KEY (assigned_by_user_id) REFERENCES users(id)
+    );
+    """)
+
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_assignments_insp ON maintenance_assignments(inspection_id);")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_assignments_user_st ON maintenance_assignments(assigned_to_user_id, status);")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_inspections_assigned ON defect_inspections(assigned_to_user_id, assignment_status);")
 
     # Table for user accounts, credentials, and roles (Phase 4.6)
     cursor.execute("""
@@ -360,6 +394,16 @@ def row_to_dict(row: sqlite3.Row, ref_date: Optional[datetime.date] = None) -> D
     d["is_overdue"] = m_info["is_overdue"]
     d["days_remaining"] = m_info["days_remaining"]
 
+    # Maintenance task assignment fields (Phase 4.7)
+    d["assigned_to_user_id"] = d.get("assigned_to_user_id")
+    d["assigned_to_username"] = d.get("assigned_to_username")
+    d["assigned_by_user_id"] = d.get("assigned_by_user_id")
+    d["assigned_by_username"] = d.get("assigned_by_username")
+    d["assigned_at"] = d.get("assigned_at")
+    d["assignment_instructions"] = d.get("assignment_instructions") or ""
+    d["assignment_status"] = d.get("assignment_status") or "unassigned"
+    d["assignment_updated_at"] = d.get("assignment_updated_at")
+
     return d
 
 
@@ -419,15 +463,18 @@ def save_inspection(data: Dict[str, Any], db_path: str = DEFAULT_DB_PATH) -> Dic
     if not isinstance(detections, list):
         detections = []
 
-    defect_count = len(detections)
-
-    # Summarize defect types and top confidence
-    if defect_count > 0:
+    if detections:
+        defect_count = len(detections)
         types = sorted(list(set(d.get("distress_category") or d.get("class_name") or "Distress" for d in detections)))
         defect_type = ", ".join(types)
         top_conf = max(float(d.get("confidence", 0.0)) for d in detections)
+    elif "defect_count" in data:
+        defect_count = int(data.get("defect_count", 0))
+        defect_type = data.get("defect_type") or ("Distress" if defect_count > 0 else "None detected")
+        top_conf = float(data.get("confidence") or data.get("top_confidence") or (0.8 if defect_count > 0 else 0.0))
     else:
-        defect_type = "None detected"
+        defect_count = 0
+        defect_type = data.get("defect_type") or "None detected"
         top_conf = 0.0
 
     detections_json = json.dumps(detections)
@@ -514,6 +561,8 @@ def get_inspections(
     end_date: Optional[str] = None,
     city: Optional[str] = None,
     area: Optional[str] = None,
+    assigned_to_user_id: Optional[int] = None,
+    assignment_status: Optional[str] = None,
     ref_date: Optional[datetime.date] = None,
     db_path: str = DEFAULT_DB_PATH
 ) -> List[Dict[str, Any]]:
@@ -592,6 +641,19 @@ def get_inspections(
             conditions.append("status = 'Resolved'")
         elif dl in ["no_deadline", "none"]:
             conditions.append("(target_repair_date IS NULL OR target_repair_date = '')")
+
+    # Maintenance task assignment filters (Phase 4.7)
+    if assigned_to_user_id is not None:
+        conditions.append("assigned_to_user_id = ?")
+        params.append(assigned_to_user_id)
+
+    if assignment_status and assignment_status.strip() and assignment_status.lower() != "all":
+        ast = assignment_status.strip().lower()
+        if ast == "unassigned":
+            conditions.append("(assigned_to_user_id IS NULL OR assignment_status = 'unassigned')")
+        elif ast in ["assigned", "in_progress", "completed", "cancelled"]:
+            conditions.append("assignment_status = ?")
+            params.append(ast)
 
     where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
 
@@ -771,8 +833,22 @@ def get_inspection_by_id(
     ORDER BY created_at ASC, id ASC;
     """, (inspection_id,))
     res["activity_log"] = [dict(r) for r in cursor.fetchall()]
-    conn.close()
 
+    cursor.execute("""
+    SELECT * FROM maintenance_assignments
+    WHERE inspection_id = ?
+    ORDER BY assigned_at ASC, id ASC;
+    """, (inspection_id,))
+    res["assignments"] = [dict(r) for r in cursor.fetchall()]
+
+    if res.get("assigned_to_user_id"):
+        cursor.execute("SELECT is_active FROM users WHERE id = ?;", (res["assigned_to_user_id"],))
+        u_row = cursor.fetchone()
+        res["assigned_to_user_active"] = bool(u_row["is_active"]) if u_row else False
+    else:
+        res["assigned_to_user_active"] = None
+
+    conn.close()
     return res
 
 
@@ -836,6 +912,13 @@ def update_inspection_status(
         """, (inspection_id, old_target_date, new_target_date, (notes or "").strip(), user_id, username))
 
     conn.commit()
+
+    if new_status != old_status:
+        try:
+            from database.assignments import sync_assignment_status_with_workflow
+            sync_assignment_status_with_workflow(inspection_id, new_status, db_path=db_path)
+        except Exception:
+            pass
 
     cursor.execute("SELECT * FROM defect_inspections WHERE id = ?;", (inspection_id,))
     updated_row = cursor.fetchone()
@@ -938,6 +1021,13 @@ def update_inspection(
         """, (inspection_id, old_target_date, new_target_date, (notes or "").strip(), u_id, u_name))
 
     conn.commit()
+
+    if new_status != old_status:
+        try:
+            from database.assignments import sync_assignment_status_with_workflow
+            sync_assignment_status_with_workflow(inspection_id, new_status, db_path=db_path)
+        except Exception:
+            pass
 
     cursor.execute("SELECT * FROM defect_inspections WHERE id = ?;", (inspection_id,))
     updated_row = cursor.fetchone()

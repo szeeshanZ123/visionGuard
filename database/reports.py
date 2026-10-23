@@ -474,6 +474,8 @@ def generate_report_csv(report_data: Dict[str, Any]) -> str:
         "Inspection Mode",
         "Location Notes / Observations",
         "Latest Audit Activity",
+        "Assigned Technician",
+        "Assignment Status",
     ])
 
     records = report_data.get("records", [])
@@ -508,6 +510,8 @@ def generate_report_csv(report_data: Dict[str, Any]) -> str:
             r.get("inspection_mode") or "standard",
             notes_clean,
             r.get("latest_activity") or "",
+            r.get("assigned_to_username") or "Unassigned",
+            r.get("assignment_status") or "unassigned",
         ])
 
     return buf.getvalue()
