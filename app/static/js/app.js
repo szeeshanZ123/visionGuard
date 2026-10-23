@@ -33,8 +33,217 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }
         }
-        return originalFetch(input, options);
+
+        const response = await originalFetch(input, options);
+
+        if (response.status === 401) {
+            let url = "";
+            if (typeof input === "string") {
+                url = input;
+            } else if (input && input.url) {
+                url = input.url;
+            }
+            // If the 401 is from a protected API rather than auth check/action itself, handle session expiry
+            if (!url.includes("/api/auth/login") && !url.includes("/api/auth/status") && !url.includes("/api/auth/setup-admin")) {
+                handleSessionExpired();
+            }
+        }
+
+        return response;
     };
+
+    let isHandlingSessionExpiry = false;
+
+    async function openAuthModal(preferredMode) {
+        const modal = document.getElementById("authModal");
+        if (!modal) return;
+
+        // Show modal immediately for instantaneous visual feedback
+        modal.style.display = "flex";
+
+        const errorAlert = document.getElementById("authErrorAlert");
+        const titleElem = document.getElementById("authModalTitle");
+        const setupNotice = document.getElementById("setupRequiredNotice");
+        const loginFrm = document.getElementById("loginForm");
+        const setupFrm = document.getElementById("setupAdminForm");
+        const loginUser = document.getElementById("loginUsername");
+        const loginPass = document.getElementById("loginPassword");
+        const setupUser = document.getElementById("setupAdminUsername");
+        const setupEmail = document.getElementById("setupAdminEmail");
+        const setupPass = document.getElementById("setupAdminPassword");
+
+        if (errorAlert) {
+            errorAlert.style.display = "none";
+            errorAlert.textContent = "";
+        }
+        if (loginUser) loginUser.value = "";
+        if (loginPass) loginPass.value = "";
+        if (setupUser) setupUser.value = "";
+        if (setupEmail) setupEmail.value = "";
+        if (setupPass) setupPass.value = "";
+
+        // Synchronous initial mode selection based on known state
+        const initialShowSetup = preferredMode === "setup" || (Boolean(window.__lastRequiresSetup) && preferredMode !== "login");
+        if (initialShowSetup) {
+            if (titleElem) titleElem.textContent = "🚀 First-Time Administrator Setup";
+            if (setupNotice) setupNotice.style.display = "flex";
+            if (setupFrm) setupFrm.style.display = "block";
+            if (loginFrm) loginFrm.style.display = "none";
+            if (setupUser) setupUser.focus();
+        } else {
+            if (titleElem) titleElem.textContent = "🔐 Sign In to VisionGuard AI";
+            if (setupNotice) setupNotice.style.display = "none";
+            if (setupFrm) setupFrm.style.display = "none";
+            if (loginFrm) loginFrm.style.display = "block";
+            if (loginUser) loginUser.focus();
+        }
+
+        // Fresh check against backend
+        let requiresSetup = Boolean(window.__lastRequiresSetup);
+        try {
+            const res = await fetch("/api/auth/status");
+            const data = await res.json();
+            if (data.csrf_token) currentCsrfToken = data.csrf_token;
+            requiresSetup = Boolean(data.requires_setup);
+            window.__lastRequiresSetup = requiresSetup;
+        } catch (_) {}
+
+        const showSetup = preferredMode === "setup" || (requiresSetup && preferredMode !== "login");
+        if (showSetup) {
+            if (titleElem) titleElem.textContent = "🚀 First-Time Administrator Setup";
+            if (setupNotice) setupNotice.style.display = "flex";
+            if (setupFrm) setupFrm.style.display = "block";
+            if (loginFrm) loginFrm.style.display = "none";
+            if (setupUser) setupUser.focus();
+        } else {
+            if (titleElem) titleElem.textContent = "🔐 Sign In to VisionGuard AI";
+            if (setupNotice) setupNotice.style.display = "none";
+            if (setupFrm) setupFrm.style.display = "none";
+            if (loginFrm) loginFrm.style.display = "block";
+            if (loginUser) loginUser.focus();
+        }
+    }
+
+    // Expose helpers globally for accessibility and debug
+    window.openAuthModal = openAuthModal;
+    window.closeAuthModal = closeAuthModal;
+
+    function closeAuthModal() {
+        const modal = document.getElementById("authModal");
+        if (modal) {
+            modal.style.display = "none";
+        }
+        const errorAlert = document.getElementById("authErrorAlert");
+        if (errorAlert) {
+            errorAlert.style.display = "none";
+            errorAlert.textContent = "";
+        }
+    }
+
+    function handleSessionExpired(msg = "Your session has expired. Please sign in again.") {
+        if (isHandlingSessionExpiry) return;
+        isHandlingSessionExpiry = true;
+
+        currentUser = null;
+        updateAuthUI({ authenticated: false, requires_setup: false });
+        renderGuestDashboard();
+        openAuthModal("login");
+
+        const errorAlert = document.getElementById("authErrorAlert");
+        if (errorAlert) {
+            errorAlert.textContent = msg;
+            errorAlert.style.display = "block";
+        }
+
+        setTimeout(() => {
+            isHandlingSessionExpiry = false;
+        }, 1500);
+    }
+
+    function bindGuestLoginButtons() {
+        document.querySelectorAll(".guest-login-btn").forEach(btn => {
+            btn.onclick = (e) => {
+                e.preventDefault();
+                openAuthModal();
+            };
+        });
+    }
+
+    function renderGuestDashboard() {
+        const dashTotal = document.getElementById("dashTotalInspections");
+        const dashDefects = document.getElementById("dashTotalDefects");
+        const dashOpen = document.getElementById("dashOpenRecords");
+        const dashProg = document.getElementById("dashInProgressRecords");
+        const dashRes = document.getElementById("dashResolvedRecords");
+        const dashOverdue = document.getElementById("dashOverdueCount");
+        const dashDueToday = document.getElementById("dashDueTodayCount");
+        const dashUpcoming = document.getElementById("dashUpcomingCount");
+        const dashResolvedMaint = document.getElementById("dashResolvedMaintCount");
+        const dashNoDeadlines = document.getElementById("dashNoDeadlinesCount");
+        const maintActionable = document.getElementById("maintenanceActionableBadge");
+        const maintBanner = document.getElementById("maintenanceAlertBanner");
+        const recordsBadge = document.getElementById("recordsCountBadgeHeader");
+        const mapBadge = document.getElementById("mapCountBadgeHeader");
+        const defBadge = document.getElementById("dashDefectsTotalBadge");
+        const defEmpty = document.getElementById("dashDefectsEmptyState");
+        const catBars = document.getElementById("dashCategoryBarsContainer");
+        const segOpen = document.getElementById("segmentOpen");
+        const segProg = document.getElementById("segmentProgress");
+        const segRes = document.getElementById("segmentResolved");
+        const legOpenCount = document.getElementById("legendOpenCount");
+        const legOpenPct = document.getElementById("legendOpenPct");
+        const legProgCount = document.getElementById("legendProgressCount");
+        const legProgPct = document.getElementById("legendProgressPct");
+        const legResCount = document.getElementById("legendResolvedCount");
+        const legResPct = document.getElementById("legendResolvedPct");
+        const recentTable = document.getElementById("dashRecentTable");
+        const recentEmpty = document.getElementById("dashEmptyState");
+        const recentBody = document.getElementById("dashRecentTableBody");
+
+        if (dashTotal) dashTotal.textContent = "0";
+        if (dashDefects) dashDefects.textContent = "0";
+        if (dashOpen) dashOpen.textContent = "0";
+        if (dashProg) dashProg.textContent = "0";
+        if (dashRes) dashRes.textContent = "0";
+
+        if (dashOverdue) dashOverdue.textContent = "0";
+        if (dashDueToday) dashDueToday.textContent = "0";
+        if (dashUpcoming) dashUpcoming.textContent = "0";
+        if (dashResolvedMaint) dashResolvedMaint.textContent = "0";
+        if (dashNoDeadlines) dashNoDeadlines.textContent = "0";
+        if (maintActionable) maintActionable.textContent = "0 Actionable";
+
+        if (maintBanner) maintBanner.style.display = "none";
+        if (recordsBadge) recordsBadge.textContent = "0";
+        if (mapBadge) mapBadge.textContent = "0";
+
+        if (defBadge) defBadge.textContent = "0 Total Distress Instances";
+        if (defEmpty) defEmpty.style.display = "block";
+        if (catBars) catBars.style.display = "none";
+
+        if (segOpen) segOpen.style.width = "0%";
+        if (segProg) segProg.style.width = "0%";
+        if (segRes) segRes.style.width = "0%";
+        if (legOpenCount) legOpenCount.textContent = "0";
+        if (legOpenPct) legOpenPct.textContent = "0%";
+        if (legProgCount) legProgCount.textContent = "0";
+        if (legProgPct) legProgPct.textContent = "0%";
+        if (legResCount) legResCount.textContent = "0";
+        if (legResPct) legResPct.textContent = "0%";
+
+        if (recentTable) recentTable.style.display = "table";
+        if (recentEmpty) recentEmpty.style.display = "none";
+        if (recentBody) {
+            recentBody.innerHTML = `<tr>
+                <td colspan="8" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+                    <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-primary);">🔒 Authentication Required</div>
+                    <div style="font-size: 0.9rem; margin-bottom: 1.25rem;">Sign in to view recent road inspection telemetry, defect analytics, and maintenance metrics.</div>
+                    <button type="button" class="btn btn-sm btn-primary guest-login-btn">🔐 Sign In</button>
+                </td>
+            </tr>`;
+            bindGuestLoginButtons();
+        }
+    }
 
     // DOM Elements
     const dbStatusBadge = document.getElementById("dbStatusBadge");
@@ -237,6 +446,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 5. Run Inspection Action
     inspectBtn.addEventListener("click", async () => {
+        if (!currentUser) {
+            openAuthModal();
+            return;
+        }
         if (!currentFile) return;
 
         // UI State: Loading
@@ -500,6 +713,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const tabRecordsBtn = document.getElementById("tabRecordsBtn");
     const tabMapBtn = document.getElementById("tabMapBtn");
     const tabReportsBtn = document.getElementById("tabReportsBtn");
+    const tabQueueBtn = document.getElementById("tabQueueBtn");
     const tabUsersBtn = document.getElementById("tabUsersBtn");
     const dashboardSection = document.getElementById("dashboardSection");
     const newInspectionSection = document.getElementById("newInspectionSection");
@@ -507,9 +721,55 @@ document.addEventListener("DOMContentLoaded", () => {
     const recordDetailSection = document.getElementById("recordDetailSection");
     const mapSection = document.getElementById("mapSection");
     const reportsSection = document.getElementById("reportsSection");
+    const queueSection = document.getElementById("queueSection");
     const usersSection = document.getElementById("usersSection");
     const recordsCountBadgeHeader = document.getElementById("recordsCountBadgeHeader");
     const mapCountBadgeHeader = document.getElementById("mapCountBadgeHeader");
+    const queueCountBadgeHeader = document.getElementById("queueCountBadgeHeader");
+
+    // Phase 4.7: Maintenance Work Queue & Task Assignment Elements
+    const queueSubtitle = document.getElementById("queueSubtitle");
+    const queueStatusFilter = document.getElementById("queueStatusFilter");
+    const queueUrgencyFilter = document.getElementById("queueUrgencyFilter");
+    const queueCategoryFilter = document.getElementById("queueCategoryFilter");
+    const queueSearchInput = document.getElementById("queueSearchInput");
+    const resetQueueFiltersBtn = document.getElementById("resetQueueFiltersBtn");
+    const refreshQueueBtn = document.getElementById("refreshQueueBtn");
+    const queueTotalCount = document.getElementById("queueTotalCount");
+    const queuePendingCount = document.getElementById("queuePendingCount");
+    const queueOverdueCount = document.getElementById("queueOverdueCount");
+    const queueCompletedCount = document.getElementById("queueCompletedCount");
+    const queueTable = document.getElementById("queueTable");
+    const queueTableBody = document.getElementById("queueTableBody");
+    const queueEmptyState = document.getElementById("queueEmptyState");
+    const queueEmptyText = document.getElementById("queueEmptyText");
+
+    const detailAssignmentCard = document.getElementById("detailAssignmentCard");
+    const detailAssignmentStatusBadge = document.getElementById("detailAssignmentStatusBadge");
+    const detailAssigneeDisplay = document.getElementById("detailAssigneeDisplay");
+    const detailAssigneeActiveDisplay = document.getElementById("detailAssigneeActiveDisplay");
+    const detailAssignedByDisplay = document.getElementById("detailAssignedByDisplay");
+    const detailAssignedAtDisplay = document.getElementById("detailAssignedAtDisplay");
+    const detailAssignmentUpdatedDisplay = document.getElementById("detailAssignmentUpdatedDisplay");
+    const detailAssignmentInstructionsDisplay = document.getElementById("detailAssignmentInstructionsDisplay");
+    const detailAssignmentAdminActions = document.getElementById("detailAssignmentAdminActions");
+    const openAssignTaskModalBtn = document.getElementById("openAssignTaskModalBtn");
+    const cancelAssignmentBtn = document.getElementById("cancelAssignmentBtn");
+    const detailAssignmentFeedback = document.getElementById("detailAssignmentFeedback");
+    const detailAssignmentHistoryWrap = document.getElementById("detailAssignmentHistoryWrap");
+    const detailAssignmentEventsCountBadge = document.getElementById("detailAssignmentEventsCountBadge");
+    const detailAssignmentHistoryList = document.getElementById("detailAssignmentHistoryList");
+
+    const assignTaskModal = document.getElementById("assignTaskModal");
+    const assignTaskModalTitle = document.getElementById("assignTaskModalTitle");
+    const closeAssignTaskModalBtn = document.getElementById("closeAssignTaskModalBtn");
+    const cancelAssignTaskModalBtn = document.getElementById("cancelAssignTaskModalBtn");
+    const assignTaskErrorAlert = document.getElementById("assignTaskErrorAlert");
+    const assignTaskForm = document.getElementById("assignTaskForm");
+    const assignTaskInspectionId = document.getElementById("assignTaskInspectionId");
+    const assigneeSelect = document.getElementById("assigneeSelect");
+    const assignInstructionsInput = document.getElementById("assignInstructionsInput");
+    const saveAssignTaskBtn = document.getElementById("saveAssignTaskBtn");
 
     // Header Auth Controls (Phase 4.6)
     const authGuestControls = document.getElementById("authGuestControls");
@@ -1010,6 +1270,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (tabRecordsBtn) tabRecordsBtn.classList.remove("active");
             if (tabMapBtn) tabMapBtn.classList.remove("active");
             if (tabReportsBtn) tabReportsBtn.classList.remove("active");
+            if (tabQueueBtn) tabQueueBtn.classList.remove("active");
             if (tabUsersBtn) tabUsersBtn.classList.remove("active");
             if (dashboardSection) dashboardSection.style.display = "flex";
             if (newInspectionSection) newInspectionSection.style.display = "none";
@@ -1017,6 +1278,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (recordDetailSection) recordDetailSection.style.display = "none";
             if (mapSection) mapSection.style.display = "none";
             if (reportsSection) reportsSection.style.display = "none";
+            if (queueSection) queueSection.style.display = "none";
             if (usersSection) usersSection.style.display = "none";
             loadDashboardStats();
             window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1026,6 +1288,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (tabRecordsBtn) tabRecordsBtn.classList.remove("active");
             if (tabMapBtn) tabMapBtn.classList.remove("active");
             if (tabReportsBtn) tabReportsBtn.classList.remove("active");
+            if (tabQueueBtn) tabQueueBtn.classList.remove("active");
             if (tabUsersBtn) tabUsersBtn.classList.remove("active");
             if (dashboardSection) dashboardSection.style.display = "none";
             if (newInspectionSection) newInspectionSection.style.display = "block";
@@ -1033,6 +1296,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (recordDetailSection) recordDetailSection.style.display = "none";
             if (mapSection) mapSection.style.display = "none";
             if (reportsSection) reportsSection.style.display = "none";
+            if (queueSection) queueSection.style.display = "none";
             if (usersSection) usersSection.style.display = "none";
         } else if (viewName === "records") {
             if (tabDashboardBtn) tabDashboardBtn.classList.remove("active");
@@ -1040,6 +1304,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (tabRecordsBtn) tabRecordsBtn.classList.add("active");
             if (tabMapBtn) tabMapBtn.classList.remove("active");
             if (tabReportsBtn) tabReportsBtn.classList.remove("active");
+            if (tabQueueBtn) tabQueueBtn.classList.remove("active");
             if (tabUsersBtn) tabUsersBtn.classList.remove("active");
             if (dashboardSection) dashboardSection.style.display = "none";
             if (newInspectionSection) newInspectionSection.style.display = "none";
@@ -1047,6 +1312,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (recordDetailSection) recordDetailSection.style.display = "none";
             if (mapSection) mapSection.style.display = "none";
             if (reportsSection) reportsSection.style.display = "none";
+            if (queueSection) queueSection.style.display = "none";
             if (usersSection) usersSection.style.display = "none";
             loadRecords();
         } else if (viewName === "map") {
@@ -1055,6 +1321,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (tabRecordsBtn) tabRecordsBtn.classList.remove("active");
             if (tabMapBtn) tabMapBtn.classList.add("active");
             if (tabReportsBtn) tabReportsBtn.classList.remove("active");
+            if (tabQueueBtn) tabQueueBtn.classList.remove("active");
             if (tabUsersBtn) tabUsersBtn.classList.remove("active");
             if (dashboardSection) dashboardSection.style.display = "none";
             if (newInspectionSection) newInspectionSection.style.display = "none";
@@ -1062,6 +1329,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (recordDetailSection) recordDetailSection.style.display = "none";
             if (mapSection) mapSection.style.display = "flex";
             if (reportsSection) reportsSection.style.display = "none";
+            if (queueSection) queueSection.style.display = "none";
             if (usersSection) usersSection.style.display = "none";
             initDefectMap();
             loadMapRecords();
@@ -1072,6 +1340,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (tabRecordsBtn) tabRecordsBtn.classList.remove("active");
             if (tabMapBtn) tabMapBtn.classList.remove("active");
             if (tabReportsBtn) tabReportsBtn.classList.add("active");
+            if (tabQueueBtn) tabQueueBtn.classList.remove("active");
             if (tabUsersBtn) tabUsersBtn.classList.remove("active");
             if (dashboardSection) dashboardSection.style.display = "none";
             if (newInspectionSection) newInspectionSection.style.display = "none";
@@ -1079,8 +1348,27 @@ document.addEventListener("DOMContentLoaded", () => {
             if (recordDetailSection) recordDetailSection.style.display = "none";
             if (mapSection) mapSection.style.display = "none";
             if (reportsSection) reportsSection.style.display = "flex";
+            if (queueSection) queueSection.style.display = "none";
             if (usersSection) usersSection.style.display = "none";
             loadReportPreview();
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        } else if (viewName === "queue") {
+            if (tabDashboardBtn) tabDashboardBtn.classList.remove("active");
+            if (tabNewInspectionBtn) tabNewInspectionBtn.classList.remove("active");
+            if (tabRecordsBtn) tabRecordsBtn.classList.remove("active");
+            if (tabMapBtn) tabMapBtn.classList.remove("active");
+            if (tabReportsBtn) tabReportsBtn.classList.remove("active");
+            if (tabQueueBtn) tabQueueBtn.classList.add("active");
+            if (tabUsersBtn) tabUsersBtn.classList.remove("active");
+            if (dashboardSection) dashboardSection.style.display = "none";
+            if (newInspectionSection) newInspectionSection.style.display = "none";
+            if (recordsSection) recordsSection.style.display = "none";
+            if (recordDetailSection) recordDetailSection.style.display = "none";
+            if (mapSection) mapSection.style.display = "none";
+            if (reportsSection) reportsSection.style.display = "none";
+            if (queueSection) queueSection.style.display = "flex";
+            if (usersSection) usersSection.style.display = "none";
+            loadMaintenanceQueue();
             window.scrollTo({ top: 0, behavior: "smooth" });
         } else if (viewName === "users") {
             if (tabDashboardBtn) tabDashboardBtn.classList.remove("active");
@@ -1088,6 +1376,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (tabRecordsBtn) tabRecordsBtn.classList.remove("active");
             if (tabMapBtn) tabMapBtn.classList.remove("active");
             if (tabReportsBtn) tabReportsBtn.classList.remove("active");
+            if (tabQueueBtn) tabQueueBtn.classList.remove("active");
             if (tabUsersBtn) tabUsersBtn.classList.add("active");
             if (dashboardSection) dashboardSection.style.display = "none";
             if (newInspectionSection) newInspectionSection.style.display = "none";
@@ -1095,6 +1384,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (recordDetailSection) recordDetailSection.style.display = "none";
             if (mapSection) mapSection.style.display = "none";
             if (reportsSection) reportsSection.style.display = "none";
+            if (queueSection) queueSection.style.display = "none";
             if (usersSection) usersSection.style.display = "block";
             loadUsers();
             window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1104,6 +1394,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (tabRecordsBtn) tabRecordsBtn.classList.add("active");
             if (tabMapBtn) tabMapBtn.classList.remove("active");
             if (tabReportsBtn) tabReportsBtn.classList.remove("active");
+            if (tabQueueBtn) tabQueueBtn.classList.remove("active");
             if (tabUsersBtn) tabUsersBtn.classList.remove("active");
             if (dashboardSection) dashboardSection.style.display = "none";
             if (newInspectionSection) newInspectionSection.style.display = "none";
@@ -1111,6 +1402,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (recordDetailSection) recordDetailSection.style.display = "flex";
             if (mapSection) mapSection.style.display = "none";
             if (reportsSection) reportsSection.style.display = "none";
+            if (queueSection) queueSection.style.display = "none";
             if (usersSection) usersSection.style.display = "none";
             window.scrollTo({ top: 0, behavior: "smooth" });
         }
@@ -1127,6 +1419,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (tabRecordsBtn) tabRecordsBtn.addEventListener("click", () => switchView("records"));
     if (tabMapBtn) tabMapBtn.addEventListener("click", () => switchView("map"));
     if (tabReportsBtn) tabReportsBtn.addEventListener("click", () => switchView("reports"));
+    if (tabQueueBtn) tabQueueBtn.addEventListener("click", () => switchView("queue"));
     if (tabUsersBtn) tabUsersBtn.addEventListener("click", () => switchView("users"));
     if (backToRecordsBtn) backToRecordsBtn.addEventListener("click", () => switchView("records"));
     if (dashStartInspectionBtn) dashStartInspectionBtn.addEventListener("click", () => switchView("new"));
@@ -1200,6 +1493,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Load Records from Flask API for Defect Map
     async function loadMapRecords() {
+        if (!currentUser) {
+            if (mapErrorBanner && mapErrorMsg) {
+                mapErrorBanner.style.display = "flex";
+                mapErrorMsg.innerHTML = `🔒 Authentication Required. Please <button class="btn btn-sm btn-primary guest-login-btn" style="margin-left: 0.5rem;">Sign In</button> to view defect map.`;
+                bindGuestLoginButtons();
+            }
+            return;
+        }
         if (mapErrorBanner) mapErrorBanner.style.display = "none";
         try {
             const res = await fetch("/api/inspections?limit=500");
@@ -1378,6 +1679,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Fetch count of geotagged records for header badge
     async function loadMapHeaderCount() {
+        if (!currentUser) return;
         try {
             const res = await fetch("/api/inspections?has_coords=true&limit=500");
             const data = await res.json();
@@ -1389,6 +1691,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Initial Count Fetch
     async function loadRecordsHeaderCount() {
+        if (!currentUser) return;
         try {
             const res = await fetch("/api/inspections?limit=1");
             const data = await res.json();
@@ -1401,7 +1704,6 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (_) {}
         loadMapHeaderCount();
     }
-    loadRecordsHeaderCount();
 
     // Save Inspection Action (with duplicate protection)
     if (saveInspectionBtn) {
@@ -1555,6 +1857,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // Load Dashboard Statistics & Analytics
     async function loadDashboardStats() {
         if (!dashTotalInspections) return;
+        if (!currentUser) {
+            renderGuestDashboard();
+            return;
+        }
 
         try {
             const res = await fetch("/api/dashboard/stats");
@@ -1744,6 +2050,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Load Records History
     async function loadRecords() {
+        if (!currentUser) {
+            recordsTableBody.innerHTML = `<tr><td colspan="10" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+                🔒 Authentication Required. Please <button class="btn btn-sm btn-primary guest-login-btn" style="margin-left: 0.5rem;">Sign In</button> to view inspection records.
+            </td></tr>`;
+            bindGuestLoginButtons();
+            return;
+        }
+
         const filterStatus = recordsStatusFilter ? recordsStatusFilter.value : "";
         const filterCategory = recordsCategoryFilter ? recordsCategoryFilter.value : "";
         const filterDeadline = recordsDeadlineFilter ? recordsDeadlineFilter.value : "";
@@ -1864,6 +2178,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Open Record Detail View
     async function openRecordDetail(id) {
+        if (!currentUser) {
+            alert("Authentication required. Please sign in to view inspection details.");
+            switchView("dashboard");
+            openAuthModal();
+            return;
+        }
+
         currentDetailId = id;
         switchView("detail");
 
@@ -1975,6 +2296,52 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // Render Chronological Activity History
             renderActivityHistory(rec.activity_log || []);
+
+            // Phase 4.7: Populate Maintenance Task Assignment Detail Card
+            const assignStatus = rec.assignment_status || "unassigned";
+            if (detailAssignmentStatusBadge) {
+                detailAssignmentStatusBadge.textContent = formatAssignmentStatus(assignStatus);
+                detailAssignmentStatusBadge.className = getAssignmentBadgeClass(assignStatus);
+            }
+
+            if (detailAssigneeDisplay) {
+                if (rec.assigned_to_username) {
+                    detailAssigneeDisplay.textContent = rec.assigned_to_username;
+                    if (rec.assigned_to_user_active === false) {
+                        detailAssigneeActiveDisplay.innerHTML = '<span class="badge badge-warning" style="font-size:0.7rem; padding: 1px 5px;">⚠️ Account Deactivated</span>';
+                    } else {
+                        detailAssigneeActiveDisplay.innerHTML = '<span class="badge badge-status-active" style="font-size:0.7rem; padding: 1px 5px;">Active Staff</span>';
+                    }
+                } else {
+                    detailAssigneeDisplay.textContent = "Unassigned";
+                    detailAssigneeActiveDisplay.textContent = "No technician assigned";
+                }
+            }
+
+            if (detailAssignedByDisplay) detailAssignedByDisplay.textContent = rec.assigned_by_username || "—";
+            if (detailAssignedAtDisplay) detailAssignedAtDisplay.textContent = formatDateTime(rec.assigned_at);
+            if (detailAssignmentUpdatedDisplay) detailAssignmentUpdatedDisplay.textContent = formatDateTime(rec.assignment_updated_at || rec.assigned_at);
+            if (detailAssignmentInstructionsDisplay) detailAssignmentInstructionsDisplay.textContent = rec.assignment_instructions || "No special instructions provided.";
+
+            // Admin Actions visibility
+            const isAdmin = currentUser && currentUser.role === "admin";
+            if (detailAssignmentAdminActions) {
+                if (isAdmin) {
+                    detailAssignmentAdminActions.style.display = "flex";
+                    if (assignStatus === "assigned" || assignStatus === "in_progress") {
+                        if (cancelAssignmentBtn) cancelAssignmentBtn.style.display = "inline-flex";
+                        if (openAssignTaskModalBtn) openAssignTaskModalBtn.innerHTML = "🔄 Reassign Task";
+                    } else {
+                        if (cancelAssignmentBtn) cancelAssignmentBtn.style.display = "none";
+                        if (openAssignTaskModalBtn) openAssignTaskModalBtn.innerHTML = "👤 Assign Task";
+                    }
+                } else {
+                    detailAssignmentAdminActions.style.display = "none";
+                }
+            }
+
+            // Render assignment history
+            renderAssignmentHistory(rec.assignments || []);
 
             // Detections Table
             const detections = rec.detections || [];
@@ -2134,6 +2501,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function loadReportPreview() {
         if (!reportPreviewContainer) return;
+        if (!currentUser) {
+            if (reportErrorBanner && reportErrorMsg) {
+                reportErrorBanner.style.display = "flex";
+                reportErrorMsg.innerHTML = `🔒 Authentication Required. Please <button class="btn btn-sm btn-primary guest-login-btn" style="margin-left: 0.5rem;">Sign In</button> to view inspection reports.`;
+                bindGuestLoginButtons();
+            }
+            if (reportSpinner) reportSpinner.style.display = "none";
+            if (generateReportBtn) generateReportBtn.disabled = false;
+            return;
+        }
 
         if (reportErrorBanner) reportErrorBanner.style.display = "none";
         if (reportSpinner) reportSpinner.style.display = "inline-block";
@@ -2383,9 +2760,11 @@ document.addEventListener("DOMContentLoaded", () => {
     function updateAuthUI(authData) {
         const isAuth = authData && authData.authenticated && authData.user;
         const requiresSetup = authData && authData.requires_setup;
+        const guestBanner = document.getElementById("authGuestBanner");
 
         if (isAuth) {
             const u = authData.user;
+            if (guestBanner) guestBanner.style.display = "none";
             if (authGuestControls) authGuestControls.style.display = "none";
             if (authUserControls) authUserControls.style.display = "flex";
             if (currentUserBadge) {
@@ -2397,25 +2776,59 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (tabUsersBtn) tabUsersBtn.style.display = "inline-flex";
                 if (tabNewInspectionBtn) tabNewInspectionBtn.style.display = "inline-flex";
                 if (tabReportsBtn) tabReportsBtn.style.display = "inline-flex";
+                if (tabQueueBtn) tabQueueBtn.style.display = "inline-flex";
+                if (queueSubtitle) queueSubtitle.textContent = "All dispatched infrastructure remediation tasks across the maintenance department.";
             } else if (u.role === "inspector") {
                 if (tabUsersBtn) tabUsersBtn.style.display = "none";
                 if (tabNewInspectionBtn) tabNewInspectionBtn.style.display = "inline-flex";
                 if (tabReportsBtn) tabReportsBtn.style.display = "inline-flex";
+                if (tabQueueBtn) tabQueueBtn.style.display = "none";
             } else if (u.role === "maintenance") {
                 if (tabUsersBtn) tabUsersBtn.style.display = "none";
                 if (tabNewInspectionBtn) tabNewInspectionBtn.style.display = "none";
                 if (tabReportsBtn) tabReportsBtn.style.display = "none";
+                if (tabQueueBtn) tabQueueBtn.style.display = "inline-flex";
+                if (queueSubtitle) queueSubtitle.textContent = `Actionable infrastructure remediation tasks assigned to ${escapeHtml(u.username)}.`;
 
-                // If currently on forbidden view, redirect to records
+                // If currently on forbidden view, redirect to queue
                 const currentHash = (window.location.hash || "").toLowerCase().replace("#", "").trim();
                 if (currentHash === "new" || currentHash === "reports" || currentHash === "users") {
-                    switchView("records");
+                    switchView("queue");
                 }
             }
         } else {
+            const guestBannerSignInBtn = document.getElementById("guestBannerSignInBtn");
+            const guestBannerTitle = document.getElementById("authGuestBannerTitle");
+
+            if (guestBanner) {
+                guestBanner.style.display = "flex";
+                const guestBannerMsg = document.getElementById("authGuestBannerMsg");
+                if (guestBannerMsg) {
+                    if (requiresSetup) {
+                        guestBannerMsg.textContent = "First-time setup required: Create an administrator account to begin using VisionGuard AI.";
+                    } else {
+                        guestBannerMsg.textContent = "Sign in to access AI inspection workflows, records database, GIS map, and reporting tools.";
+                    }
+                }
+                if (guestBannerTitle) {
+                    guestBannerTitle.textContent = requiresSetup
+                        ? "First-Time Administrator Setup Required"
+                        : "Authentication Required for Full System Access";
+                }
+                if (guestBannerSignInBtn) {
+                    if (requiresSetup) {
+                        guestBannerSignInBtn.innerHTML = "🚀 Setup Admin";
+                        guestBannerSignInBtn.className = "btn btn-sm btn-warning guest-login-btn";
+                    } else {
+                        guestBannerSignInBtn.innerHTML = "🔐 Sign In";
+                        guestBannerSignInBtn.className = "btn btn-sm btn-primary guest-login-btn";
+                    }
+                }
+            }
             if (authUserControls) authUserControls.style.display = "none";
             if (authGuestControls) authGuestControls.style.display = "flex";
             if (tabUsersBtn) tabUsersBtn.style.display = "none";
+            if (tabQueueBtn) tabQueueBtn.style.display = "none";
 
             if (openAuthModalBtn) {
                 if (requiresSetup) {
@@ -2429,54 +2842,39 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // Auth Modal handling
-    if (openAuthModalBtn) {
-        openAuthModalBtn.addEventListener("click", async () => {
-            if (authErrorAlert) {
-                authErrorAlert.style.display = "none";
-                authErrorAlert.textContent = "";
-            }
-            if (loginUsername) loginUsername.value = "";
-            if (loginPassword) loginPassword.value = "";
-            if (setupAdminUsername) setupAdminUsername.value = "";
-            if (setupAdminEmail) setupAdminEmail.value = "";
-            if (setupAdminPassword) setupAdminPassword.value = "";
+    // Global delegated click listener for all auth modal triggers and modal closers
+    document.addEventListener("click", (e) => {
+        // Any button that triggers authentication / setup modal
+        const authTrigger = e.target.closest("#openAuthModalBtn, #guestBannerSignInBtn, .guest-login-btn, [data-action='open-auth']");
+        if (authTrigger) {
+            e.preventDefault();
+            const preferredMode = authTrigger.getAttribute("data-auth-mode") || null;
+            openAuthModal(preferredMode);
+            return;
+        }
 
-            try {
-                const res = await fetch("/api/auth/status");
-                const data = await res.json();
-                if (data.csrf_token) currentCsrfToken = data.csrf_token;
+        // Close triggers (✕ button, Cancel button, or elements with .modal-close-btn inside authModal)
+        const closeTrigger = e.target.closest("#closeAuthModalBtn, #cancelAuthBtn");
+        if (closeTrigger) {
+            e.preventDefault();
+            closeAuthModal();
+            return;
+        }
 
-                if (data.requires_setup) {
-                    if (authModalTitle) authModalTitle.textContent = "🚀 First-Time Administrator Setup";
-                    if (setupRequiredNotice) setupRequiredNotice.style.display = "flex";
-                    if (setupAdminForm) setupAdminForm.style.display = "block";
-                    if (loginForm) loginForm.style.display = "none";
-                } else {
-                    if (authModalTitle) authModalTitle.textContent = "🔐 Sign In to VisionGuard AI";
-                    if (setupRequiredNotice) setupRequiredNotice.style.display = "none";
-                    if (setupAdminForm) setupAdminForm.style.display = "none";
-                    if (loginForm) loginForm.style.display = "block";
-                }
-            } catch (_) {
-                if (loginForm) loginForm.style.display = "block";
-                if (setupAdminForm) setupAdminForm.style.display = "none";
-            }
+        // Close on backdrop click (clicking outside the modal dialog)
+        const modal = document.getElementById("authModal");
+        if (modal && e.target === modal) {
+            closeAuthModal();
+            return;
+        }
+    });
 
-            if (authModal) authModal.style.display = "flex";
-        });
-    }
-
-    if (closeAuthModalBtn) {
-        closeAuthModalBtn.addEventListener("click", () => {
-            if (authModal) authModal.style.display = "none";
-        });
-    }
-    if (cancelAuthBtn) {
-        cancelAuthBtn.addEventListener("click", () => {
-            if (authModal) authModal.style.display = "none";
-        });
-    }
+    document.addEventListener("keydown", (e) => {
+        const modal = document.getElementById("authModal");
+        if (e.key === "Escape" && modal && modal.style.display === "flex") {
+            closeAuthModal();
+        }
+    });
 
     if (loginForm) {
         loginForm.addEventListener("submit", async (e) => {
@@ -2510,7 +2908,22 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (authModal) authModal.style.display = "none";
                 await checkAuthStatus();
                 loadDashboardStats();
-                loadRecords();
+                loadRecordsHeaderCount();
+
+                // If user is maintenance staff and on forbidden view, redirect to queue
+                if (currentUser && currentUser.role === "maintenance") {
+                    const hash = (window.location.hash || "").replace("#", "");
+                    if (hash === "new" || hash === "reports" || hash === "users") {
+                        switchView("queue");
+                        return;
+                    }
+                }
+
+                if (window.location.hash) {
+                    checkHashRoute();
+                } else {
+                    switchView("dashboard");
+                }
             } catch (err) {
                 if (authErrorAlert) {
                     authErrorAlert.textContent = err.message || "Authentication failed.";
@@ -2558,7 +2971,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (authModal) authModal.style.display = "none";
                 await checkAuthStatus();
                 loadDashboardStats();
-                loadRecords();
+                loadRecordsHeaderCount();
+                switchView("dashboard");
             } catch (err) {
                 if (authErrorAlert) {
                     authErrorAlert.textContent = err.message || "Admin setup failed.";
@@ -2585,16 +2999,18 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             currentUser = null;
             await checkAuthStatus();
-            const currentHash = (window.location.hash || "").replace("#", "");
-            if (currentHash === "users") {
-                switchView("dashboard");
-            }
+            renderGuestDashboard();
+            switchView("dashboard");
         });
     }
 
     // User Management Functions (Admin Only)
     async function loadUsers() {
         if (!usersTableBody) return;
+        if (!currentUser || currentUser.role !== "admin") {
+            usersTableBody.innerHTML = `<tr><td colspan="7" class="text-center text-danger" style="padding: 2rem;">🔒 Access Restricted: Administrator privileges required to view user directory.</td></tr>`;
+            return;
+        }
         usersTableBody.innerHTML = `<tr><td colspan="7" class="text-center" style="padding: 2rem;">Loading authorized users...</td></tr>`;
 
         try {
@@ -2783,30 +3199,398 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Initialize Auth, Dashboard and Records Count
-    checkAuthStatus();
-    loadDashboardStats();
-    loadRecordsHeaderCount();
+    // -------------------------------------------------------------------------
+    // Phase 4.7: Assignment Helpers, Staff Loader, Task Modal & Work Queue
+    // -------------------------------------------------------------------------
 
-    // Hash Route Support (e.g. #map, #records, #new, #dashboard, #reports, #users)
+    function getAssignmentBadgeClass(status) {
+        switch (String(status || "").toLowerCase()) {
+            case "assigned": return "badge badge-assign-assigned";
+            case "in_progress": return "badge badge-assign-in-progress";
+            case "completed": return "badge badge-assign-completed";
+            case "cancelled": return "badge badge-assign-cancelled";
+            default: return "badge badge-assign-unassigned";
+        }
+    }
+
+    function formatAssignmentStatus(status) {
+        switch (String(status || "").toLowerCase()) {
+            case "assigned": return "Assigned";
+            case "in_progress": return "In Progress";
+            case "completed": return "Completed";
+            case "cancelled": return "Cancelled";
+            default: return "Unassigned";
+        }
+    }
+
+    function renderAssignmentHistory(assignments) {
+        if (!detailAssignmentHistoryList) return;
+        detailAssignmentHistoryList.innerHTML = "";
+        const list = Array.isArray(assignments) ? assignments : [];
+        if (detailAssignmentEventsCountBadge) {
+            detailAssignmentEventsCountBadge.textContent = `${list.length} Event${list.length === 1 ? '' : 's'}`;
+        }
+        if (list.length === 0) {
+            detailAssignmentHistoryList.innerHTML = `<p class="text-muted" style="font-size: 0.8rem; margin: 0;">No assignment activity logged yet.</p>`;
+            return;
+        }
+
+        list.forEach(a => {
+            const div = document.createElement("div");
+            div.className = "assignment-history-item";
+            const stBadge = `<span class="${getAssignmentBadgeClass(a.assignment_status)}" style="font-size:0.7rem; padding: 2px 6px;">${escapeHtml(formatAssignmentStatus(a.assignment_status))}</span>`;
+            const tech = a.assigned_to_username ? `<strong>${escapeHtml(a.assigned_to_username)}</strong>` : "<em>Unassigned</em>";
+            const byUser = a.assigned_by_username ? `by <strong>${escapeHtml(a.assigned_by_username)}</strong>` : "";
+            const instr = a.instructions ? `<div style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">"${escapeHtml(a.instructions)}"</div>` : "";
+
+            div.innerHTML = `
+                <div>
+                    <div>Assigned to ${tech} ${byUser} — ${stBadge}</div>
+                    ${instr}
+                </div>
+                <div class="ah-meta">${formatDateTime(a.created_at || a.assigned_at)}</div>
+            `;
+            detailAssignmentHistoryList.appendChild(div);
+        });
+    }
+
+    async function loadMaintenanceStaffOptions(selectedUserId = null) {
+        if (!assigneeSelect) return;
+        assigneeSelect.innerHTML = `<option value="">Loading maintenance personnel...</option>`;
+        try {
+            const res = await fetch("/api/maintenance/staff");
+            const data = await res.json();
+            if (!res.ok || data.status !== "success") {
+                throw new Error(data.message || "Failed to load maintenance staff.");
+            }
+            const staff = data.staff || [];
+            if (staff.length === 0) {
+                assigneeSelect.innerHTML = `<option value="">No active Maintenance Staff accounts available</option>`;
+                return;
+            }
+            assigneeSelect.innerHTML = `<option value="">Select Maintenance Technician...</option>` +
+                staff.map(s => {
+                    const sel = (selectedUserId && parseInt(selectedUserId, 10) === s.id) ? "selected" : "";
+                    const emailTxt = s.email ? ` (${s.email})` : "";
+                    return `<option value="${s.id}" ${sel}>${escapeHtml(s.username)}${escapeHtml(emailTxt)}</option>`;
+                }).join("");
+        } catch (err) {
+            console.error("Load staff error:", err);
+            assigneeSelect.innerHTML = `<option value="">Error loading staff: ${escapeHtml(err.message)}</option>`;
+        }
+    }
+
+    if (openAssignTaskModalBtn) {
+        openAssignTaskModalBtn.addEventListener("click", async () => {
+            if (!currentDetailId) return;
+            if (assignTaskErrorAlert) {
+                assignTaskErrorAlert.style.display = "none";
+                assignTaskErrorAlert.textContent = "";
+            }
+            if (assignTaskInspectionId) assignTaskInspectionId.value = currentDetailId;
+            if (assignInstructionsInput) {
+                assignInstructionsInput.value = (detailAssignmentInstructionsDisplay && detailAssignmentInstructionsDisplay.textContent !== "No special instructions provided.") 
+                    ? detailAssignmentInstructionsDisplay.textContent 
+                    : "";
+            }
+            await loadMaintenanceStaffOptions();
+            if (assignTaskModal) assignTaskModal.style.display = "flex";
+        });
+    }
+
+    if (closeAssignTaskModalBtn) {
+        closeAssignTaskModalBtn.addEventListener("click", () => {
+            if (assignTaskModal) assignTaskModal.style.display = "none";
+        });
+    }
+    if (cancelAssignTaskModalBtn) {
+        cancelAssignTaskModalBtn.addEventListener("click", () => {
+            if (assignTaskModal) assignTaskModal.style.display = "none";
+        });
+    }
+
+    if (assignTaskForm) {
+        assignTaskForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (assignTaskErrorAlert) assignTaskErrorAlert.style.display = "none";
+
+            const inspId = assignTaskInspectionId ? assignTaskInspectionId.value : currentDetailId;
+            const staffId = assigneeSelect ? assigneeSelect.value : "";
+            const instructions = assignInstructionsInput ? assignInstructionsInput.value.trim() : "";
+
+            if (!inspId || !staffId) return;
+
+            if (saveAssignTaskBtn) {
+                saveAssignTaskBtn.disabled = true;
+                saveAssignTaskBtn.textContent = "Assigning...";
+            }
+
+            try {
+                const res = await fetch(`/api/inspections/${inspId}/assign`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        assigned_to_user_id: parseInt(staffId, 10),
+                        instructions: instructions
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok || data.status !== "success") {
+                    throw new Error(data.message || "Failed to assign task.");
+                }
+
+                if (assignTaskModal) assignTaskModal.style.display = "none";
+                await openRecordDetail(inspId);
+                loadMaintenanceQueue();
+            } catch (err) {
+                if (assignTaskErrorAlert) {
+                    assignTaskErrorAlert.textContent = err.message || "Assignment failed.";
+                    assignTaskErrorAlert.style.display = "block";
+                }
+            } finally {
+                if (saveAssignTaskBtn) {
+                    saveAssignTaskBtn.disabled = false;
+                    saveAssignTaskBtn.textContent = "Save Assignment";
+                }
+            }
+        });
+    }
+
+    if (cancelAssignmentBtn) {
+        cancelAssignmentBtn.addEventListener("click", async () => {
+            if (!currentDetailId) return;
+            if (!confirm(`Are you sure you want to cancel the maintenance assignment for Inspection Record #${currentDetailId}?`)) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/inspections/${currentDetailId}/cancel-assignment`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ reason: "Cancelled by administrator via record detail" })
+                });
+                const data = await res.json();
+                if (!res.ok || data.status !== "success") {
+                    throw new Error(data.message || "Failed to cancel assignment.");
+                }
+                await openRecordDetail(currentDetailId);
+                loadMaintenanceQueue();
+            } catch (err) {
+                alert(`Error cancelling assignment: ${err.message}`);
+            }
+        });
+    }
+
+    // Maintenance Work Queue Loader
+    async function loadMaintenanceQueue() {
+        if (!queueTableBody) return;
+        if (!currentUser) {
+            queueTableBody.innerHTML = `<tr><td colspan="9" class="text-center" style="padding: 2.5rem; color: var(--text-muted);">
+                🔒 Authentication Required. Please <button class="btn btn-sm btn-primary guest-login-btn" style="margin-left: 0.5rem;">Sign In</button> to view maintenance tasks.
+            </td></tr>`;
+            bindGuestLoginButtons();
+            return;
+        }
+        queueTableBody.innerHTML = `<tr><td colspan="9" class="text-center" style="padding: 2rem; color: var(--text-muted);">Loading maintenance tasks...</td></tr>`;
+
+        const status = queueStatusFilter ? queueStatusFilter.value : "";
+        const urgency = queueUrgencyFilter ? queueUrgencyFilter.value : "";
+        const category = queueCategoryFilter ? queueCategoryFilter.value : "";
+        const q = queueSearchInput ? queueSearchInput.value.trim() : "";
+
+        try {
+            const params = new URLSearchParams();
+            if (status) params.append("status", status);
+            if (urgency) params.append("urgency", urgency);
+            if (category) params.append("category", category);
+            if (q) params.append("q", q);
+
+            const res = await fetch(`/api/maintenance/queue?${params.toString()}`);
+            const data = await res.json();
+
+            if (!res.ok || data.status !== "success") {
+                if (res.status === 401 || res.status === 403) {
+                    queueTableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger" style="padding: 2rem;">🔒 Access Restricted: Login as Maintenance Staff or Administrator to view tasks.</td></tr>`;
+                    return;
+                }
+                throw new Error(data.message || "Failed to load maintenance work queue.");
+            }
+
+            const tasks = data.tasks || [];
+            const counts = data.counts || {};
+
+            // Update telemetry
+            if (queueTotalCount) queueTotalCount.textContent = counts.total || tasks.length;
+            if (queuePendingCount) queuePendingCount.textContent = (counts.assigned || 0) + (counts.in_progress || 0);
+            if (queueOverdueCount) queueOverdueCount.textContent = counts.overdue || 0;
+            if (queueCompletedCount) queueCompletedCount.textContent = counts.completed || 0;
+
+            if (queueCountBadgeHeader) {
+                const pending = (counts.assigned || 0) + (counts.in_progress || 0);
+                queueCountBadgeHeader.textContent = pending;
+                queueCountBadgeHeader.className = pending > 0 ? "badge badge-warning" : "badge badge-secondary";
+            }
+
+            if (tasks.length === 0) {
+                if (queueEmptyState) queueEmptyState.style.display = "block";
+                if (queueTable) queueTable.style.display = "none";
+                return;
+            }
+
+            if (queueEmptyState) queueEmptyState.style.display = "none";
+            if (queueTable) queueTable.style.display = "table";
+
+            queueTableBody.innerHTML = "";
+            tasks.forEach(t => {
+                const tr = document.createElement("tr");
+
+                // Assignee
+                let techDisplay = t.assigned_to_username ? `<strong>${escapeHtml(t.assigned_to_username)}</strong>` : "<em>Unassigned</em>";
+                if (t.assigned_to_user_active === false) {
+                    techDisplay += ` <span class="badge badge-warning" style="font-size:0.68rem; padding: 1px 4px;">Deactivated</span>`;
+                }
+
+                // Road / Location
+                const roadName = t.road_name ? `<strong>${escapeHtml(t.road_name)}</strong>` : "<em>Unspecified Road</em>";
+                const subLoc = [t.area, t.city].filter(Boolean).map(escapeHtml).join(", ");
+                const locHtml = subLoc ? `${roadName}<br/><small style="color:var(--text-muted);">${subLoc}</small>` : roadName;
+
+                // Defects
+                const defectCount = t.defect_count > 0 
+                    ? `<strong class="text-danger">${t.defect_count}</strong> (${escapeHtml(t.defect_type || "Defect")})`
+                    : `<span class="text-success">0 (Sound)</span>`;
+                const conf = (t.defect_count > 0 && t.confidence) ? ` <small class="text-muted">${(t.confidence * 100).toFixed(0)}%</small>` : "";
+
+                // Target Date & Urgency
+                const targetDate = t.target_repair_date || "Not Scheduled";
+                const urgBadge = getDeadlineBadge(t);
+                const targetHtml = `<div>${escapeHtml(targetDate)}</div><div style="margin-top:2px;">${urgBadge}</div>`;
+
+                // Status badges
+                const wfBadge = `<span class="${getStatusBadgeClass(t.status)}" style="font-size:0.75rem; padding:2px 6px;">${escapeHtml(t.status)}</span>`;
+                const assignBadge = `<span class="${getAssignmentBadgeClass(t.assignment_status)}" style="font-size:0.75rem; padding:2px 6px;">${escapeHtml(formatAssignmentStatus(t.assignment_status))}</span>`;
+
+                // Instructions
+                const instr = t.assignment_instructions 
+                    ? `<div style="max-width:200px; font-size:0.8rem; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(t.assignment_instructions)}">${escapeHtml(t.assignment_instructions)}</div>`
+                    : `<span class="text-muted" style="font-size:0.75rem;">None</span>`;
+
+                tr.innerHTML = `
+                    <td><strong>#${t.id}</strong></td>
+                    <td>${techDisplay}</td>
+                    <td>${locHtml}</td>
+                    <td>${defectCount}${conf}</td>
+                    <td>${targetHtml}</td>
+                    <td>${wfBadge}</td>
+                    <td>${assignBadge}</td>
+                    <td>${instr}</td>
+                    <td style="text-align: right;">
+                        <button type="button" class="btn btn-primary btn-sm open-queue-task-btn" data-id="${t.id}">
+                            👁️ Open Task
+                        </button>
+                    </td>
+                `;
+                queueTableBody.appendChild(tr);
+            });
+
+            // Bind clicks
+            queueTableBody.querySelectorAll(".open-queue-task-btn").forEach(btn => {
+                btn.addEventListener("click", () => {
+                    const id = btn.getAttribute("data-id");
+                    openRecordDetail(id);
+                });
+            });
+        } catch (err) {
+            console.error("Load queue error:", err);
+            queueTableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger" style="padding: 2rem;">Error loading queue: ${escapeHtml(err.message)}</td></tr>`;
+        }
+    }
+
+    if (queueStatusFilter) queueStatusFilter.addEventListener("change", loadMaintenanceQueue);
+    if (queueUrgencyFilter) queueUrgencyFilter.addEventListener("change", loadMaintenanceQueue);
+    if (queueCategoryFilter) queueCategoryFilter.addEventListener("change", loadMaintenanceQueue);
+    if (queueSearchInput) queueSearchInput.addEventListener("input", debounce(loadMaintenanceQueue, 300));
+    if (resetQueueFiltersBtn) {
+        resetQueueFiltersBtn.addEventListener("click", () => {
+            if (queueStatusFilter) queueStatusFilter.value = "";
+            if (queueUrgencyFilter) queueUrgencyFilter.value = "";
+            if (queueCategoryFilter) queueCategoryFilter.value = "";
+            if (queueSearchInput) queueSearchInput.value = "";
+            loadMaintenanceQueue();
+        });
+    }
+    if (refreshQueueBtn) refreshQueueBtn.addEventListener("click", loadMaintenanceQueue);
+
+    // Hash Route Support (e.g. #map, #records, #new, #dashboard, #reports, #queue, #users)
     function checkHashRoute() {
         const hash = (window.location.hash || "").toLowerCase().replace("#", "").trim();
+        if (!currentUser) {
+            // For unauthenticated visitors, show public/guest views or default to dashboard
+            if (hash === "map" || hash === "defect-map") {
+                switchView("map");
+            } else if (hash === "records") {
+                switchView("records");
+            } else if (hash && hash !== "dashboard") {
+                switchView("dashboard");
+                openAuthModal();
+            } else {
+                switchView("dashboard");
+            }
+            return;
+        }
+
         if (hash === "map" || hash === "defect-map") {
             switchView("map");
         } else if (hash === "records") {
             switchView("records");
         } else if (hash === "new" || hash === "inspect") {
-            switchView("new");
+            if (currentUser.role === "maintenance") {
+                switchView("queue");
+            } else {
+                switchView("new");
+            }
         } else if (hash === "dashboard") {
             switchView("dashboard");
         } else if (hash === "reports" || hash === "export") {
-            switchView("reports");
+            if (currentUser.role === "maintenance") {
+                switchView("queue");
+            } else {
+                switchView("reports");
+            }
+        } else if (hash === "queue" || hash === "maintenance-queue" || hash === "work-queue") {
+            if (currentUser.role === "inspector") {
+                switchView("dashboard");
+            } else {
+                switchView("queue");
+            }
         } else if (hash === "users" || hash === "user-management") {
-            switchView("users");
+            if (currentUser.role !== "admin") {
+                switchView("dashboard");
+            } else {
+                switchView("users");
+            }
         }
     }
     window.addEventListener("hashchange", checkHashRoute);
-    if (window.location.hash) {
-        checkHashRoute();
+
+    // Orchestrated Application Initialization
+    async function initApp() {
+        bindGuestLoginButtons();
+        await checkAuthStatus();
+
+        if (currentUser) {
+            loadDashboardStats();
+            loadRecordsHeaderCount();
+            if (window.location.hash) {
+                checkHashRoute();
+            }
+        } else {
+            renderGuestDashboard();
+            if (window.location.hash) {
+                checkHashRoute();
+            }
+        }
     }
+
+    initApp();
 });

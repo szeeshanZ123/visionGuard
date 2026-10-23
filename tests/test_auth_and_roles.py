@@ -21,6 +21,7 @@ import json
 import sqlite3
 import pytest
 import datetime
+from pathlib import Path
 from unittest.mock import MagicMock
 
 from database.db import (
@@ -588,3 +589,236 @@ class TestUserAttributionAndMigrations:
         cur2.execute("SELECT COUNT(*) as count FROM users;")
         assert cur2.fetchone()["count"] == 0
         conn2.close()
+
+
+# =============================================================================
+# 9. Regression Tests: 401 Authentication Lifecycle & Session Diagnostics
+# =============================================================================
+class TestAuthenticationLifecycleAndErrors:
+    """
+    Explicit regression tests for HTTP 401 handling across the four reported endpoints:
+    - GET /api/inspections?limit=1
+    - GET /api/dashboard/stats
+    - GET /api/reports/preview
+    - GET /api/inspections?has_coords=true&limit=500
+    Validates:
+    - Logged-out state returns HTTP 401 UNAUTHORIZED on protected APIs.
+    - Public endpoints (/api/health, /api/auth/status) remain 200 without login.
+    - Login establishes session and permits calls to protected endpoints.
+    - Logout terminates session and restores HTTP 401.
+    - Expired/invalid session cookies return HTTP 401.
+    - Session for deactivated user is rejected with HTTP 401.
+    - Role restrictions are strictly enforced across roles.
+    """
+
+    REPORTED_ENDPOINTS = [
+        "/api/inspections?limit=1",
+        "/api/dashboard/stats",
+        "/api/reports/preview",
+        "/api/inspections?has_coords=true&limit=500",
+    ]
+
+    def test_logged_out_requests_return_401_on_reported_endpoints(self, client):
+        """Unauthenticated requests to all reported endpoints return HTTP 401."""
+        for endpoint in self.REPORTED_ENDPOINTS:
+            res = client.get(endpoint)
+            assert res.status_code == 401, f"Expected 401 for unauthenticated {endpoint}, got {res.status_code}"
+            data = res.get_json()
+            assert data["status"] == "error"
+            assert data["error_code"] == "UNAUTHORIZED"
+            assert "authentication required" in data["message"].lower()
+
+    def test_public_endpoints_accessible_without_authentication(self, client):
+        """Public status/health endpoints return HTTP 200 without authentication."""
+        health_res = client.get("/api/health")
+        assert health_res.status_code == 200
+        health_data = health_res.get_json()
+        assert health_data["status"] in ("healthy", "online")
+
+        status_res = client.get("/api/auth/status")
+        assert status_res.status_code == 200
+        status_data = status_res.get_json()
+        assert status_data["authenticated"] is False
+        assert status_data["user"] is None
+        assert "csrf_token" in status_data
+
+    def test_successful_login_authorizes_all_reported_endpoints(self, client, test_db_path):
+        """Successful login establishes session and permits calls to all 4 reported endpoints."""
+        create_user("lead_inspector", "InspectSecure123", role=ROLE_ADMIN, db_path=test_db_path)
+
+        login_res = client.post("/api/auth/login", json={
+            "username": "lead_inspector",
+            "password": "InspectSecure123",
+        })
+        assert login_res.status_code == 200
+        login_data = login_res.get_json()
+        assert login_data["status"] == "success"
+        assert login_data["user"]["username"] == "lead_inspector"
+
+        # Check all reported endpoints return 200 for the authenticated session
+        for endpoint in self.REPORTED_ENDPOINTS:
+            res = client.get(endpoint)
+            assert res.status_code == 200, f"Expected 200 for authenticated {endpoint}, got {res.status_code}"
+            data = res.get_json()
+            assert data["status"] == "success"
+
+        # Check /api/auth/status confirms authentication
+        status_res = client.get("/api/auth/status")
+        assert status_res.status_code == 200
+        status_data = status_res.get_json()
+        assert status_data["authenticated"] is True
+        assert status_data["user"]["username"] == "lead_inspector"
+
+    def test_logout_terminates_session_and_restores_401(self, client, test_db_path):
+        """Logging out destroys the session cookie and causes subsequent requests to return HTTP 401."""
+        create_user("session_tester", "SessionPass123", role=ROLE_ADMIN, db_path=test_db_path)
+
+        login_res = client.post("/api/auth/login", json={
+            "username": "session_tester",
+            "password": "SessionPass123",
+        })
+        csrf_token = login_res.get_json()["csrf_token"]
+
+        # Confirm authorized
+        assert client.get("/api/dashboard/stats").status_code == 200
+
+        # Perform logout
+        logout_res = client.post("/api/auth/logout", headers={"X-CSRF-Token": csrf_token})
+        assert logout_res.status_code == 200
+        assert logout_res.get_json()["status"] == "success"
+        assert client.get("/api/auth/status").get_json()["authenticated"] is False
+
+        # Endpoints must now return 401
+        for endpoint in self.REPORTED_ENDPOINTS:
+            res = client.get(endpoint)
+            assert res.status_code == 401, f"Expected 401 after logout for {endpoint}, got {res.status_code}"
+
+    def test_expired_or_invalid_session_cookie_returns_401(self, client):
+        """Requests with corrupted or invalid session cookies are rejected with HTTP 401."""
+        client.set_cookie("session", "tampered.or.expired.cookie.token")
+
+        for endpoint in self.REPORTED_ENDPOINTS:
+            res = client.get(endpoint)
+            assert res.status_code == 401
+            assert res.get_json()["error_code"] == "UNAUTHORIZED"
+
+    def test_deactivated_user_session_returns_401(self, client, test_db_path):
+        """Active session for a user who gets deactivated in the database returns 401 on next request."""
+        u = create_user("active_staff", "StaffSecret123", role=ROLE_ADMIN, db_path=test_db_path)
+
+        login_res = client.post("/api/auth/login", json={
+            "username": "active_staff",
+            "password": "StaffSecret123",
+        })
+        assert login_res.status_code == 200
+        assert client.get("/api/dashboard/stats").status_code == 200
+
+        # Deactivate user directly in the database
+        update_user(u["id"], {"is_active": 0}, db_path=test_db_path)
+
+        # Protected request should now fail with 401
+        res = client.get("/api/dashboard/stats")
+        assert res.status_code == 401
+        data = res.get_json()
+        assert data["error_code"] == "UNAUTHORIZED"
+        assert "authentication required" in data["message"].lower()
+        # Verify session was revoked
+        status_res = client.get("/api/auth/status")
+        assert status_res.get_json()["authenticated"] is False
+
+    def test_role_restrictions_enforced_between_inspector_and_maintenance(self, client, test_db_path):
+        """RBAC permissions correctly prevent unauthorized role operations."""
+        create_user("test_inspector", "InspectPass123", role=ROLE_INSPECTOR, db_path=test_db_path)
+        create_user("test_maint", "MaintPass123", role=ROLE_MAINTENANCE, db_path=test_db_path)
+
+        # 1. Inspector: Can access reports, but denied maintenance queue and user management
+        client.post("/api/auth/login", json={"username": "test_inspector", "password": "InspectPass123"})
+        assert client.get("/api/reports/preview").status_code == 200
+        assert client.get("/api/maintenance/queue").status_code == 403
+        assert client.get("/api/users").status_code == 403
+        client.post("/api/auth/logout")
+
+        # 2. Maintenance: Can access queue, but denied report preview and inspect
+        client.post("/api/auth/login", json={"username": "test_maint", "password": "MaintPass123"})
+        assert client.get("/api/maintenance/queue").status_code == 200
+        assert client.get("/api/reports/preview").status_code == 403
+        assert client.post("/api/inspect").status_code == 403
+        client.post("/api/auth/logout")
+
+
+# =============================================================================
+# 9. Frontend Auth Modal UI Regression Tests
+# =============================================================================
+class TestAuthModalFrontendContracts:
+    """Verifies that the HTML template, CSS styling, and client-side JavaScript
+    form an airtight contract for the Sign In / Setup Admin modal interactions.
+    """
+
+    def test_auth_modal_html_elements_present(self, client):
+        """Verifies all modal and trigger elements exist in the server-rendered HTML."""
+        res = client.get("/")
+        assert res.status_code == 200
+        html = res.get_data(as_text=True)
+
+        # Modal container and dialog
+        assert 'id="authModal"' in html
+        assert 'class="modal-overlay"' in html
+        assert 'id="authModalTitle"' in html
+        assert 'id="closeAuthModalBtn"' in html
+        assert 'id="authErrorAlert"' in html
+
+        # Forms
+        assert 'id="loginForm"' in html
+        assert 'id="loginUsername"' in html
+        assert 'id="loginPassword"' in html
+        assert 'id="cancelAuthBtn"' in html
+        assert 'id="loginSubmitBtn"' in html
+
+        assert 'id="setupAdminForm"' in html
+        assert 'id="setupRequiredNotice"' in html
+        assert 'id="setupAdminUsername"' in html
+        assert 'id="setupAdminPassword"' in html
+        assert 'id="setupAdminSubmitBtn"' in html
+
+        # Sign-in triggers
+        assert 'id="openAuthModalBtn"' in html
+        assert 'id="authGuestBanner"' in html
+        assert 'id="guestBannerSignInBtn"' in html
+        assert 'id="mapErrorBanner"' in html
+
+    def test_auth_modal_css_rules_present(self):
+        """Verifies modal overlay and dialog styles are properly declared in styles.css."""
+        css_path = Path(__file__).parent.parent / "app" / "static" / "css" / "styles.css"
+        assert css_path.exists()
+        css = css_path.read_text(encoding="utf-8")
+
+        assert ".modal-overlay" in css
+        assert "position: fixed" in css
+        assert "z-index: 99999" in css
+        assert ".modal-dialog" in css
+        assert ".modal-header" in css
+        assert ".modal-close-btn" in css
+
+    def test_auth_modal_javascript_wiring_present(self):
+        """Verifies app.js defines centralized modal controls and delegated event listeners."""
+        js_path = Path(__file__).parent.parent / "app" / "static" / "js" / "app.js"
+        assert js_path.exists()
+        js = js_path.read_text(encoding="utf-8")
+
+        # Centralized modal open/close functions
+        assert "async function openAuthModal" in js
+        assert "function closeAuthModal" in js
+
+        # Delegated event listener targeting all triggers
+        assert "#guestBannerSignInBtn" in js
+        assert ".guest-login-btn" in js
+        assert "#openAuthModalBtn" in js
+        assert "openAuthModal(preferredMode)" in js
+
+        # Escape keydown listener
+        assert 'e.key === "Escape"' in js
+
+        # No brittle openAuthModalBtn.click() chains
+        assert "openAuthModalBtn.click()" not in js
+
+

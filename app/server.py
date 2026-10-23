@@ -72,6 +72,16 @@ from database.reports import (
     generate_report_csv,
     generate_report_pdf,
 )
+from database.assignments import (
+    assign_inspection_task,
+    cancel_inspection_assignment,
+    get_maintenance_work_queue,
+    get_inspection_assignment_history,
+    list_active_maintenance_staff,
+    check_user_can_maintain_inspection,
+    ASSIGNMENT_STATUS_DISPLAY,
+    ALLOWED_ASSIGNMENT_STATUSES,
+)
 from ai.preprocessing.image_ops import (
     validate_image_stream,
     load_image_as_opencv,
@@ -121,6 +131,7 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
     app.config.setdefault("SESSION_COOKIE_SAMESITE", "Lax")
     app.config.setdefault("SESSION_COOKIE_SECURE", os.environ.get("VISIONGUARD_COOKIE_SECURE", "0") == "1")
     app.config.setdefault("PERMANENT_SESSION_LIFETIME", datetime.timedelta(hours=8))
+    app.config.setdefault("SEND_FILE_MAX_AGE_DEFAULT", 0)
 
     # Authentication & CSRF enforcement flags
     if test_config and "AUTH_ENABLED" in test_config:
@@ -535,6 +546,216 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
                 "message": f"Failed to update user: {str(e)}",
             }), 500
 
+    # -------------------------------------------------------------------------
+    # Maintenance Task Assignment & Work Queue API Routes (Phase 4.7)
+    # -------------------------------------------------------------------------
+    @app.route("/api/maintenance/staff", methods=["GET"])
+    @roles_required(ROLE_ADMIN)
+    def api_get_maintenance_staff():
+        """Returns list of active Maintenance Staff users eligible for assignment."""
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        staff = list_active_maintenance_staff(db_path=db_path)
+        return jsonify({
+            "status": "success",
+            "count": len(staff),
+            "staff": staff,
+        }), 200
+
+    @app.route("/api/inspections/<int:inspection_id>/assign", methods=["POST"])
+    @roles_required(ROLE_ADMIN)
+    def api_assign_inspection_task(inspection_id: int):
+        """
+        Assigns or reassigns an inspection to an active Maintenance Staff user.
+        Admins only.
+        """
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        payload = request.get_json(silent=True) or {}
+        assigned_to_user_id = payload.get("assigned_to_user_id")
+        instructions = payload.get("instructions")
+
+        if not assigned_to_user_id:
+            return jsonify({
+                "status": "error",
+                "error_code": "MISSING_ASSIGNEE",
+                "message": "Field 'assigned_to_user_id' is required.",
+            }), 400
+
+        try:
+            assigned_to_user_id = int(assigned_to_user_id)
+        except (ValueError, TypeError):
+            return jsonify({
+                "status": "error",
+                "error_code": "INVALID_ASSIGNEE_ID",
+                "message": "Field 'assigned_to_user_id' must be an integer user ID.",
+            }), 400
+
+        curr_admin = get_current_user_record()
+        admin_id = curr_admin["id"] if curr_admin else 1
+
+        try:
+            res = assign_inspection_task(
+                inspection_id=inspection_id,
+                assigned_to_user_id=assigned_to_user_id,
+                assigned_by_user_id=admin_id,
+                instructions=instructions,
+                db_path=db_path,
+            )
+            return jsonify({
+                "status": "success",
+                "message": f"Task #{inspection_id} successfully assigned to {res['assigned_to']['username']}.",
+                "assignment": res,
+                "inspection": res["inspection"],
+            }), 200
+        except ValueError as ve:
+            return jsonify({
+                "status": "error",
+                "error_code": "ASSIGNMENT_FAILED",
+                "message": str(ve),
+            }), 400
+        except Exception as e:
+            logger.exception(f"Failed to assign task #{inspection_id}: {e}")
+            return jsonify({
+                "status": "error",
+                "error_code": "INTERNAL_SERVER_ERROR",
+                "message": f"Task assignment error: {str(e)}",
+            }), 500
+
+    @app.route("/api/inspections/<int:inspection_id>/cancel-assignment", methods=["POST"])
+    @roles_required(ROLE_ADMIN)
+    def api_cancel_inspection_assignment(inspection_id: int):
+        """
+        Cancels an active task assignment for an inspection.
+        Admins only.
+        """
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        payload = request.get_json(silent=True) or {}
+        reason = payload.get("reason")
+
+        curr_admin = get_current_user_record()
+        admin_id = curr_admin["id"] if curr_admin else 1
+
+        try:
+            res = cancel_inspection_assignment(
+                inspection_id=inspection_id,
+                cancelled_by_user_id=admin_id,
+                cancellation_reason=reason,
+                db_path=db_path,
+            )
+            return jsonify({
+                "status": "success",
+                "message": res["message"],
+                "inspection": res["inspection"],
+            }), 200
+        except ValueError as ve:
+            return jsonify({
+                "status": "error",
+                "error_code": "CANCELLATION_FAILED",
+                "message": str(ve),
+            }), 400
+        except Exception as e:
+            logger.exception(f"Failed to cancel assignment for #{inspection_id}: {e}")
+            return jsonify({
+                "status": "error",
+                "error_code": "INTERNAL_SERVER_ERROR",
+                "message": f"Cancellation error: {str(e)}",
+            }), 500
+
+    @app.route("/api/maintenance/queue", methods=["GET"])
+    @roles_required(ROLE_ADMIN, ROLE_MAINTENANCE)
+    def api_get_maintenance_queue():
+        """
+        Returns tasks in the Maintenance Work Queue.
+        - Maintenance staff: scoped strictly to tasks assigned to them.
+        - Admin: can view all assigned tasks or filter by assigned_to_user_id.
+        """
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        curr_user = get_current_user_record()
+
+        target_user_id = None
+        if curr_user and curr_user["role"] == ROLE_MAINTENANCE:
+            target_user_id = curr_user["id"]
+        elif curr_user and curr_user["role"] == ROLE_ADMIN:
+            req_user_id = request.args.get("assigned_to_user_id")
+            if req_user_id:
+                try:
+                    target_user_id = int(req_user_id)
+                except (ValueError, TypeError):
+                    target_user_id = None
+
+        assign_status = request.args.get("status") or request.args.get("assignment_status")
+        wf_status = request.args.get("workflow_status")
+        urgency = request.args.get("urgency") or request.args.get("deadline")
+        category = request.args.get("category")
+        city = request.args.get("city")
+        area = request.args.get("area")
+        search_query = request.args.get("q") or request.args.get("search")
+
+        try:
+            limit = min(500, max(1, int(request.args.get("limit", 100))))
+            offset = max(0, int(request.args.get("offset", 0)))
+        except (TypeError, ValueError):
+            limit = 100
+            offset = 0
+
+        tasks = get_maintenance_work_queue(
+            user_id=target_user_id,
+            assignment_status=assign_status,
+            workflow_status=wf_status,
+            urgency=urgency,
+            category=category,
+            city=city,
+            area=area,
+            search_query=search_query,
+            limit=limit,
+            offset=offset,
+            db_path=db_path,
+        )
+
+        return jsonify({
+            "status": "success",
+            "count": len(tasks),
+            "tasks": tasks,
+            "user_id": target_user_id,
+            "disclaimer": (
+                "Notice: Work queue assignments, status tracking, and notes reflect administrative "
+                "task management and do not certify completed physical road engineering repairs."
+            ),
+        }), 200
+
+    @app.route("/api/inspections/<int:inspection_id>/assignments", methods=["GET"])
+    @roles_required(ROLE_ADMIN, ROLE_INSPECTOR, ROLE_MAINTENANCE)
+    def api_get_inspection_assignments(inspection_id: int):
+        """
+        Returns chronological task assignment history for an inspection.
+        Maintenance staff can only access tasks assigned to them or unassigned.
+        """
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        curr_user = get_current_user_record()
+
+        record = get_inspection_by_id(inspection_id, db_path=db_path)
+        if not record:
+            return jsonify({
+                "status": "error",
+                "error_code": "INSPECTION_NOT_FOUND",
+                "message": f"Inspection record #{inspection_id} not found.",
+            }), 404
+
+        if curr_user and curr_user["role"] == ROLE_MAINTENANCE:
+            if record.get("assigned_to_user_id") is not None and record.get("assigned_to_user_id") != curr_user["id"]:
+                return jsonify({
+                    "status": "error",
+                    "error_code": "FORBIDDEN_TASK_NOT_ASSIGNED",
+                    "message": "Access denied: This inspection task is assigned to another team member.",
+                }), 403
+
+        history = get_inspection_assignment_history(inspection_id, db_path=db_path)
+        return jsonify({
+            "status": "success",
+            "inspection_id": inspection_id,
+            "count": len(history),
+            "assignments": history,
+        }), 200
+
     @app.route("/api/health", methods=["GET"])
     def api_health():
         """
@@ -798,6 +1019,19 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
             has_coords = has_coords_raw.strip().lower() in ["true", "1", "yes"]
 
         deadline_filter = request.args.get("deadline") or request.args.get("urgency")
+        assigned_to_user_id = request.args.get("assigned_to_user_id")
+        assigned_to_me = request.args.get("assigned_to_me")
+        assignment_status_filter = request.args.get("assignment_status")
+
+        curr_user = get_current_user_record()
+        parsed_assigned_user_id = None
+        if assigned_to_me and assigned_to_me.lower() in ["1", "true", "yes"] and curr_user:
+            parsed_assigned_user_id = curr_user["id"]
+        elif assigned_to_user_id:
+            try:
+                parsed_assigned_user_id = int(assigned_to_user_id)
+            except (ValueError, TypeError):
+                parsed_assigned_user_id = None
 
         try:
             limit = min(500, max(1, int(request.args.get("limit", 100))))
@@ -814,6 +1048,8 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
             search_query=search_query,
             has_coords=has_coords,
             deadline_filter=deadline_filter if deadline_filter and deadline_filter.lower() != "all" else None,
+            assigned_to_user_id=parsed_assigned_user_id,
+            assignment_status=assignment_status_filter,
             db_path=db_path
         )
         return jsonify({
@@ -983,6 +1219,16 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
                 "message": f"Inspection record #{inspection_id} not found.",
             }), 404
 
+        curr_user = get_current_user_record()
+        if curr_user and curr_user["role"] == ROLE_MAINTENANCE:
+            assigned_id = record.get("assigned_to_user_id")
+            if assigned_id is not None and int(assigned_id) != int(curr_user["id"]):
+                return jsonify({
+                    "status": "error",
+                    "error_code": "FORBIDDEN_TASK_NOT_ASSIGNED",
+                    "message": "Access denied: This inspection task is assigned to another team member.",
+                }), 403
+
         disclaimer_text = (
             "VisionGuard AI defect detections represent 2D camera bounding boxes only. "
             "Confidence scores indicate visual recognition likelihood, not defect severity or structural safety. "
@@ -1006,6 +1252,24 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
         Also accepts optional location metadata updates.
         """
         db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        curr_user = get_current_user_record()
+        existing_record = get_inspection_by_id(inspection_id, db_path=db_path)
+        if not existing_record:
+            return jsonify({
+                "status": "error",
+                "error_code": "INSPECTION_NOT_FOUND",
+                "message": f"Inspection record #{inspection_id} not found.",
+            }), 404
+
+        if curr_user and curr_user["role"] == ROLE_MAINTENANCE:
+            assigned_id = existing_record.get("assigned_to_user_id")
+            if assigned_id is not None and int(assigned_id) != int(curr_user["id"]):
+                return jsonify({
+                    "status": "error",
+                    "error_code": "FORBIDDEN_TASK_NOT_ASSIGNED",
+                    "message": "Access denied: You are only authorized to update tasks assigned directly to you.",
+                }), 403
+
         payload = request.get_json(silent=True) or {}
         new_status = payload.get("status")
 
@@ -1114,6 +1378,24 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
         Updates location metadata, notes, and/or status for an existing inspection.
         """
         db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        curr_user = get_current_user_record()
+        existing_record = get_inspection_by_id(inspection_id, db_path=db_path)
+        if not existing_record:
+            return jsonify({
+                "status": "error",
+                "error_code": "INSPECTION_NOT_FOUND",
+                "message": f"Inspection record #{inspection_id} not found.",
+            }), 404
+
+        if curr_user and curr_user["role"] == ROLE_MAINTENANCE:
+            assigned_id = existing_record.get("assigned_to_user_id")
+            if assigned_id is not None and int(assigned_id) != int(curr_user["id"]):
+                return jsonify({
+                    "status": "error",
+                    "error_code": "FORBIDDEN_TASK_NOT_ASSIGNED",
+                    "message": "Access denied: You are only authorized to update tasks assigned directly to you.",
+                }), 403
+
         payload = request.get_json(silent=True) or {}
 
         if "status" in payload and payload["status"] not in ALLOWED_STATUSES:

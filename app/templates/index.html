@@ -7,7 +7,35 @@
     <meta name="description" content="AI-Powered Infrastructure Defect Detection & Road Inspection Platform using genuine YOLOv8 computer vision.">
     <meta name="csrf-token" content="{{ csrf_token or '' }}">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/styles.css?v=20261023">
+    <style>
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            width: 100vw; height: 100vh;
+            background-color: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            z-index: 99999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1.25rem;
+            box-sizing: border-box;
+        }
+        .modal-dialog {
+            background: #1e293b;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 12px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75);
+            width: 100%;
+            max-width: 520px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-sizing: border-box;
+        }
+        .auth-modal-dialog { max-width: 460px; }
+    </style>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
 </head>
 <body>
@@ -37,6 +65,9 @@
                 <button type="button" class="nav-tab-btn" id="tabReportsBtn">
                     <span>📑</span> Reports & Exports
                 </button>
+                <button type="button" class="nav-tab-btn" id="tabQueueBtn" style="display: none;">
+                    <span>🛠️</span> Maintenance Queue <span class="badge badge-secondary" id="queueCountBadgeHeader">0</span>
+                </button>
                 <button type="button" class="nav-tab-btn" id="tabUsersBtn" style="display: none;">
                     <span>👥</span> User Management
                 </button>
@@ -44,7 +75,7 @@
             <div class="header-right-zone" style="display: flex; align-items: center; gap: 0.75rem;">
                 <div class="auth-bar" id="authBar">
                     <div id="authGuestControls" style="display: flex; align-items: center; gap: 0.5rem;">
-                        <button type="button" class="btn btn-sm btn-primary" id="openAuthModalBtn">🔐 Sign In</button>
+                        <button type="button" class="btn btn-sm btn-primary" id="openAuthModalBtn" data-action="open-auth">🔐 Sign In</button>
                     </div>
                     <div id="authUserControls" style="display: none; align-items: center; gap: 0.5rem;">
                         <span class="user-pill badge badge-info" id="currentUserBadge" title="Current Authenticated User">👤 Loading...</span>
@@ -87,6 +118,18 @@
                 <strong id="systemNoticeTitle">Model Checkpoint Notice</strong>
                 <p id="systemNoticeMsg"></p>
                 <div class="instructions-box" id="systemNoticeInstructions" style="display: none;"></div>
+            </div>
+        </div>
+
+        <!-- Guest Authentication Notice Banner -->
+        <div class="alert alert-info auth-guest-banner" id="authGuestBanner" style="display: none; margin-bottom: 1.25rem;">
+            <div class="alert-icon">🔐</div>
+            <div class="alert-content">
+                <div class="alert-heading-row" style="display: flex; justify-content: space-between; align-items: center;">
+                    <strong id="authGuestBannerTitle">Authentication Required for Full System Access</strong>
+                    <button type="button" class="btn btn-sm btn-primary guest-login-btn" id="guestBannerSignInBtn" data-action="open-auth">🔐 Sign In</button>
+                </div>
+                <p id="authGuestBannerMsg" style="margin: 0.35rem 0 0 0; font-size: 0.85rem;">Sign in with authorized credentials or configure the primary administrator account to review defect records, geotagged maps, inspection reports, and maintenance workflows.</p>
             </div>
         </div>
 
@@ -786,6 +829,76 @@
                 </div>
             </div>
 
+            <!-- Task Assignment & Work Allocation Card (Phase 4.7) -->
+            <div class="card assignment-detail-card" id="detailAssignmentCard">
+                <div class="card-header-row">
+                    <div>
+                        <h3>🛠️ Maintenance Task Assignment</h3>
+                        <p class="card-subtitle">Technician work assignment, delegation status, and field dispatch instructions</p>
+                    </div>
+                    <div class="status-current-badge-wrap">
+                        <span>Assignment Status:</span>
+                        <span class="badge" id="detailAssignmentStatusBadge">Unassigned</span>
+                    </div>
+                </div>
+
+                <div class="assignment-detail-grid">
+                    <div class="loc-item">
+                        <span class="loc-label">Assigned Technician</span>
+                        <strong id="detailAssigneeDisplay">Unassigned</strong>
+                        <span id="detailAssigneeActiveDisplay" class="text-muted" style="display: block; font-size: 0.75rem;"></span>
+                    </div>
+                    <div class="loc-item">
+                        <span class="loc-label">Assigned By</span>
+                        <span id="detailAssignedByDisplay">--</span>
+                    </div>
+                    <div class="loc-item">
+                        <span class="loc-label">Assigned At</span>
+                        <span id="detailAssignedAtDisplay">--</span>
+                    </div>
+                    <div class="loc-item">
+                        <span class="loc-label">Last Assignment Update</span>
+                        <span id="detailAssignmentUpdatedDisplay">--</span>
+                    </div>
+                    <div class="loc-item full-width">
+                        <span class="loc-label">Special Instructions / Dispatch Notes</span>
+                        <div class="instructions-display-box" id="detailAssignmentInstructionsDisplay">No special instructions provided.</div>
+                    </div>
+                </div>
+
+                <!-- Admin Action Buttons for Assignment -->
+                <div class="assignment-actions-row" id="detailAssignmentAdminActions" style="display: none; margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border-color); display: flex; gap: 0.5rem; justify-content: flex-end;">
+                    <button type="button" class="btn btn-primary btn-sm" id="openAssignTaskModalBtn">
+                        👤 Assign / Reassign Task
+                    </button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" id="cancelAssignmentBtn" style="display: none;">
+                        🚫 Cancel Assignment
+                    </button>
+                </div>
+                
+                <div class="assignment-feedback" id="detailAssignmentFeedback" style="display: none; margin-top: 0.5rem;"></div>
+
+                <!-- Assignment Audit Trail List -->
+                <div class="assignment-history-wrap" id="detailAssignmentHistoryWrap" style="margin-top: 1rem; border-top: 1px dashed var(--border-color); padding-top: 0.75rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <h4 style="margin: 0; font-size: 0.9rem; color: var(--text-secondary);">Assignment Activity History</h4>
+                        <span class="badge badge-secondary" id="detailAssignmentEventsCountBadge" style="font-size: 0.75rem;">0 Records</span>
+                    </div>
+                    <div id="detailAssignmentHistoryList" class="assignment-history-list" style="max-height: 180px; overflow-y: auto;">
+                        <p class="text-muted" style="font-size: 0.8rem; margin: 0;">No assignment activity logged yet.</p>
+                    </div>
+                </div>
+
+                <!-- Civil Engineering Disclaimer -->
+                <div class="alert alert-disclaimer alert-sm" style="margin-top: 0.75rem;">
+                    <div class="alert-icon">🛡️</div>
+                    <div class="alert-content">
+                        <strong>Remediation Safety Notice:</strong>
+                        <p>Task assignment and status transitions represent administrative coordination only. Assigning tasks or updating workflow markers does not certify that physical pavement repairs have been performed or validated by a certified civil engineer.</p>
+                    </div>
+                </div>
+            </div>
+
             <!-- Side-by-Side Images for Saved Record -->
             <div class="comparison-grid">
                 <div class="image-column">
@@ -1346,6 +1459,122 @@
             </div>
         </section>
 
+        <!-- Maintenance Work Queue Section (Phase 4.7) -->
+        <section class="queue-container" id="queueSection" style="display: none;">
+            <div class="records-header">
+                <div>
+                    <h2>🛠️ Maintenance Work Queue</h2>
+                    <p id="queueSubtitle">Actionable infrastructure remediation tasks assigned to you for field investigation and repair tracking.</p>
+                </div>
+                <div class="records-actions">
+                    <div class="filter-controls-row">
+                        <div class="filter-group">
+                            <label for="queueStatusFilter">Assignment Status:</label>
+                            <select id="queueStatusFilter" class="form-control form-control-sm">
+                                <option value="">All Statuses</option>
+                                <option value="assigned">Assigned</option>
+                                <option value="in_progress">In Progress</option>
+                                <option value="completed">Completed</option>
+                                <option value="cancelled">Cancelled</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="queueUrgencyFilter">Deadline Urgency:</label>
+                            <select id="queueUrgencyFilter" class="form-control form-control-sm">
+                                <option value="">All Urgencies</option>
+                                <option value="overdue">⚠️ Overdue</option>
+                                <option value="due_today">🔔 Due Today</option>
+                                <option value="upcoming">📅 Upcoming</option>
+                                <option value="resolved">✅ Resolved</option>
+                                <option value="no_deadline">⚪ No Deadline</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="queueCategoryFilter">Defect Category:</label>
+                            <select id="queueCategoryFilter" class="form-control form-control-sm">
+                                <option value="">All Categories</option>
+                                <option value="Longitudinal">Longitudinal Crack (D00)</option>
+                                <option value="Transverse">Transverse Crack (D10)</option>
+                                <option value="Alligator">Alligator Crack (D20)</option>
+                                <option value="Pothole">Pothole (D40)</option>
+                                <option value="Sound">Sound Surface (0 Defects)</option>
+                            </select>
+                        </div>
+                        <div class="filter-group flex-grow">
+                            <label for="queueSearchInput">Search Location:</label>
+                            <input type="text" id="queueSearchInput" class="form-control form-control-sm" placeholder="Search road, area, or instructions...">
+                        </div>
+                        <div class="filter-buttons">
+                            <button type="button" class="btn btn-secondary btn-sm" id="resetQueueFiltersBtn" title="Reset all filters">✕ Reset</button>
+                            <button type="button" class="btn btn-secondary btn-sm" id="refreshQueueBtn">🔄 Refresh</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Queue Telemetry Summary Row -->
+            <div class="metrics-row queue-summary-row" id="queueSummaryRow">
+                <div class="metric-card">
+                    <span class="metric-label">Total Assigned Tasks</span>
+                    <strong class="metric-value text-info" id="queueTotalCount">0</strong>
+                    <span class="metric-caption">In your work queue</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Pending / In Progress</span>
+                    <strong class="metric-value text-warning" id="queuePendingCount">0</strong>
+                    <span class="metric-caption">Active field repairs</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Urgent / Overdue</span>
+                    <strong class="metric-value text-danger" id="queueOverdueCount">0</strong>
+                    <span class="metric-caption">Exceeded target repair date</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Completed Tasks</span>
+                    <strong class="metric-value text-success" id="queueCompletedCount">0</strong>
+                    <span class="metric-caption">Remediated & resolved</span>
+                </div>
+            </div>
+
+            <!-- Queue Table Card -->
+            <div class="card records-card">
+                <div class="table-responsive">
+                    <table class="data-table" id="queueTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">#</th>
+                                <th>Assigned To</th>
+                                <th>Road / Location</th>
+                                <th>Defect Details</th>
+                                <th>Target Date & Urgency</th>
+                                <th>Workflow Status</th>
+                                <th>Assignment Status</th>
+                                <th>Instructions</th>
+                                <th style="width: 140px; text-align: right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="queueTableBody">
+                            <tr><td colspan="9" class="text-center" style="padding: 2rem;">Loading maintenance tasks...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Empty State -->
+                <div class="empty-state" id="queueEmptyState" style="display: none;">
+                    <div class="empty-icon">🎉</div>
+                    <h3>No Assigned Tasks</h3>
+                    <p id="queueEmptyText">You currently have no maintenance tasks assigned matching the selected filters.</p>
+                </div>
+            </div>
+            
+            <div class="alert alert-disclaimer alert-sm mt-3">
+                <div class="alert-icon">🛡️</div>
+                <div class="alert-content">
+                    <strong>Work Order Disclaimer:</strong>
+                    <p>Entries in this work queue coordinate administrative repair tasks. Tasks marked as resolved or completed reflect staff updates and do not independently certify physical pavement compaction, asphalt density, or civil structural safety.</p>
+                </div>
+            </div>
+        </section>
+
         <!-- User Management Section (Phase 4.6 — Admin Only) -->
         <section class="users-container" id="usersSection" style="display: none;">
             <div class="dash-header">
@@ -1503,12 +1732,47 @@
         </div>
     </div>
 
+    <!-- Assign Task Modal (Phase 4.7 — Admin Only) -->
+    <div class="modal-overlay" id="assignTaskModal" style="display: none;">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 id="assignTaskModalTitle">👤 Assign Defect Inspection Task</h3>
+                <button type="button" class="modal-close-btn" id="closeAssignTaskModalBtn">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger" id="assignTaskErrorAlert" style="display: none; margin-bottom: 1rem;"></div>
+                
+                <form id="assignTaskForm">
+                    <input type="hidden" id="assignTaskInspectionId">
+                    
+                    <div class="form-group mb-3">
+                        <label for="assigneeSelect">Assign To Active Maintenance Staff <span class="text-danger">*</span></label>
+                        <select class="form-control" id="assigneeSelect" required>
+                            <option value="">Select Maintenance Technician...</option>
+                        </select>
+                        <small class="text-muted">Only active accounts with the Maintenance Staff role can receive assignments.</small>
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label for="assignInstructionsInput">Field Instructions / Work Orders <span class="text-muted">(Optional)</span></label>
+                        <textarea class="form-control" id="assignInstructionsInput" rows="3" placeholder="e.g. Inspect pothole depth; apply hot-mix asphalt sealant and post-repair photographic evidence." maxlength="1000"></textarea>
+                    </div>
+
+                    <div class="form-actions" style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+                        <button type="button" class="btn btn-secondary" id="cancelAssignTaskModalBtn">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="saveAssignTaskBtn">Save Assignment</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Footer -->
     <footer class="app-footer">
         <p>© VisionGuard AI • Built with Python, Flask, OpenCV & YOLOv8 • Strict adherence to genuine AI models (No mock predictions).</p>
     </footer>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="/static/js/app.js"></script>
+    <script src="/static/js/app.js?v=20261023"></script>
 </body>
 </html>
