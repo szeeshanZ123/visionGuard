@@ -1,0 +1,10 @@
+# VisionGuard AI - 16-Image Validation Benchmark Dataset
+path: C:/Users/ASUS/OneDrive/visionGuard/data/evaluation_benchmark
+train: images
+val: images
+
+names:
+  0: D00_longitudinal_crack
+  1: D10_transverse_crack
+  2: D20_alligator_crack
+  3: D40_pothole
