@@ -13,6 +13,7 @@ import os
 import sys
 import uuid
 import logging
+import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -25,8 +26,10 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+import secrets
+from functools import wraps
 import cv2
-from flask import Flask, request, jsonify, render_template, send_file
+from flask import Flask, request, jsonify, render_template, send_file, session
 
 from database.db import (
     init_db,
@@ -44,6 +47,30 @@ from database.db import (
     get_inspection_activity,
     ALLOWED_STATUSES,
     DEFAULT_DB_PATH,
+)
+from database.auth import (
+    ROLE_ADMIN,
+    ROLE_INSPECTOR,
+    ROLE_MAINTENANCE,
+    ALLOWED_ROLES,
+    ROLE_DISPLAY_NAMES,
+    create_user,
+    get_user_by_id,
+    get_user_by_username,
+    list_users,
+    count_users,
+    update_user,
+    authenticate_user,
+    init_admin_from_env,
+    validate_username,
+    validate_password_strength,
+    validate_role,
+)
+from database.reports import (
+    validate_report_filters,
+    generate_report_data,
+    generate_report_csv,
+    generate_report_pdf,
 )
 from ai.preprocessing.image_ops import (
     validate_image_stream,
@@ -81,12 +108,149 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
     if test_config:
         app.config.update(test_config)
 
+    # Secret key configuration for cryptographic session signing
+    secret_key = (
+        (test_config.get("SECRET_KEY") if test_config else None)
+        or os.environ.get("VISIONGUARD_SECRET_KEY")
+        or secrets.token_hex(32)
+    )
+    app.secret_key = secret_key
+
+    # Session cookie hardening (Phase 4.6)
+    app.config.setdefault("SESSION_COOKIE_HTTPONLY", True)
+    app.config.setdefault("SESSION_COOKIE_SAMESITE", "Lax")
+    app.config.setdefault("SESSION_COOKIE_SECURE", os.environ.get("VISIONGUARD_COOKIE_SECURE", "0") == "1")
+    app.config.setdefault("PERMANENT_SESSION_LIFETIME", datetime.timedelta(hours=8))
+
+    # Authentication & CSRF enforcement flags
+    if test_config and "AUTH_ENABLED" in test_config:
+        app.config["AUTH_ENABLED"] = bool(test_config["AUTH_ENABLED"])
+        app.config["AUTH_ENABLED_EXPLICIT"] = True
+    else:
+        app.config["AUTH_ENABLED_EXPLICIT"] = False
+
+    if test_config and "ENFORCE_CSRF" in test_config:
+        app.config["ENFORCE_CSRF"] = bool(test_config["ENFORCE_CSRF"])
+        app.config["ENFORCE_CSRF_EXPLICIT"] = True
+    else:
+        app.config["ENFORCE_CSRF_EXPLICIT"] = False
+
     # Initialize persistence with configured database path
     db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
     init_db(db_path)
 
+    # Safe first-administrator bootstrap from environment variables
+    init_admin_from_env(db_path)
+
     # Initialize DefectDetectionService
     app.detector = detector or DefectDetectionService()
+
+    # -------------------------------------------------------------------------
+    # Authentication & Access Control Helpers / Decorators (Phase 4.6)
+    # -------------------------------------------------------------------------
+    def is_auth_enforced() -> bool:
+        if app.config.get("AUTH_ENABLED_EXPLICIT"):
+            return bool(app.config.get("AUTH_ENABLED", False))
+        if app.config.get("TESTING", False):
+            return False
+        return bool(app.config.get("AUTH_ENABLED", True))
+
+    def is_csrf_enforced() -> bool:
+        if app.config.get("ENFORCE_CSRF_EXPLICIT"):
+            return bool(app.config.get("ENFORCE_CSRF", False))
+        if app.config.get("TESTING", False):
+            return False
+        return bool(app.config.get("ENFORCE_CSRF", True))
+
+    def get_or_create_csrf_token() -> str:
+        """Returns or creates a cryptographic CSRF token in the user's session."""
+        if "csrf_token" not in session:
+            session["csrf_token"] = secrets.token_hex(32)
+        return session["csrf_token"]
+
+    def get_current_user_record() -> Optional[dict]:
+        """Returns the authenticated user dict from DB, or None if invalid/inactive."""
+        user_id = session.get("user_id")
+        if not user_id:
+            return None
+        current_db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        user = get_user_by_id(user_id, db_path=current_db_path)
+        if not user or not user.get("is_active"):
+            session.clear()
+            return None
+        return user
+
+    def login_required(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not is_auth_enforced():
+                return f(*args, **kwargs)
+            user = get_current_user_record()
+            if not user:
+                return jsonify({
+                    "status": "error",
+                    "error_code": "UNAUTHORIZED",
+                    "message": "Authentication required. Please log in.",
+                }), 401
+            return f(*args, **kwargs)
+        return decorated_function
+
+    def roles_required(*allowed_roles):
+        def decorator(f):
+            @wraps(f)
+            def decorated_function(*args, **kwargs):
+                if not is_auth_enforced():
+                    return f(*args, **kwargs)
+                user = get_current_user_record()
+                if not user:
+                    return jsonify({
+                        "status": "error",
+                        "error_code": "UNAUTHORIZED",
+                        "message": "Authentication required. Please log in.",
+                    }), 401
+                if user.get("role") not in allowed_roles:
+                    return jsonify({
+                        "status": "error",
+                        "error_code": "FORBIDDEN",
+                        "message": f"Access denied. Requires one of roles: {list(allowed_roles)}.",
+                    }), 403
+                return f(*args, **kwargs)
+            return decorated_function
+        return decorator
+
+    @app.before_request
+    def check_csrf_protection():
+        """Enforces CSRF protection on state-changing requests when enabled."""
+        if not is_auth_enforced() or not is_csrf_enforced():
+            return None
+
+        if request.method in ("GET", "HEAD", "OPTIONS"):
+            return None
+
+        # Exempt paths that initiate authentication or initial admin setup
+        exempt_paths = [
+            "/api/auth/login",
+            "/api/auth/setup-admin",
+        ]
+        if request.path in exempt_paths:
+            return None
+
+        client_token = request.headers.get("X-CSRF-Token")
+        if not client_token:
+            if request.is_json and isinstance(request.json, dict):
+                client_token = request.json.get("csrf_token")
+            elif request.form:
+                client_token = request.form.get("csrf_token")
+
+        expected_token = session.get("csrf_token")
+        if not client_token or not expected_token or not secrets.compare_digest(str(client_token), str(expected_token)):
+            return jsonify({
+                "status": "error",
+                "error_code": "CSRF_TOKEN_INVALID",
+                "message": "Missing or invalid CSRF token.",
+            }), 403
+
+        return None
 
     # -------------------------------------------------------------------------
     # Error Handlers
@@ -141,7 +305,235 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
     @app.route("/", methods=["GET"])
     def index():
         """Serves the main inspection dashboard and upload interface."""
-        return render_template("index.html")
+        return render_template("index.html", csrf_token=get_or_create_csrf_token())
+
+    # -------------------------------------------------------------------------
+    # Authentication & Session Routes (Phase 4.6)
+    # -------------------------------------------------------------------------
+    @app.route("/api/auth/login", methods=["POST"])
+    def api_auth_login():
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        payload = request.get_json(silent=True) or {}
+        username = payload.get("username")
+        password = payload.get("password")
+
+        if not username or not password:
+            return jsonify({
+                "status": "error",
+                "error_code": "INVALID_CREDENTIALS",
+                "message": "Username and password are required.",
+            }), 400
+
+        is_auth, user, err = authenticate_user(str(username).strip(), str(password), db_path=db_path)
+        if not is_auth or not user:
+            return jsonify({
+                "status": "error",
+                "error_code": "INVALID_CREDENTIALS",
+                "message": err or "Invalid username or password.",
+            }), 401
+
+        session["user_id"] = user["id"]
+        session["username"] = user["username"]
+        session["role"] = user["role"]
+        session.permanent = True
+        csrf_tok = get_or_create_csrf_token()
+
+        return jsonify({
+            "status": "success",
+            "message": f"Welcome back, {user['username']}.",
+            "user": user,
+            "csrf_token": csrf_tok,
+        }), 200
+
+    @app.route("/api/auth/logout", methods=["POST"])
+    def api_auth_logout():
+        session.clear()
+        return jsonify({
+            "status": "success",
+            "message": "Logged out successfully.",
+        }), 200
+
+    @app.route("/api/auth/status", methods=["GET"])
+    def api_auth_status():
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        csrf_tok = get_or_create_csrf_token()
+        total_users = count_users(db_path=db_path)
+        requires_setup = (total_users == 0)
+
+        user = get_current_user_record()
+        return jsonify({
+            "status": "success",
+            "authenticated": user is not None,
+            "requires_setup": requires_setup,
+            "user": user,
+            "csrf_token": csrf_tok,
+        }), 200
+
+    @app.route("/api/auth/me", methods=["GET"])
+    @login_required
+    def api_auth_me():
+        user = get_current_user_record()
+        return jsonify({
+            "status": "success",
+            "user": user,
+        }), 200
+
+    @app.route("/api/auth/setup-admin", methods=["POST"])
+    def api_auth_setup_admin():
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        if count_users(db_path=db_path) > 0:
+            return jsonify({
+                "status": "error",
+                "error_code": "SETUP_FORBIDDEN",
+                "message": "Initial administrator setup has already been completed.",
+            }), 403
+
+        payload = request.get_json(silent=True) or {}
+        username = payload.get("username")
+        password = payload.get("password")
+        email = payload.get("email")
+
+        try:
+            admin_user = create_user(
+                username=username,
+                password=password,
+                role=ROLE_ADMIN,
+                email=email,
+                is_active=1,
+                db_path=db_path
+            )
+            session["user_id"] = admin_user["id"]
+            session["username"] = admin_user["username"]
+            session["role"] = admin_user["role"]
+            session.permanent = True
+            csrf_tok = get_or_create_csrf_token()
+
+            return jsonify({
+                "status": "success",
+                "message": f"Administrator account '{admin_user['username']}' configured successfully.",
+                "user": admin_user,
+                "csrf_token": csrf_tok,
+            }), 201
+        except ValueError as ve:
+            return jsonify({
+                "status": "error",
+                "error_code": "VALIDATION_FAILED",
+                "message": str(ve),
+            }), 400
+        except Exception as e:
+            logger.exception(f"Failed to bootstrap administrator: {e}")
+            return jsonify({
+                "status": "error",
+                "error_code": "INTERNAL_SERVER_ERROR",
+                "message": f"Failed to bootstrap administrator: {str(e)}",
+            }), 500
+
+    # -------------------------------------------------------------------------
+    # User Management API Routes (Phase 4.6 — Admin Only)
+    # -------------------------------------------------------------------------
+    @app.route("/api/users", methods=["GET"])
+    @roles_required(ROLE_ADMIN)
+    def api_list_users():
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        users = list_users(db_path=db_path)
+        return jsonify({
+            "status": "success",
+            "count": len(users),
+            "users": users,
+            "roles": [
+                {"role": r, "display_name": ROLE_DISPLAY_NAMES.get(r, r)}
+                for r in ALLOWED_ROLES
+            ]
+        }), 200
+
+    @app.route("/api/users", methods=["POST"])
+    @roles_required(ROLE_ADMIN)
+    def api_create_user():
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        payload = request.get_json(silent=True) or {}
+        username = payload.get("username")
+        password = payload.get("password")
+        role = payload.get("role", ROLE_INSPECTOR)
+        email = payload.get("email")
+        is_active = 1 if payload.get("is_active", True) else 0
+
+        try:
+            user = create_user(
+                username=username,
+                password=password,
+                role=role,
+                email=email,
+                is_active=is_active,
+                db_path=db_path
+            )
+            return jsonify({
+                "status": "success",
+                "message": f"User '{user['username']}' created successfully.",
+                "user": user,
+            }), 201
+        except ValueError as ve:
+            return jsonify({
+                "status": "error",
+                "error_code": "USER_CREATION_FAILED",
+                "message": str(ve),
+            }), 400
+        except Exception as e:
+            logger.exception(f"Error creating user: {e}")
+            return jsonify({
+                "status": "error",
+                "error_code": "INTERNAL_SERVER_ERROR",
+                "message": f"Failed to create user: {str(e)}",
+            }), 500
+
+    @app.route("/api/users/<int:target_user_id>", methods=["PATCH"])
+    @roles_required(ROLE_ADMIN)
+    def api_update_user_route(target_user_id: int):
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        payload = request.get_json(silent=True) or {}
+
+        # Self-modification safety guards for administrators
+        current_admin_id = session.get("user_id")
+        if target_user_id == current_admin_id:
+            if "is_active" in payload and not payload["is_active"]:
+                return jsonify({
+                    "status": "error",
+                    "error_code": "SELF_DEACTIVATION_DENIED",
+                    "message": "Administrators cannot deactivate their own active account.",
+                }), 400
+            if "role" in payload and str(payload["role"]).lower() != ROLE_ADMIN:
+                return jsonify({
+                    "status": "error",
+                    "error_code": "SELF_DEMOTION_DENIED",
+                    "message": "Administrators cannot demote their own account role.",
+                }), 400
+
+        try:
+            updated = update_user(target_user_id, payload, db_path=db_path)
+            if not updated:
+                return jsonify({
+                    "status": "error",
+                    "error_code": "USER_NOT_FOUND",
+                    "message": f"User with ID {target_user_id} not found.",
+                }), 404
+
+            return jsonify({
+                "status": "success",
+                "message": f"User '{updated['username']}' updated successfully.",
+                "user": updated,
+            }), 200
+        except ValueError as ve:
+            return jsonify({
+                "status": "error",
+                "error_code": "UPDATE_FAILED",
+                "message": str(ve),
+            }), 400
+        except Exception as e:
+            logger.exception(f"Error updating user {target_user_id}: {e}")
+            return jsonify({
+                "status": "error",
+                "error_code": "INTERNAL_SERVER_ERROR",
+                "message": f"Failed to update user: {str(e)}",
+            }), 500
 
     @app.route("/api/health", methods=["GET"])
     def api_health():
@@ -185,20 +577,22 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
         }), 200
 
     @app.route("/api/reload-model", methods=["POST"])
+    @roles_required(ROLE_ADMIN)
     def api_reload_model():
         """
         Re-attempts loading the model checkpoint from disk.
         """
-        success = app.detector.load_model()
+        success = bool(app.detector.load_model())
         status_code = 200 if success else 503
         return jsonify({
             "status": "success" if success else "error",
-            "loaded": success,
+            "loaded": bool(success),
             "message": app.detector.status_message,
             "checkpoint_path": app.detector.model_path,
         }), status_code
 
     @app.route("/api/inspect", methods=["POST"])
+    @roles_required(ROLE_ADMIN, ROLE_INSPECTOR)
     def api_inspect():
         """
         Primary defect inspection endpoint.
@@ -356,6 +750,8 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
     # Inspection Records API Routes
     # -------------------------------------------------------------------------
     @app.route("/api/dashboard/stats", methods=["GET"])
+    @app.route("/api/dashboard/analytics", methods=["GET"])
+    @roles_required(ROLE_ADMIN, ROLE_INSPECTOR, ROLE_MAINTENANCE)
     def api_get_dashboard_stats():
         """
         Returns aggregate defect metrics, category distribution, and recent records
@@ -374,6 +770,7 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
         }), 200
 
     @app.route("/api/inspections", methods=["GET"])
+    @roles_required(ROLE_ADMIN, ROLE_INSPECTOR, ROLE_MAINTENANCE)
     def api_get_inspections():
         """
         Lists saved inspection records with optional filtering.
@@ -455,6 +852,7 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
         return True, parsed_lat, parsed_lon, None
 
     @app.route("/api/inspections", methods=["POST"])
+    @roles_required(ROLE_ADMIN, ROLE_INSPECTOR)
     def api_save_inspection():
         """
         Saves a completed road inspection into the database.
@@ -552,6 +950,10 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
                 }), 409
 
         try:
+            curr_user = get_current_user_record()
+            if curr_user:
+                payload["created_by_user_id"] = curr_user["id"]
+                payload["created_by_username"] = curr_user["username"]
             record = save_inspection(payload, db_path=db_path)
             return jsonify({
                 "status": "success",
@@ -567,6 +969,7 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
             }), 500
 
     @app.route("/api/inspections/<int:inspection_id>", methods=["GET"])
+    @roles_required(ROLE_ADMIN, ROLE_INSPECTOR, ROLE_MAINTENANCE)
     def api_get_inspection_detail(inspection_id: int):
         """
         Retrieves full details of a specific inspection by ID.
@@ -595,6 +998,7 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
         }), 200
 
     @app.route("/api/inspections/<int:inspection_id>/status", methods=["PATCH"])
+    @roles_required(ROLE_ADMIN, ROLE_MAINTENANCE)
     def api_update_inspection_status(inspection_id: int):
         """
         Updates the status of an inspection record.
@@ -670,7 +1074,10 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
                 payload["target_repair_date"] = None
 
         try:
-            updated = update_inspection(inspection_id, payload, db_path=db_path)
+            curr_user = get_current_user_record()
+            u_id = curr_user["id"] if curr_user else None
+            u_name = curr_user["username"] if curr_user else None
+            updated = update_inspection(inspection_id, payload, user_id=u_id, username=u_name, db_path=db_path)
             if not updated:
                 return jsonify({
                     "status": "error",
@@ -701,6 +1108,7 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
             }), 500
 
     @app.route("/api/inspections/<int:inspection_id>", methods=["PATCH", "PUT"])
+    @roles_required(ROLE_ADMIN, ROLE_MAINTENANCE)
     def api_update_inspection(inspection_id: int):
         """
         Updates location metadata, notes, and/or status for an existing inspection.
@@ -765,7 +1173,10 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
                 payload["target_repair_date"] = None
 
         try:
-            updated = update_inspection(inspection_id, payload, db_path=db_path)
+            curr_user = get_current_user_record()
+            u_id = curr_user["id"] if curr_user else None
+            u_name = curr_user["username"] if curr_user else None
+            updated = update_inspection(inspection_id, payload, user_id=u_id, username=u_name, db_path=db_path)
             if not updated:
                 return jsonify({
                     "status": "error",
@@ -786,7 +1197,27 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
                 "message": f"Inspection update failed: {str(e)}",
             }), 500
 
+    @app.route("/api/inspections/<int:inspection_id>", methods=["DELETE"])
+    @roles_required(ROLE_ADMIN)
+    def api_delete_inspection(inspection_id: int):
+        """
+        Deletes an inspection record and its associated data. Admin only.
+        """
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        success = delete_inspection(inspection_id, db_path=db_path)
+        if not success:
+            return jsonify({
+                "status": "error",
+                "error_code": "INSPECTION_NOT_FOUND",
+                "message": f"Inspection record #{inspection_id} not found.",
+            }), 404
+        return jsonify({
+            "status": "success",
+            "message": f"Inspection record #{inspection_id} deleted successfully.",
+        }), 200
+
     @app.route("/api/inspections/<int:inspection_id>/image/<img_type>", methods=["GET"])
+    @roles_required(ROLE_ADMIN, ROLE_INSPECTOR, ROLE_MAINTENANCE)
     def api_get_inspection_image(inspection_id: int, img_type: str):
         """
         Serves the original or annotated image file for a saved inspection.
@@ -815,6 +1246,7 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
         return send_file(abs_target)
 
     @app.route("/api/inspections/<int:inspection_id>/activity", methods=["GET"])
+    @roles_required(ROLE_ADMIN, ROLE_INSPECTOR, ROLE_MAINTENANCE)
     def api_get_inspection_activity_route(inspection_id: int):
         """
         Retrieves chronological maintenance activity history for an inspection record.
@@ -834,6 +1266,134 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
             "count": len(activities),
             "activities": activities,
         }), 200
+
+    # -------------------------------------------------------------------------
+    # Report & Export Routes (Phase 4.5 & Phase 4.6 Authorization)
+    # -------------------------------------------------------------------------
+    @app.route("/api/reports/preview", methods=["GET"])
+    @app.route("/api/reports/data", methods=["GET"])
+    @roles_required(ROLE_ADMIN, ROLE_INSPECTOR)
+    def api_get_report_preview():
+        """
+        Generates and returns JSON report data according to validated filters.
+        Used by the client-side report preview interface.
+        """
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        is_valid, norm_filters, err_msg = validate_report_filters(request.args.to_dict())
+        if not is_valid:
+            return jsonify({
+                "status": "error",
+                "error_code": "INVALID_REPORT_FILTERS",
+                "message": err_msg or "Invalid report filters provided.",
+            }), 400
+
+        try:
+            report_data = generate_report_data(norm_filters, db_path=db_path)
+            return jsonify({
+                "status": "success",
+                "report": report_data,
+            }), 200
+        except ValueError as ve:
+            return jsonify({
+                "status": "error",
+                "error_code": "INVALID_REPORT_FILTERS",
+                "message": str(ve),
+            }), 400
+        except Exception as e:
+            logger.exception(f"Failed to generate report preview: {e}")
+            return jsonify({
+                "status": "error",
+                "error_code": "REPORT_GENERATION_FAILED",
+                "message": f"Report generation failed: {str(e)}",
+            }), 500
+
+    @app.route("/api/reports/export/csv", methods=["GET"])
+    @app.route("/api/reports/csv", methods=["GET"])
+    @roles_required(ROLE_ADMIN, ROLE_INSPECTOR)
+    def api_export_report_csv():
+        """
+        Exports filtered inspection records as an Excel-compatible CSV (UTF-8 BOM).
+        """
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        is_valid, norm_filters, err_msg = validate_report_filters(request.args.to_dict())
+        if not is_valid:
+            return jsonify({
+                "status": "error",
+                "error_code": "INVALID_REPORT_FILTERS",
+                "message": err_msg or "Invalid report filters provided.",
+            }), 400
+
+        try:
+            report_data = generate_report_data(norm_filters, db_path=db_path)
+            csv_content = generate_report_csv(report_data)
+
+            timestamp_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"visionguard_report_{timestamp_str}.csv"
+
+            byte_stream = io.BytesIO(csv_content.encode("utf-8"))
+            return send_file(
+                byte_stream,
+                mimetype="text/csv",
+                as_attachment=True,
+                download_name=filename,
+            )
+        except ValueError as ve:
+            return jsonify({
+                "status": "error",
+                "error_code": "INVALID_REPORT_FILTERS",
+                "message": str(ve),
+            }), 400
+        except Exception as e:
+            logger.exception(f"Failed to export CSV report: {e}")
+            return jsonify({
+                "status": "error",
+                "error_code": "CSV_EXPORT_FAILED",
+                "message": f"CSV export failed: {str(e)}",
+            }), 500
+
+    @app.route("/api/reports/export/pdf", methods=["GET"])
+    @app.route("/api/reports/pdf", methods=["GET"])
+    @roles_required(ROLE_ADMIN, ROLE_INSPECTOR)
+    def api_export_report_pdf():
+        """
+        Exports a professional, printable PDF inspection report.
+        """
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        is_valid, norm_filters, err_msg = validate_report_filters(request.args.to_dict())
+        if not is_valid:
+            return jsonify({
+                "status": "error",
+                "error_code": "INVALID_REPORT_FILTERS",
+                "message": err_msg or "Invalid report filters provided.",
+            }), 400
+
+        try:
+            report_data = generate_report_data(norm_filters, db_path=db_path)
+            pdf_bytes = generate_report_pdf(report_data)
+
+            timestamp_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"visionguard_report_{timestamp_str}.pdf"
+
+            byte_stream = io.BytesIO(pdf_bytes)
+            return send_file(
+                byte_stream,
+                mimetype="application/pdf",
+                as_attachment=True,
+                download_name=filename,
+            )
+        except ValueError as ve:
+            return jsonify({
+                "status": "error",
+                "error_code": "INVALID_REPORT_FILTERS",
+                "message": str(ve),
+            }), 400
+        except Exception as e:
+            logger.exception(f"Failed to export PDF report: {e}")
+            return jsonify({
+                "status": "error",
+                "error_code": "PDF_EXPORT_FAILED",
+                "message": f"PDF export failed: {str(e)}",
+            }), 500
 
     return app
 

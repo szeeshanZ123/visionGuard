@@ -4,6 +4,38 @@
  */
 
 document.addEventListener("DOMContentLoaded", () => {
+    // CSRF & Authentication State Management (Phase 4.6)
+    let currentCsrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
+    let currentUser = null; // { id, username, email, role, is_active }
+
+    // Intercept window.fetch to automatically include credentials and X-CSRF-Token on mutating requests
+    const originalFetch = window.fetch;
+    window.fetch = async function (input, init = {}) {
+        const options = Object.assign({}, init);
+        const method = (options.method || "GET").toUpperCase();
+
+        if (!options.credentials) {
+            options.credentials = "same-origin";
+        }
+
+        if (["POST", "PATCH", "PUT", "DELETE"].includes(method) && currentCsrfToken) {
+            if (options.headers instanceof Headers) {
+                if (!options.headers.has("X-CSRF-Token")) {
+                    options.headers.set("X-CSRF-Token", currentCsrfToken);
+                }
+            } else if (Array.isArray(options.headers)) {
+                let hasCsrf = options.headers.some(pair => pair[0].toLowerCase() === "x-csrf-token");
+                if (!hasCsrf) options.headers.push(["X-CSRF-Token", currentCsrfToken]);
+            } else {
+                options.headers = Object.assign({}, options.headers);
+                if (!options.headers["X-CSRF-Token"] && !options.headers["x-csrf-token"]) {
+                    options.headers["X-CSRF-Token"] = currentCsrfToken;
+                }
+            }
+        }
+        return originalFetch(input, options);
+    };
+
     // DOM Elements
     const dbStatusBadge = document.getElementById("dbStatusBadge");
     const modelStatusBadge = document.getElementById("modelStatusBadge");
@@ -467,13 +499,54 @@ document.addEventListener("DOMContentLoaded", () => {
     const tabNewInspectionBtn = document.getElementById("tabNewInspectionBtn");
     const tabRecordsBtn = document.getElementById("tabRecordsBtn");
     const tabMapBtn = document.getElementById("tabMapBtn");
+    const tabReportsBtn = document.getElementById("tabReportsBtn");
+    const tabUsersBtn = document.getElementById("tabUsersBtn");
     const dashboardSection = document.getElementById("dashboardSection");
     const newInspectionSection = document.getElementById("newInspectionSection");
     const recordsSection = document.getElementById("recordsSection");
     const recordDetailSection = document.getElementById("recordDetailSection");
     const mapSection = document.getElementById("mapSection");
+    const reportsSection = document.getElementById("reportsSection");
+    const usersSection = document.getElementById("usersSection");
     const recordsCountBadgeHeader = document.getElementById("recordsCountBadgeHeader");
     const mapCountBadgeHeader = document.getElementById("mapCountBadgeHeader");
+
+    // Header Auth Controls (Phase 4.6)
+    const authGuestControls = document.getElementById("authGuestControls");
+    const authUserControls = document.getElementById("authUserControls");
+    const currentUserBadge = document.getElementById("currentUserBadge");
+    const openAuthModalBtn = document.getElementById("openAuthModalBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+
+    // Auth Modal Controls
+    const authModal = document.getElementById("authModal");
+    const authModalTitle = document.getElementById("authModalTitle");
+    const closeAuthModalBtn = document.getElementById("closeAuthModalBtn");
+    const cancelAuthBtn = document.getElementById("cancelAuthBtn");
+    const setupRequiredNotice = document.getElementById("setupRequiredNotice");
+    const authErrorAlert = document.getElementById("authErrorAlert");
+    const loginForm = document.getElementById("loginForm");
+    const loginUsername = document.getElementById("loginUsername");
+    const loginPassword = document.getElementById("loginPassword");
+    const setupAdminForm = document.getElementById("setupAdminForm");
+    const setupAdminUsername = document.getElementById("setupAdminUsername");
+    const setupAdminEmail = document.getElementById("setupAdminEmail");
+    const setupAdminPassword = document.getElementById("setupAdminPassword");
+
+    // User Management Controls (Admin Only)
+    const createUserModal = document.getElementById("createUserModal");
+    const createUserModalBtn = document.getElementById("createUserModalBtn");
+    const closeCreateUserModalBtn = document.getElementById("closeCreateUserModalBtn");
+    const cancelCreateUserBtn = document.getElementById("cancelCreateUserBtn");
+    const createUserErrorAlert = document.getElementById("createUserErrorAlert");
+    const createUserForm = document.getElementById("createUserForm");
+    const newUsername = document.getElementById("newUsername");
+    const newUserEmail = document.getElementById("newUserEmail");
+    const newUserRole = document.getElementById("newUserRole");
+    const newUserPassword = document.getElementById("newUserPassword");
+    const newUserActive = document.getElementById("newUserActive");
+    const refreshUsersBtn = document.getElementById("refreshUsersBtn");
+    const usersTableBody = document.getElementById("usersTableBody");
 
     const refreshDashboardBtn = document.getElementById("refreshDashboardBtn");
     const dashStartInspectionBtn = document.getElementById("dashStartInspectionBtn");
@@ -618,6 +691,41 @@ document.addEventListener("DOMContentLoaded", () => {
     const legendCountD20 = document.getElementById("legendCountD20");
     const legendCountD40 = document.getElementById("legendCountD40");
     const legendCountSound = document.getElementById("legendCountSound");
+
+    // Phase 4.5: Reports & Data Exports DOM Elements
+    const exportPdfBtn = document.getElementById("exportPdfBtn");
+    const exportCsvBtn = document.getElementById("exportCsvBtn");
+    const printReportBtn = document.getElementById("printReportBtn");
+    const reportStartDate = document.getElementById("reportStartDate");
+    const reportEndDate = document.getElementById("reportEndDate");
+    const reportCategoryFilter = document.getElementById("reportCategoryFilter");
+    const reportStatusFilter = document.getElementById("reportStatusFilter");
+    const reportDeadlineFilter = document.getElementById("reportDeadlineFilter");
+    const reportCityFilter = document.getElementById("reportCityFilter");
+    const reportAreaFilter = document.getElementById("reportAreaFilter");
+    const reportSearchInput = document.getElementById("reportSearchInput");
+    const generateReportBtn = document.getElementById("generateReportBtn");
+    const resetReportFiltersBtn = document.getElementById("resetReportFiltersBtn");
+    const reportResetFromEmptyBtn = document.getElementById("reportResetFromEmptyBtn");
+    const reportSpinner = document.getElementById("reportSpinner");
+    const reportMatchingBadge = document.getElementById("reportMatchingBadge");
+    const reportErrorBanner = document.getElementById("reportErrorBanner");
+    const reportErrorMsg = document.getElementById("reportErrorMsg");
+    const reportEmptyState = document.getElementById("reportEmptyState");
+    const reportPreviewContainer = document.getElementById("reportPreviewContainer");
+
+    const prevGeneratedAt = document.getElementById("prevGeneratedAt");
+    const prevReferenceDate = document.getElementById("prevReferenceDate");
+    const prevRecordCount = document.getElementById("prevRecordCount");
+    const prevFilterText = document.getElementById("prevFilterText");
+    const prevTotalInspections = document.getElementById("prevTotalInspections");
+    const prevTotalDefects = document.getElementById("prevTotalDefects");
+    const prevActiveOrders = document.getElementById("prevActiveOrders");
+    const prevOverdueRepairs = document.getElementById("prevOverdueRepairs");
+    const prevCategoryTableBody = document.getElementById("prevCategoryTableBody");
+    const prevComplianceTableBody = document.getElementById("prevComplianceTableBody");
+    const prevTableBadge = document.getElementById("prevTableBadge");
+    const prevRecordsTableBody = document.getElementById("prevRecordsTableBody");
 
     // Leaflet Map State
     let defectMapInstance = null;
@@ -867,12 +975,16 @@ document.addEventListener("DOMContentLoaded", () => {
                 dateTransition = `<span style="color: var(--text-muted); text-decoration: line-through;">${escapeHtml(act.previous_target_date)}</span> (Cleared)`;
             }
 
+            const userTag = act.username
+                ? `<div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 3px;">👤 ${escapeHtml(act.username)}</div>`
+                : '';
+
             tr.innerHTML = `
                 <td><span style="font-size: 0.78rem; color: var(--text-secondary);">${formatDateTime(act.created_at)}</span></td>
                 <td>${actionBadge}</td>
                 <td>${statusTransition}</td>
                 <td>${dateTransition}</td>
-                <td><span style="font-size: 0.8rem; color: var(--text-primary);">${escapeHtml(act.notes || "No notes entered")}</span></td>
+                <td><span style="font-size: 0.8rem; color: var(--text-primary);">${escapeHtml(act.notes || "No notes entered")}</span>${userTag}</td>
             `;
             detailActivityTableBody.appendChild(tr);
         });
@@ -897,11 +1009,15 @@ document.addEventListener("DOMContentLoaded", () => {
             if (tabNewInspectionBtn) tabNewInspectionBtn.classList.remove("active");
             if (tabRecordsBtn) tabRecordsBtn.classList.remove("active");
             if (tabMapBtn) tabMapBtn.classList.remove("active");
+            if (tabReportsBtn) tabReportsBtn.classList.remove("active");
+            if (tabUsersBtn) tabUsersBtn.classList.remove("active");
             if (dashboardSection) dashboardSection.style.display = "flex";
             if (newInspectionSection) newInspectionSection.style.display = "none";
             if (recordsSection) recordsSection.style.display = "none";
             if (recordDetailSection) recordDetailSection.style.display = "none";
             if (mapSection) mapSection.style.display = "none";
+            if (reportsSection) reportsSection.style.display = "none";
+            if (usersSection) usersSection.style.display = "none";
             loadDashboardStats();
             window.scrollTo({ top: 0, behavior: "smooth" });
         } else if (viewName === "new") {
@@ -909,45 +1025,93 @@ document.addEventListener("DOMContentLoaded", () => {
             if (tabNewInspectionBtn) tabNewInspectionBtn.classList.add("active");
             if (tabRecordsBtn) tabRecordsBtn.classList.remove("active");
             if (tabMapBtn) tabMapBtn.classList.remove("active");
+            if (tabReportsBtn) tabReportsBtn.classList.remove("active");
+            if (tabUsersBtn) tabUsersBtn.classList.remove("active");
             if (dashboardSection) dashboardSection.style.display = "none";
             if (newInspectionSection) newInspectionSection.style.display = "block";
             if (recordsSection) recordsSection.style.display = "none";
             if (recordDetailSection) recordDetailSection.style.display = "none";
             if (mapSection) mapSection.style.display = "none";
+            if (reportsSection) reportsSection.style.display = "none";
+            if (usersSection) usersSection.style.display = "none";
         } else if (viewName === "records") {
             if (tabDashboardBtn) tabDashboardBtn.classList.remove("active");
             if (tabNewInspectionBtn) tabNewInspectionBtn.classList.remove("active");
             if (tabRecordsBtn) tabRecordsBtn.classList.add("active");
             if (tabMapBtn) tabMapBtn.classList.remove("active");
+            if (tabReportsBtn) tabReportsBtn.classList.remove("active");
+            if (tabUsersBtn) tabUsersBtn.classList.remove("active");
             if (dashboardSection) dashboardSection.style.display = "none";
             if (newInspectionSection) newInspectionSection.style.display = "none";
             if (recordsSection) recordsSection.style.display = "flex";
             if (recordDetailSection) recordDetailSection.style.display = "none";
             if (mapSection) mapSection.style.display = "none";
+            if (reportsSection) reportsSection.style.display = "none";
+            if (usersSection) usersSection.style.display = "none";
             loadRecords();
         } else if (viewName === "map") {
             if (tabDashboardBtn) tabDashboardBtn.classList.remove("active");
             if (tabNewInspectionBtn) tabNewInspectionBtn.classList.remove("active");
             if (tabRecordsBtn) tabRecordsBtn.classList.remove("active");
             if (tabMapBtn) tabMapBtn.classList.add("active");
+            if (tabReportsBtn) tabReportsBtn.classList.remove("active");
+            if (tabUsersBtn) tabUsersBtn.classList.remove("active");
             if (dashboardSection) dashboardSection.style.display = "none";
             if (newInspectionSection) newInspectionSection.style.display = "none";
             if (recordsSection) recordsSection.style.display = "none";
             if (recordDetailSection) recordDetailSection.style.display = "none";
             if (mapSection) mapSection.style.display = "flex";
+            if (reportsSection) reportsSection.style.display = "none";
+            if (usersSection) usersSection.style.display = "none";
             initDefectMap();
             loadMapRecords();
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        } else if (viewName === "reports") {
+            if (tabDashboardBtn) tabDashboardBtn.classList.remove("active");
+            if (tabNewInspectionBtn) tabNewInspectionBtn.classList.remove("active");
+            if (tabRecordsBtn) tabRecordsBtn.classList.remove("active");
+            if (tabMapBtn) tabMapBtn.classList.remove("active");
+            if (tabReportsBtn) tabReportsBtn.classList.add("active");
+            if (tabUsersBtn) tabUsersBtn.classList.remove("active");
+            if (dashboardSection) dashboardSection.style.display = "none";
+            if (newInspectionSection) newInspectionSection.style.display = "none";
+            if (recordsSection) recordsSection.style.display = "none";
+            if (recordDetailSection) recordDetailSection.style.display = "none";
+            if (mapSection) mapSection.style.display = "none";
+            if (reportsSection) reportsSection.style.display = "flex";
+            if (usersSection) usersSection.style.display = "none";
+            loadReportPreview();
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        } else if (viewName === "users") {
+            if (tabDashboardBtn) tabDashboardBtn.classList.remove("active");
+            if (tabNewInspectionBtn) tabNewInspectionBtn.classList.remove("active");
+            if (tabRecordsBtn) tabRecordsBtn.classList.remove("active");
+            if (tabMapBtn) tabMapBtn.classList.remove("active");
+            if (tabReportsBtn) tabReportsBtn.classList.remove("active");
+            if (tabUsersBtn) tabUsersBtn.classList.add("active");
+            if (dashboardSection) dashboardSection.style.display = "none";
+            if (newInspectionSection) newInspectionSection.style.display = "none";
+            if (recordsSection) recordsSection.style.display = "none";
+            if (recordDetailSection) recordDetailSection.style.display = "none";
+            if (mapSection) mapSection.style.display = "none";
+            if (reportsSection) reportsSection.style.display = "none";
+            if (usersSection) usersSection.style.display = "block";
+            loadUsers();
             window.scrollTo({ top: 0, behavior: "smooth" });
         } else if (viewName === "detail") {
             if (tabDashboardBtn) tabDashboardBtn.classList.remove("active");
             if (tabNewInspectionBtn) tabNewInspectionBtn.classList.remove("active");
             if (tabRecordsBtn) tabRecordsBtn.classList.add("active");
             if (tabMapBtn) tabMapBtn.classList.remove("active");
+            if (tabReportsBtn) tabReportsBtn.classList.remove("active");
+            if (tabUsersBtn) tabUsersBtn.classList.remove("active");
             if (dashboardSection) dashboardSection.style.display = "none";
             if (newInspectionSection) newInspectionSection.style.display = "none";
             if (recordsSection) recordsSection.style.display = "none";
             if (recordDetailSection) recordDetailSection.style.display = "flex";
             if (mapSection) mapSection.style.display = "none";
+            if (reportsSection) reportsSection.style.display = "none";
+            if (usersSection) usersSection.style.display = "none";
             window.scrollTo({ top: 0, behavior: "smooth" });
         }
 
@@ -962,6 +1126,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (tabNewInspectionBtn) tabNewInspectionBtn.addEventListener("click", () => switchView("new"));
     if (tabRecordsBtn) tabRecordsBtn.addEventListener("click", () => switchView("records"));
     if (tabMapBtn) tabMapBtn.addEventListener("click", () => switchView("map"));
+    if (tabReportsBtn) tabReportsBtn.addEventListener("click", () => switchView("reports"));
+    if (tabUsersBtn) tabUsersBtn.addEventListener("click", () => switchView("users"));
     if (backToRecordsBtn) backToRecordsBtn.addEventListener("click", () => switchView("records"));
     if (dashStartInspectionBtn) dashStartInspectionBtn.addEventListener("click", () => switchView("new"));
     if (dashEmptyNewInspectionBtn) dashEmptyNewInspectionBtn.addEventListener("click", () => switchView("new"));
@@ -1950,11 +2116,679 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Initialize Dashboard and Records Count
+    // -------------------------------------------------------------------------
+    // Phase 4.5: Report Generation, PDF / CSV Export & Print Logic
+    // -------------------------------------------------------------------------
+    function buildReportQueryString() {
+        const params = new URLSearchParams();
+        if (reportStartDate && reportStartDate.value) params.set("start_date", reportStartDate.value.trim());
+        if (reportEndDate && reportEndDate.value) params.set("end_date", reportEndDate.value.trim());
+        if (reportCategoryFilter && reportCategoryFilter.value) params.set("category", reportCategoryFilter.value);
+        if (reportStatusFilter && reportStatusFilter.value) params.set("status", reportStatusFilter.value);
+        if (reportDeadlineFilter && reportDeadlineFilter.value) params.set("deadline", reportDeadlineFilter.value);
+        if (reportCityFilter && reportCityFilter.value.trim()) params.set("city", reportCityFilter.value.trim());
+        if (reportAreaFilter && reportAreaFilter.value.trim()) params.set("area", reportAreaFilter.value.trim());
+        if (reportSearchInput && reportSearchInput.value.trim()) params.set("q", reportSearchInput.value.trim());
+        return params.toString();
+    }
+
+    async function loadReportPreview() {
+        if (!reportPreviewContainer) return;
+
+        if (reportErrorBanner) reportErrorBanner.style.display = "none";
+        if (reportSpinner) reportSpinner.style.display = "inline-block";
+        if (generateReportBtn) generateReportBtn.disabled = true;
+
+        try {
+            const qs = buildReportQueryString();
+            const url = qs ? `/api/reports/preview?${qs}` : "/api/reports/preview";
+            const res = await fetch(url);
+            const data = await res.json();
+
+            if (!res.ok || data.status !== "success") {
+                throw new Error(data.message || `Failed to fetch report preview (HTTP ${res.status})`);
+            }
+
+            const report = data.report || {};
+            const summary = report.summary || {};
+            const records = report.records || [];
+            const filters = report.applied_filters || {};
+
+            // Update badge
+            if (reportMatchingBadge) {
+                reportMatchingBadge.textContent = `${summary.total_inspections || 0} Records Matching`;
+            }
+
+            // Check for empty dataset
+            if (!records || records.length === 0) {
+                if (reportEmptyState) reportEmptyState.style.display = "block";
+                if (reportPreviewContainer) reportPreviewContainer.style.display = "none";
+                return;
+            }
+
+            if (reportEmptyState) reportEmptyState.style.display = "none";
+            if (reportPreviewContainer) reportPreviewContainer.style.display = "flex";
+
+            // Metadata
+            if (prevGeneratedAt) prevGeneratedAt.textContent = report.generated_at || "--";
+            if (prevReferenceDate) prevReferenceDate.textContent = report.reference_date || "--";
+            if (prevRecordCount) prevRecordCount.textContent = summary.total_inspections || 0;
+
+            // Filter summary text
+            if (prevFilterText) {
+                const parts = [];
+                if (filters.start_date || filters.end_date) {
+                    parts.push(`Date: ${filters.start_date || "Start"} to ${filters.end_date || "Present"}`);
+                }
+                if (filters.category) parts.push(`Category: ${filters.category}`);
+                if (filters.status) parts.push(`Status: ${filters.status}`);
+                if (filters.deadline) parts.push(`Deadline: ${filters.deadline.replace(/_/g, " ")}`);
+                if (filters.city) parts.push(`City: ${filters.city}`);
+                if (filters.area) parts.push(`Area: ${filters.area}`);
+                if (filters.search_query) parts.push(`Search: "${filters.search_query}"`);
+                prevFilterText.textContent = parts.length > 0 ? parts.join(" • ") : "All Saved Records (No constraints applied)";
+            }
+
+            // KPIs
+            if (prevTotalInspections) prevTotalInspections.textContent = summary.total_inspections || 0;
+            if (prevTotalDefects) prevTotalDefects.textContent = summary.total_defects || 0;
+            if (prevActiveOrders) prevActiveOrders.textContent = summary.active_unresolved || 0;
+            if (prevOverdueRepairs) prevOverdueRepairs.textContent = summary.overdue_count || 0;
+
+            // Category breakdown table
+            if (prevCategoryTableBody) {
+                prevCategoryTableBody.innerHTML = "";
+                const catDist = summary.category_distribution || {};
+                const totalDef = summary.total_defects || 0;
+                const totalInsp = summary.total_inspections || 0;
+
+                const catList = ["Longitudinal Crack", "Transverse Crack", "Alligator Crack", "Pothole", "Sound Surface"];
+                catList.forEach(cname => {
+                    const cnt = catDist[cname] || 0;
+                    const pct = (totalDef > 0 && cname !== "Sound Surface")
+                        ? `${((cnt / totalDef) * 100).toFixed(1)}%`
+                        : (totalInsp > 0 && cname === "Sound Surface" ? `${((cnt / totalInsp) * 100).toFixed(1)}%` : "0.0%");
+
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td><strong>${escapeHtml(cname)}</strong></td>
+                        <td><span class="badge ${cnt > 0 ? 'badge-info' : 'badge-secondary'}">${cnt}</span></td>
+                        <td>${pct}</td>
+                    `;
+                    prevCategoryTableBody.appendChild(tr);
+                });
+            }
+
+            // Compliance & Workflow table
+            if (prevComplianceTableBody) {
+                prevComplianceTableBody.innerHTML = "";
+                const stDist = summary.status_distribution || {};
+                const urgDist = summary.deadline_distribution || {};
+
+                const compRows = [
+                    { label: "Open Records", count: stDist.Open || 0, desc: "Awaiting technical review", badgeClass: "badge-info" },
+                    { label: "Under Review / Repair", count: (stDist["Repair in Progress"] || 0) + (stDist["Under Review"] || 0), desc: "Active maintenance action", badgeClass: "badge-warning" },
+                    { label: "Resolved Records", count: stDist.Resolved || 0, desc: "Remediation closed", badgeClass: "badge-success" },
+                    { label: "Overdue Maintenance", count: urgDist.overdue || 0, desc: "Target repair date passed", badgeClass: "badge-danger" },
+                    { label: "Due Today / Upcoming", count: (urgDist.due_today || 0) + (urgDist.upcoming || 0), desc: "Scheduled remediation", badgeClass: "badge-primary" },
+                ];
+
+                compRows.forEach(item => {
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td><strong>${escapeHtml(item.label)}</strong></td>
+                        <td><span class="badge ${item.badgeClass}">${item.count}</span></td>
+                        <td style="color: var(--text-secondary); font-size: 0.8rem;">${escapeHtml(item.desc)}</td>
+                    `;
+                    prevComplianceTableBody.appendChild(tr);
+                });
+            }
+
+            // Itemized Records Table
+            if (prevTableBadge) {
+                prevTableBadge.textContent = `${records.length} Record${records.length === 1 ? '' : 's'}`;
+            }
+
+            if (prevRecordsTableBody) {
+                prevRecordsTableBody.innerHTML = "";
+                records.forEach((r, idx) => {
+                    const tr = document.createElement("tr");
+
+                    const locRoad = r.road_name ? `<strong>${escapeHtml(r.road_name)}</strong>` : "<em>Unspecified Road</em>";
+                    const subLoc = [r.area, r.city].filter(Boolean).map(escapeHtml).join(", ");
+                    const locHtml = subLoc ? `${locRoad}<br/><small style="color: var(--text-muted);">${subLoc}</small>` : locRoad;
+
+                    const gpsHtml = r.has_coords
+                        ? `<code style="font-size: 0.75rem;">${escapeHtml(r.coords_display)}</code>`
+                        : `<span style="color: var(--text-muted); font-size: 0.75rem;">Not recorded</span>`;
+
+                    const countHtml = r.defect_count > 0
+                        ? `<strong class="text-danger">${r.defect_count}</strong>`
+                        : `<span class="text-success">0</span>`;
+
+                    const catHtml = `<span style="font-size: 0.8rem;">${escapeHtml(r.defect_type || "None")}</span>`;
+                    const confHtml = r.defect_count > 0 ? `<strong>${r.confidence_pct || "N/A"}</strong>` : "N/A";
+
+                    const stClass = getStatusBadgeClass(r.status);
+                    const stHtml = `<span class="${stClass}" style="font-size: 0.72rem; padding: 2px 7px;">${escapeHtml(r.status)}</span>`;
+
+                    const dlBadge = getDeadlineBadge(r);
+                    const auditHtml = `<span style="font-size: 0.75rem; color: var(--text-secondary);">${escapeHtml(r.latest_activity || "Created")}</span>`;
+
+                    tr.innerHTML = `
+                        <td><strong>#${r.id}</strong></td>
+                        <td style="white-space: nowrap; font-size: 0.78rem;">${escapeHtml(r.uploaded_at ? r.uploaded_at.substring(0, 10) : "")}</td>
+                        <td>${locHtml}</td>
+                        <td>${gpsHtml}</td>
+                        <td style="text-align: center;">${countHtml}</td>
+                        <td>${catHtml}</td>
+                        <td style="text-align: center;">${confHtml}</td>
+                        <td>${stHtml}</td>
+                        <td>${dlBadge}</td>
+                        <td>${auditHtml}</td>
+                    `;
+                    prevRecordsTableBody.appendChild(tr);
+                });
+            }
+        } catch (err) {
+            console.error("Load report preview error:", err);
+            if (reportErrorBanner && reportErrorMsg) {
+                reportErrorBanner.style.display = "flex";
+                reportErrorMsg.textContent = `Could not generate report preview: ${err.message}`;
+            }
+            if (reportEmptyState) reportEmptyState.style.display = "none";
+            if (reportPreviewContainer) reportPreviewContainer.style.display = "none";
+        } finally {
+            if (reportSpinner) reportSpinner.style.display = "none";
+            if (generateReportBtn) generateReportBtn.disabled = false;
+        }
+    }
+
+    if (generateReportBtn) generateReportBtn.addEventListener("click", loadReportPreview);
+    if (resetReportFiltersBtn) {
+        resetReportFiltersBtn.addEventListener("click", () => {
+            if (reportStartDate) reportStartDate.value = "";
+            if (reportEndDate) reportEndDate.value = "";
+            if (reportCategoryFilter) reportCategoryFilter.value = "";
+            if (reportStatusFilter) reportStatusFilter.value = "";
+            if (reportDeadlineFilter) reportDeadlineFilter.value = "";
+            if (reportCityFilter) reportCityFilter.value = "";
+            if (reportAreaFilter) reportAreaFilter.value = "";
+            if (reportSearchInput) reportSearchInput.value = "";
+            loadReportPreview();
+        });
+    }
+    if (reportResetFromEmptyBtn) {
+        reportResetFromEmptyBtn.addEventListener("click", () => {
+            if (resetReportFiltersBtn) resetReportFiltersBtn.click();
+        });
+    }
+
+    if (exportPdfBtn) {
+        exportPdfBtn.addEventListener("click", () => {
+            const qs = buildReportQueryString();
+            window.location.href = qs ? `/api/reports/export/pdf?${qs}` : "/api/reports/export/pdf";
+        });
+    }
+
+    if (exportCsvBtn) {
+        exportCsvBtn.addEventListener("click", () => {
+            const qs = buildReportQueryString();
+            window.location.href = qs ? `/api/reports/export/csv?${qs}` : "/api/reports/export/csv";
+        });
+    }
+
+    if (printReportBtn) {
+        printReportBtn.addEventListener("click", () => {
+            window.print();
+        });
+    }
+
+    // -------------------------------------------------------------------------
+    // Phase 4.6: Authentication & User Management Logic
+    // -------------------------------------------------------------------------
+
+    function getRoleBadgeClass(role) {
+        switch (String(role || "").toLowerCase()) {
+            case "admin": return "badge-role-admin";
+            case "inspector": return "badge-role-inspector";
+            case "maintenance": return "badge-role-maintenance";
+            default: return "badge-secondary";
+        }
+    }
+
+    function formatRole(role) {
+        switch (String(role || "").toLowerCase()) {
+            case "admin": return "Administrator";
+            case "inspector": return "Inspector";
+            case "maintenance": return "Maintenance Staff";
+            default: return role || "Unknown";
+        }
+    }
+
+    async function checkAuthStatus() {
+        try {
+            const res = await fetch("/api/auth/status");
+            const data = await res.json();
+            if (data.csrf_token) {
+                currentCsrfToken = data.csrf_token;
+            }
+            currentUser = (data.status === "success" && data.authenticated) ? data.user : null;
+            updateAuthUI(data);
+        } catch (err) {
+            console.error("Auth status check error:", err);
+        }
+    }
+
+    function updateAuthUI(authData) {
+        const isAuth = authData && authData.authenticated && authData.user;
+        const requiresSetup = authData && authData.requires_setup;
+
+        if (isAuth) {
+            const u = authData.user;
+            if (authGuestControls) authGuestControls.style.display = "none";
+            if (authUserControls) authUserControls.style.display = "flex";
+            if (currentUserBadge) {
+                currentUserBadge.innerHTML = `👤 <strong>${escapeHtml(u.username)}</strong> <span class="badge ${getRoleBadgeClass(u.role)}" style="font-size:0.75rem; margin-left:4px;">${escapeHtml(formatRole(u.role))}</span>`;
+            }
+
+            // Role-based navigation visibility
+            if (u.role === "admin") {
+                if (tabUsersBtn) tabUsersBtn.style.display = "inline-flex";
+                if (tabNewInspectionBtn) tabNewInspectionBtn.style.display = "inline-flex";
+                if (tabReportsBtn) tabReportsBtn.style.display = "inline-flex";
+            } else if (u.role === "inspector") {
+                if (tabUsersBtn) tabUsersBtn.style.display = "none";
+                if (tabNewInspectionBtn) tabNewInspectionBtn.style.display = "inline-flex";
+                if (tabReportsBtn) tabReportsBtn.style.display = "inline-flex";
+            } else if (u.role === "maintenance") {
+                if (tabUsersBtn) tabUsersBtn.style.display = "none";
+                if (tabNewInspectionBtn) tabNewInspectionBtn.style.display = "none";
+                if (tabReportsBtn) tabReportsBtn.style.display = "none";
+
+                // If currently on forbidden view, redirect to records
+                const currentHash = (window.location.hash || "").toLowerCase().replace("#", "").trim();
+                if (currentHash === "new" || currentHash === "reports" || currentHash === "users") {
+                    switchView("records");
+                }
+            }
+        } else {
+            if (authUserControls) authUserControls.style.display = "none";
+            if (authGuestControls) authGuestControls.style.display = "flex";
+            if (tabUsersBtn) tabUsersBtn.style.display = "none";
+
+            if (openAuthModalBtn) {
+                if (requiresSetup) {
+                    openAuthModalBtn.innerHTML = "🚀 Setup Admin";
+                    openAuthModalBtn.className = "btn btn-sm btn-warning";
+                } else {
+                    openAuthModalBtn.innerHTML = "🔐 Sign In";
+                    openAuthModalBtn.className = "btn btn-sm btn-primary";
+                }
+            }
+        }
+    }
+
+    // Auth Modal handling
+    if (openAuthModalBtn) {
+        openAuthModalBtn.addEventListener("click", async () => {
+            if (authErrorAlert) {
+                authErrorAlert.style.display = "none";
+                authErrorAlert.textContent = "";
+            }
+            if (loginUsername) loginUsername.value = "";
+            if (loginPassword) loginPassword.value = "";
+            if (setupAdminUsername) setupAdminUsername.value = "";
+            if (setupAdminEmail) setupAdminEmail.value = "";
+            if (setupAdminPassword) setupAdminPassword.value = "";
+
+            try {
+                const res = await fetch("/api/auth/status");
+                const data = await res.json();
+                if (data.csrf_token) currentCsrfToken = data.csrf_token;
+
+                if (data.requires_setup) {
+                    if (authModalTitle) authModalTitle.textContent = "🚀 First-Time Administrator Setup";
+                    if (setupRequiredNotice) setupRequiredNotice.style.display = "flex";
+                    if (setupAdminForm) setupAdminForm.style.display = "block";
+                    if (loginForm) loginForm.style.display = "none";
+                } else {
+                    if (authModalTitle) authModalTitle.textContent = "🔐 Sign In to VisionGuard AI";
+                    if (setupRequiredNotice) setupRequiredNotice.style.display = "none";
+                    if (setupAdminForm) setupAdminForm.style.display = "none";
+                    if (loginForm) loginForm.style.display = "block";
+                }
+            } catch (_) {
+                if (loginForm) loginForm.style.display = "block";
+                if (setupAdminForm) setupAdminForm.style.display = "none";
+            }
+
+            if (authModal) authModal.style.display = "flex";
+        });
+    }
+
+    if (closeAuthModalBtn) {
+        closeAuthModalBtn.addEventListener("click", () => {
+            if (authModal) authModal.style.display = "none";
+        });
+    }
+    if (cancelAuthBtn) {
+        cancelAuthBtn.addEventListener("click", () => {
+            if (authModal) authModal.style.display = "none";
+        });
+    }
+
+    if (loginForm) {
+        loginForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (authErrorAlert) authErrorAlert.style.display = "none";
+
+            const username = loginUsername ? loginUsername.value.trim() : "";
+            const password = loginPassword ? loginPassword.value : "";
+            if (!username || !password) return;
+
+            const submitBtn = document.getElementById("loginSubmitBtn");
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = "Signing in...";
+            }
+
+            try {
+                const res = await fetch("/api/auth/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+
+                if (!res.ok || data.status !== "success") {
+                    throw new Error(data.message || "Invalid credentials.");
+                }
+
+                if (data.csrf_token) currentCsrfToken = data.csrf_token;
+                currentUser = data.user;
+                if (authModal) authModal.style.display = "none";
+                await checkAuthStatus();
+                loadDashboardStats();
+                loadRecords();
+            } catch (err) {
+                if (authErrorAlert) {
+                    authErrorAlert.textContent = err.message || "Authentication failed.";
+                    authErrorAlert.style.display = "block";
+                }
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = "Sign In";
+                }
+            }
+        });
+    }
+
+    if (setupAdminForm) {
+        setupAdminForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (authErrorAlert) authErrorAlert.style.display = "none";
+
+            const username = setupAdminUsername ? setupAdminUsername.value.trim() : "";
+            const email = setupAdminEmail ? setupAdminEmail.value.trim() : "";
+            const password = setupAdminPassword ? setupAdminPassword.value : "";
+            if (!username || !password) return;
+
+            const submitBtn = document.getElementById("setupAdminSubmitBtn");
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = "Configuring Admin...";
+            }
+
+            try {
+                const res = await fetch("/api/auth/setup-admin", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username, email, password })
+                });
+                const data = await res.json();
+
+                if (!res.ok || data.status !== "success") {
+                    throw new Error(data.message || "Failed to configure administrator.");
+                }
+
+                if (data.csrf_token) currentCsrfToken = data.csrf_token;
+                currentUser = data.user;
+                if (authModal) authModal.style.display = "none";
+                await checkAuthStatus();
+                loadDashboardStats();
+                loadRecords();
+            } catch (err) {
+                if (authErrorAlert) {
+                    authErrorAlert.textContent = err.message || "Admin setup failed.";
+                    authErrorAlert.style.display = "block";
+                }
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = "Create Administrator Account";
+                }
+            }
+        });
+    }
+
+    if (logoutBtn) {
+        logoutBtn.addEventListener("click", async () => {
+            try {
+                await fetch("/api/auth/logout", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" }
+                });
+            } catch (err) {
+                console.error("Logout request error:", err);
+            }
+            currentUser = null;
+            await checkAuthStatus();
+            const currentHash = (window.location.hash || "").replace("#", "");
+            if (currentHash === "users") {
+                switchView("dashboard");
+            }
+        });
+    }
+
+    // User Management Functions (Admin Only)
+    async function loadUsers() {
+        if (!usersTableBody) return;
+        usersTableBody.innerHTML = `<tr><td colspan="7" class="text-center" style="padding: 2rem;">Loading authorized users...</td></tr>`;
+
+        try {
+            const res = await fetch("/api/users");
+            const data = await res.json();
+
+            if (!res.ok || data.status !== "success") {
+                if (res.status === 401 || res.status === 403) {
+                    usersTableBody.innerHTML = `<tr><td colspan="7" class="text-center text-danger" style="padding: 2rem;">🔒 Access Restricted: Administrator privileges required to view user directory.</td></tr>`;
+                    return;
+                }
+                throw new Error(data.message || "Failed to load user directory.");
+            }
+
+            const users = data.users || [];
+            if (users.length === 0) {
+                usersTableBody.innerHTML = `<tr><td colspan="7" class="text-center" style="padding: 2rem;">No user accounts found.</td></tr>`;
+                return;
+            }
+
+            usersTableBody.innerHTML = "";
+            users.forEach(u => {
+                const tr = document.createElement("tr");
+                const isSelf = currentUser && currentUser.id === u.id;
+                const selfBadge = isSelf ? ` <span class="badge badge-info" style="font-size:0.7rem; padding: 2px 5px;">You</span>` : "";
+
+                const statusBadge = u.is_active
+                    ? `<span class="badge badge-status-active">Active</span>`
+                    : `<span class="badge badge-status-inactive">Inactive</span>`;
+
+                const roleOptions = [
+                    { value: "admin", label: "Administrator" },
+                    { value: "inspector", label: "Inspector" },
+                    { value: "maintenance", label: "Maintenance Staff" }
+                ].map(opt => `<option value="${opt.value}" ${u.role === opt.value ? 'selected' : ''}>${opt.label}</option>`).join("");
+
+                const roleSelectHtml = `
+                    <select class="form-control role-change-select" data-user-id="${u.id}" ${isSelf ? 'disabled title="Cannot change your own role"' : ''} style="font-size: 0.85rem; padding: 0.25rem 0.5rem;">
+                        ${roleOptions}
+                    </select>
+                `;
+
+                const toggleBtnHtml = u.is_active
+                    ? `<button type="button" class="btn btn-sm btn-outline-danger toggle-status-btn" data-user-id="${u.id}" data-active="0" ${isSelf ? 'disabled title="Cannot deactivate your own account"' : ''}>Deactivate</button>`
+                    : `<button type="button" class="btn btn-sm btn-outline-success toggle-status-btn" data-user-id="${u.id}" data-active="1">Activate</button>`;
+
+                tr.innerHTML = `
+                    <td><strong>#${u.id}</strong></td>
+                    <td><strong>${escapeHtml(u.username)}</strong>${selfBadge}</td>
+                    <td>${escapeHtml(u.email || "—")}</td>
+                    <td>${roleSelectHtml}</td>
+                    <td>${statusBadge}</td>
+                    <td style="font-size: 0.8rem; color: var(--text-secondary);">${formatDateTime(u.last_login_at)}</td>
+                    <td style="text-align: right;">${toggleBtnHtml}</td>
+                `;
+                usersTableBody.appendChild(tr);
+            });
+
+            // Bind role change selects
+            usersTableBody.querySelectorAll(".role-change-select").forEach(sel => {
+                sel.addEventListener("change", async (e) => {
+                    const userId = e.target.getAttribute("data-user-id");
+                    const newRole = e.target.value;
+                    try {
+                        const patchRes = await fetch(`/api/users/${userId}`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ role: newRole })
+                        });
+                        const patchData = await patchRes.json();
+                        if (!patchRes.ok || patchData.status !== "success") {
+                            throw new Error(patchData.message || "Failed to update role.");
+                        }
+                        loadUsers();
+                    } catch (err) {
+                        alert(`Role update error: ${err.message}`);
+                        loadUsers();
+                    }
+                });
+            });
+
+            // Bind toggle status buttons
+            usersTableBody.querySelectorAll(".toggle-status-btn").forEach(btn => {
+                btn.addEventListener("click", async () => {
+                    const userId = btn.getAttribute("data-user-id");
+                    const targetActive = parseInt(btn.getAttribute("data-active"), 10) === 1;
+                    const actionLabel = targetActive ? "activate" : "deactivate";
+
+                    if (!confirm(`Are you sure you want to ${actionLabel} user #${userId}?`)) {
+                        return;
+                    }
+
+                    try {
+                        const patchRes = await fetch(`/api/users/${userId}`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ is_active: targetActive ? 1 : 0 })
+                        });
+                        const patchData = await patchRes.json();
+                        if (!patchRes.ok || patchData.status !== "success") {
+                            throw new Error(patchData.message || `Failed to ${actionLabel} user.`);
+                        }
+                        loadUsers();
+                    } catch (err) {
+                        alert(`Account status update error: ${err.message}`);
+                        loadUsers();
+                    }
+                });
+            });
+        } catch (err) {
+            console.error("Load users error:", err);
+            usersTableBody.innerHTML = `<tr><td colspan="7" class="text-center text-danger" style="padding: 2rem;">Error loading users: ${escapeHtml(err.message)}</td></tr>`;
+        }
+    }
+
+    if (refreshUsersBtn) {
+        refreshUsersBtn.addEventListener("click", loadUsers);
+    }
+
+    if (createUserModalBtn) {
+        createUserModalBtn.addEventListener("click", () => {
+            if (createUserErrorAlert) {
+                createUserErrorAlert.style.display = "none";
+                createUserErrorAlert.textContent = "";
+            }
+            if (createUserForm) createUserForm.reset();
+            if (createUserModal) createUserModal.style.display = "flex";
+        });
+    }
+
+    if (closeCreateUserModalBtn) {
+        closeCreateUserModalBtn.addEventListener("click", () => {
+            if (createUserModal) createUserModal.style.display = "none";
+        });
+    }
+    if (cancelCreateUserBtn) {
+        cancelCreateUserBtn.addEventListener("click", () => {
+            if (createUserModal) createUserModal.style.display = "none";
+        });
+    }
+
+    if (createUserForm) {
+        createUserForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (createUserErrorAlert) createUserErrorAlert.style.display = "none";
+
+            const username = newUsername ? newUsername.value.trim() : "";
+            const email = newUserEmail ? newUserEmail.value.trim() : "";
+            const role = newUserRole ? newUserRole.value : "inspector";
+            const password = newUserPassword ? newUserPassword.value : "";
+            const is_active = newUserActive ? newUserActive.checked : true;
+
+            if (!username || !password) return;
+
+            const saveBtn = document.getElementById("saveCreateUserBtn");
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.textContent = "Creating...";
+            }
+
+            try {
+                const res = await fetch("/api/users", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username, email, role, password, is_active })
+                });
+                const data = await res.json();
+
+                if (!res.ok || data.status !== "success") {
+                    throw new Error(data.message || "Failed to create user.");
+                }
+
+                if (createUserModal) createUserModal.style.display = "none";
+                loadUsers();
+            } catch (err) {
+                if (createUserErrorAlert) {
+                    createUserErrorAlert.textContent = err.message || "Failed to create user.";
+                    createUserErrorAlert.style.display = "block";
+                }
+            } finally {
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = "Create Account";
+                }
+            }
+        });
+    }
+
+    // Initialize Auth, Dashboard and Records Count
+    checkAuthStatus();
     loadDashboardStats();
     loadRecordsHeaderCount();
 
-    // Hash Route Support (e.g. #map, #records, #new, #dashboard)
+    // Hash Route Support (e.g. #map, #records, #new, #dashboard, #reports, #users)
     function checkHashRoute() {
         const hash = (window.location.hash || "").toLowerCase().replace("#", "").trim();
         if (hash === "map" || hash === "defect-map") {
@@ -1965,6 +2799,10 @@ document.addEventListener("DOMContentLoaded", () => {
             switchView("new");
         } else if (hash === "dashboard") {
             switchView("dashboard");
+        } else if (hash === "reports" || hash === "export") {
+            switchView("reports");
+        } else if (hash === "users" || hash === "user-management") {
+            switchView("users");
         }
     }
     window.addEventListener("hashchange", checkHashRoute);

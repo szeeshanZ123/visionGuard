@@ -1786,3 +1786,392 @@ body {
     margin: 0 0.3rem;
 }
 
+/* ==========================================================================
+   Phase 4.5: Inspection Reports, PDF & CSV Exports, Print Styles
+   ========================================================================== */
+
+.reports-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    width: 100%;
+}
+
+.reports-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.reports-header h2 {
+    font-size: 1.6rem;
+    color: var(--text-primary);
+    margin: 0 0 0.35rem 0;
+}
+
+.reports-header p {
+    color: var(--text-secondary);
+    font-size: 0.92rem;
+    margin: 0;
+}
+
+.reports-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+/* Reports Filter Card */
+.reports-filter-card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+}
+
+.reports-filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.reports-filter-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Report Preview Document Sheet */
+.report-preview-sheet {
+    background: #0f172a;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+}
+
+.report-sheet-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.report-sheet-brand {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.report-sheet-brand .report-logo {
+    font-size: 2.25rem;
+    line-height: 1;
+}
+
+.report-doc-title {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #ffffff;
+    margin: 0;
+    letter-spacing: -0.02em;
+}
+
+.report-doc-subtitle {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin: 0.25rem 0 0 0;
+    font-weight: 500;
+}
+
+.report-sheet-meta {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    text-align: right;
+    line-height: 1.5;
+}
+
+.report-sheet-meta strong {
+    color: #e2e8f0;
+}
+
+.report-sheet-filters {
+    padding: 0.65rem 1rem;
+    background: rgba(30, 41, 59, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-md);
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+}
+
+.report-sheet-filters strong {
+    color: #60a5fa;
+    margin-right: 0.4rem;
+}
+
+/* Report KPI Row */
+.report-kpi-row {
+    margin: 0;
+}
+
+/* Side-by-Side Summary Tables Grid */
+.report-summary-tables-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.25rem;
+}
+
+.summary-subcard {
+    background-color: rgba(15, 23, 42, 0.5);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    margin: 0;
+}
+
+.summary-subcard h4 {
+    margin: 0 0 0.75rem 0;
+    font-size: 0.95rem;
+    color: #f1f5f9;
+}
+
+.report-subtable th {
+    background-color: rgba(30, 41, 59, 0.8);
+    font-size: 0.75rem;
+    padding: 0.45rem 0.6rem;
+    text-transform: uppercase;
+}
+
+.report-subtable td {
+    padding: 0.45rem 0.6rem;
+    font-size: 0.82rem;
+}
+
+/* Report Records Card & Table */
+.report-records-card {
+    background-color: rgba(15, 23, 42, 0.5);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 1.25rem;
+}
+
+.report-items-table th {
+    background-color: #1e293b;
+    color: #ffffff;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 0.6rem 0.65rem;
+}
+
+.report-items-table td {
+    padding: 0.55rem 0.65rem;
+    font-size: 0.8rem;
+    vertical-align: top;
+}
+
+.report-items-table tr:nth-child(even) td {
+    background-color: rgba(30, 41, 59, 0.3);
+}
+
+.report-disclaimer-box {
+    margin: 0;
+    background-color: rgba(30, 41, 59, 0.4);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Print Media Query */
+@media print {
+    body {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+        font-size: 9pt;
+    }
+
+    .app-header,
+    .telemetry-bar,
+    .nav-tabs,
+    .app-footer,
+    .maintenance-alert-banner,
+    .dashboard-container,
+    .upload-container,
+    .records-container,
+    .record-detail-container,
+    .map-container,
+    .reports-header-actions,
+    .reports-filter-card,
+    #reportEmptyState,
+    #reportErrorBanner {
+        display: none !important;
+    }
+
+    .reports-container,
+    .report-preview-sheet {
+        display: block !important;
+        background: #ffffff !important;
+        color: #0f172a !important;
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+    }
+
+    .report-sheet-header {
+        border-bottom: 2px solid #0f172a !important;
+    }
+
+    .report-doc-title {
+        color: #0f172a !important;
+    }
+
+    .report-doc-subtitle,
+    .report-sheet-meta {
+        color: #475569 !important;
+    }
+
+    .report-sheet-meta strong {
+        color: #0f172a !important;
+    }
+
+    .report-sheet-filters {
+        background: #f1f5f9 !important;
+        color: #334155 !important;
+        border: 1px solid #cbd5e1 !important;
+    }
+
+    .metric-card {
+        background: #f8fafc !important;
+        border: 1px solid #cbd5e1 !important;
+        color: #0f172a !important;
+    }
+
+    .metric-value {
+        color: #0f172a !important;
+    }
+
+    .summary-subcard,
+    .report-records-card {
+        background: #ffffff !important;
+        border: 1px solid #cbd5e1 !important;
+    }
+
+    .summary-subcard h4,
+    .report-records-card h4 {
+        color: #0f172a !important;
+    }
+
+    .data-table th,
+    .report-items-table th {
+        background-color: #0f172a !important;
+        color: #ffffff !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .data-table td,
+    .report-items-table td {
+        border-color: #cbd5e1 !important;
+        color: #1e293b !important;
+    }
+
+    .report-items-table tr:nth-child(even) td {
+        background-color: #f8fafc !important;
+    }
+
+    .report-disclaimer-box {
+        background-color: #f8fafc !important;
+        border: 1px solid #cbd5e1 !important;
+        color: #475569 !important;
+    }
+
+    @page {
+        size: landscape letter;
+        margin: 0.5in;
+    }
+}
+
+/* =============================================================================
+   Phase 4.6: Authentication & User Management Styles
+   ============================================================================= */
+.header-right-zone {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.auth-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.user-pill {
+    background: rgba(59, 130, 246, 0.15);
+    border: 1px solid rgba(59, 130, 246, 0.4);
+    color: #93c5fd;
+    padding: 0.35rem 0.65rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.auth-modal-dialog {
+    max-width: 440px;
+}
+
+.badge-role-admin {
+    background: rgba(239, 68, 68, 0.15);
+    color: #fca5a5;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.badge-role-inspector {
+    background: rgba(59, 130, 246, 0.15);
+    color: #93c5fd;
+    border: 1px solid rgba(59, 130, 246, 0.35);
+}
+
+.badge-role-maintenance {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fcd34d;
+    border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.badge-status-active {
+    background: rgba(16, 185, 129, 0.15);
+    color: #6ee7b7;
+    border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.badge-status-inactive {
+    background: rgba(100, 116, 139, 0.2);
+    color: #94a3b8;
+    border: 1px solid rgba(100, 116, 139, 0.4);
+}
+
+.users-container {
+    animation: fadeIn 0.3s ease-out;
+}
+
+.role-matrix-banner ul li {
+    margin-bottom: 0.25rem;
+}
+

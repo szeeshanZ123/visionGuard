@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VisionGuard AI — Infrastructure Defect Detection</title>
     <meta name="description" content="AI-Powered Infrastructure Defect Detection & Road Inspection Platform using genuine YOLOv8 computer vision.">
+    <meta name="csrf-token" content="{{ csrf_token or '' }}">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <link rel="stylesheet" href="/static/css/styles.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
@@ -33,10 +34,27 @@
                 <button type="button" class="nav-tab-btn" id="tabMapBtn">
                     <span>🗺️</span> Defect Map <span class="badge badge-secondary" id="mapCountBadgeHeader">0</span>
                 </button>
+                <button type="button" class="nav-tab-btn" id="tabReportsBtn">
+                    <span>📑</span> Reports & Exports
+                </button>
+                <button type="button" class="nav-tab-btn" id="tabUsersBtn" style="display: none;">
+                    <span>👥</span> User Management
+                </button>
             </nav>
-            <div class="telemetry-bar" id="telemetryBar">
-                <span class="badge badge-info" id="dbStatusBadge">Database: Checking...</span>
-                <span class="badge badge-warning" id="modelStatusBadge">Model: Checking...</span>
+            <div class="header-right-zone" style="display: flex; align-items: center; gap: 0.75rem;">
+                <div class="auth-bar" id="authBar">
+                    <div id="authGuestControls" style="display: flex; align-items: center; gap: 0.5rem;">
+                        <button type="button" class="btn btn-sm btn-primary" id="openAuthModalBtn">🔐 Sign In</button>
+                    </div>
+                    <div id="authUserControls" style="display: none; align-items: center; gap: 0.5rem;">
+                        <span class="user-pill badge badge-info" id="currentUserBadge" title="Current Authenticated User">👤 Loading...</span>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="logoutBtn" title="Log out from session">Sign Out</button>
+                    </div>
+                </div>
+                <div class="telemetry-bar" id="telemetryBar">
+                    <span class="badge badge-info" id="dbStatusBadge">Database: Checking...</span>
+                    <span class="badge badge-warning" id="modelStatusBadge">Model: Checking...</span>
+                </div>
             </div>
         </div>
     </header>
@@ -1078,7 +1096,412 @@
                 </div>
             </div>
         </section>
+
+        <!-- Reports & Exports Section (Phase 4.5) -->
+        <section class="reports-container" id="reportsSection" style="display: none;">
+            <div class="reports-header">
+                <div>
+                    <h2>📑 Inspection Reports & Compliance Data Exports</h2>
+                    <p>Filter road inspection records, preview executive audit summaries, and export professional PDF / Excel CSV reports.</p>
+                </div>
+                <div class="reports-header-actions">
+                    <button type="button" class="btn btn-primary btn-sm" id="exportPdfBtn">
+                        <span class="btn-icon">📥</span> Download PDF Report
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm" id="exportCsvBtn">
+                        <span class="btn-icon">📊</span> Export Excel CSV
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="printReportBtn">
+                        <span class="btn-icon">🖨️</span> Print Report
+                    </button>
+                </div>
+            </div>
+
+            <!-- Report Filter Configuration Card -->
+            <div class="card reports-filter-card" id="reportsFilterCard">
+                <div class="card-header-row">
+                    <div>
+                        <h3>🔍 Report Filters & Query Parameters</h3>
+                        <p class="card-subtitle">Select date boundaries, distress classifications, workflow states, and geographic locations.</p>
+                    </div>
+                    <span class="badge badge-info" id="reportMatchingBadge">0 Records Matching</span>
+                </div>
+
+                <div class="reports-filter-grid">
+                    <div class="form-group">
+                        <label for="reportStartDate">Start Date (Upload / Inspect):</label>
+                        <input type="date" class="form-control" id="reportStartDate">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="reportEndDate">End Date (Upload / Inspect):</label>
+                        <input type="date" class="form-control" id="reportEndDate">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="reportCategoryFilter">Distress Category:</label>
+                        <select class="form-control" id="reportCategoryFilter">
+                            <option value="">All Categories (Cracks & Potholes)</option>
+                            <option value="Longitudinal Crack">Longitudinal Crack (D00)</option>
+                            <option value="Transverse Crack">Transverse Crack (D10)</option>
+                            <option value="Alligator Crack">Alligator Crack (D20)</option>
+                            <option value="Pothole">Pothole (D40)</option>
+                            <option value="Sound">Sound Surface (0 Defects)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="reportStatusFilter">Workflow Status:</label>
+                        <select class="form-control" id="reportStatusFilter">
+                            <option value="">All Statuses</option>
+                            <option value="Open">Open (Awaiting Review)</option>
+                            <option value="Under Review">Under Review</option>
+                            <option value="Repair in Progress">Repair in Progress</option>
+                            <option value="Resolved">Resolved</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="reportDeadlineFilter">Maintenance Deadline:</label>
+                        <select class="form-control" id="reportDeadlineFilter">
+                            <option value="">All Maintenance Timelines</option>
+                            <option value="overdue">⚠️ Overdue Repairs Only</option>
+                            <option value="due_today">🔔 Due Today Only</option>
+                            <option value="upcoming">📅 Upcoming Scheduled Repairs</option>
+                            <option value="resolved">✅ Completed / Resolved</option>
+                            <option value="no_deadline">⚪ No Target Date Assigned</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="reportCityFilter">City / Region:</label>
+                        <input type="text" class="form-control" id="reportCityFilter" placeholder="e.g. Bengaluru, Mumbai" maxlength="100">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="reportAreaFilter">Area / Neighborhood:</label>
+                        <input type="text" class="form-control" id="reportAreaFilter" placeholder="e.g. Indiranagar, Whitefield" maxlength="100">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="reportSearchInput">Keyword / Road Search:</label>
+                        <input type="text" class="form-control" id="reportSearchInput" placeholder="e.g. Outer Ring Road, pothole..." maxlength="200">
+                    </div>
+                </div>
+
+                <div class="reports-filter-actions">
+                    <button type="button" class="btn btn-primary" id="generateReportBtn">
+                        <span class="btn-icon">🔄</span> Update Report Preview
+                    </button>
+                    <button type="button" class="btn btn-secondary" id="resetReportFiltersBtn">
+                        <span class="btn-icon">↺</span> Reset Filters
+                    </button>
+                    <span class="spinner" id="reportSpinner" style="display: none;"></span>
+                </div>
+            </div>
+
+            <!-- Error Banner -->
+            <div class="alert alert-danger" id="reportErrorBanner" style="display: none;">
+                <div class="alert-icon">⚠️</div>
+                <div class="alert-content">
+                    <strong id="reportErrorTitle">Report Generation Error</strong>
+                    <p id="reportErrorMsg"></p>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div class="card empty-report-card" id="reportEmptyState" style="display: none;">
+                <div class="empty-state">
+                    <div class="empty-icon">📑</div>
+                    <h3>No Inspection Records Match the Selected Filters</h3>
+                    <p id="reportEmptyMsg">Try broadening your date range, clearing specific distress categories, or resetting the deadline urgency filter.</p>
+                    <div style="margin-top: 1rem;">
+                        <button type="button" class="btn btn-secondary btn-sm" id="reportResetFromEmptyBtn">↺ Reset All Filters</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Interactive Report Preview Document Sheet (Printable) -->
+            <div class="report-preview-sheet" id="reportPreviewContainer">
+                <div class="report-sheet-header">
+                    <div class="report-sheet-brand">
+                        <div class="report-logo">🛡️</div>
+                        <div>
+                            <h2 class="report-doc-title">VisionGuard AI</h2>
+                            <p class="report-doc-subtitle">Infrastructure Defect & Maintenance Remediation Audit Report</p>
+                        </div>
+                    </div>
+                    <div class="report-sheet-meta">
+                        <div><strong>Report Generated:</strong> <span id="prevGeneratedAt">--</span></div>
+                        <div><strong>Reference Date:</strong> <span id="prevReferenceDate">--</span></div>
+                        <div><strong>Matching Records:</strong> <span id="prevRecordCount">0</span></div>
+                    </div>
+                </div>
+
+                <div class="report-sheet-filters" id="prevFiltersDisplay">
+                    <strong>Applied Filter Criteria:</strong> <span id="prevFilterText">All Available Records</span>
+                </div>
+
+                <!-- Executive KPI Metric Row -->
+                <div class="metrics-row report-kpi-row">
+                    <div class="metric-card">
+                        <span class="metric-label">Matching Inspections</span>
+                        <strong class="metric-value" id="prevTotalInspections">0</strong>
+                        <span class="metric-caption">Persisted SQLite Records</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label">Total Detected Defects</span>
+                        <strong class="metric-value text-danger" id="prevTotalDefects">0</strong>
+                        <span class="metric-caption">Model Visual Identifications</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label">Active Work Orders</span>
+                        <strong class="metric-value text-warning" id="prevActiveOrders">0</strong>
+                        <span class="metric-caption">Open & Repair in Progress</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label">Overdue Maintenance</span>
+                        <strong class="metric-value text-danger" id="prevOverdueRepairs">0</strong>
+                        <span class="metric-caption">Remediation Date Expired</span>
+                    </div>
+                </div>
+
+                <!-- Breakdown Tables Side-by-Side -->
+                <div class="report-summary-tables-grid">
+                    <div class="card summary-subcard">
+                        <h4>Defect Category Breakdown</h4>
+                        <table class="data-table report-subtable" id="prevCategoryTable">
+                            <thead>
+                                <tr>
+                                    <th>Distress Category</th>
+                                    <th>Count</th>
+                                    <th>Distribution</th>
+                                </tr>
+                            </thead>
+                            <tbody id="prevCategoryTableBody">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="card summary-subcard">
+                        <h4>Workflow & Maintenance Compliance</h4>
+                        <table class="data-table report-subtable" id="prevComplianceTable">
+                            <thead>
+                                <tr>
+                                    <th>Classification</th>
+                                    <th>Records</th>
+                                    <th>Operational State</th>
+                                </tr>
+                            </thead>
+                            <tbody id="prevComplianceTableBody">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Itemized Records Table -->
+                <div class="card report-records-card">
+                    <div class="card-header-row">
+                        <h4>Itemized Road Inspection Records</h4>
+                        <span class="badge badge-secondary" id="prevTableBadge">0 Records</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="data-table report-items-table" id="prevRecordsTable">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Date</th>
+                                    <th>Location / Road</th>
+                                    <th>GPS Coords</th>
+                                    <th>AI Defects</th>
+                                    <th>Categories</th>
+                                    <th>Top Conf.</th>
+                                    <th>Workflow Status</th>
+                                    <th>Target Repair & Urgency</th>
+                                    <th>Latest Audit History</th>
+                                </tr>
+                            </thead>
+                            <tbody id="prevRecordsTableBody">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Civil Engineering Disclaimer Box -->
+                <div class="alert alert-disclaimer report-disclaimer-box">
+                    <div class="alert-icon">🛡️</div>
+                    <div class="alert-content">
+                        <strong>Civil Engineering Disclaimer & Safety Boundary:</strong>
+                        <p>
+                            VisionGuard AI detections and confidence ratings reflect <em>statistical computer vision likelihood</em> from 2D imagery, 
+                            <strong>not physical pavement failure severity, cavity depth, or roadway structural safety</strong>. 
+                            Pixel bounding boxes do not measure millimeter crack width without physical ground-plane calibration. 
+                            Workflow statuses and target repair dates are administrative records entered by personnel and do not certify that physical roadway engineering repairs have been performed.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- User Management Section (Phase 4.6 — Admin Only) -->
+        <section class="users-container" id="usersSection" style="display: none;">
+            <div class="dash-header">
+                <div>
+                    <h2>👥 User Accounts & Access Control</h2>
+                    <p>Manage system roles, create staff credentials, and instantly revoke permissions across the platform.</p>
+                </div>
+                <div class="dash-actions">
+                    <button type="button" class="btn btn-secondary btn-sm" id="refreshUsersBtn">🔄 Refresh Users</button>
+                    <button type="button" class="btn btn-primary btn-sm" id="openCreateUserModalBtn">➕ Add New User</button>
+                </div>
+            </div>
+
+            <!-- Role Permissions Cheat Sheet -->
+            <div class="role-matrix-banner alert alert-info mt-3" style="font-size: 0.85rem; line-height: 1.4;">
+                <div class="alert-icon">🛡️</div>
+                <div class="alert-content">
+                    <strong>Role-Based Permission Matrix:</strong>
+                    <ul style="margin: 0.25rem 0 0 1.2rem; padding: 0;">
+                        <li><strong>Administrator (Admin):</strong> Full access to all features, model reloading, user management, and inspection deletion.</li>
+                        <li><strong>Inspector:</strong> Runs AI defect inspections, saves records, views maps/dashboard, and generates/exports PDF & CSV inspection reports.</li>
+                        <li><strong>Maintenance Staff:</strong> Views assigned/saved records and maps, updates maintenance workflow status, notes, target deadlines, and repair audit trails. Denied defect inference and report generation.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Users Table Card -->
+            <div class="card mt-3">
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; padding: 0.85rem 1.25rem; border-bottom: 1px solid var(--border-color);">
+                    <h3 style="margin: 0; font-size: 1.05rem;">Registered User Accounts (<span id="userCountBadge">0</span>)</h3>
+                    <div id="userTableFeedback" class="text-muted" style="font-size: 0.85rem;"></div>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table" id="usersTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">ID</th>
+                                <th>Username</th>
+                                <th>Email</th>
+                                <th style="width: 170px;">Assigned Role</th>
+                                <th style="width: 140px;">Account Status</th>
+                                <th>Last Login</th>
+                                <th style="width: 220px; text-align: right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            <tr><td colspan="7" class="text-center" style="padding: 2rem;">Loading user records...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
     </main>
+
+    <!-- Authentication Modal (Sign In / First-Time Admin Setup) -->
+    <div class="modal-overlay" id="authModal" style="display: none;">
+        <div class="modal-dialog auth-modal-dialog">
+            <div class="modal-header">
+                <h3 id="authModalTitle">🔐 Sign In to VisionGuard AI</h3>
+                <button type="button" class="modal-close-btn" id="closeAuthModalBtn">✕</button>
+            </div>
+            <div class="modal-body">
+                <!-- First-Run Notice (only shown when requires_setup) -->
+                <div class="alert alert-info" id="setupRequiredNotice" style="display: none; margin-bottom: 1rem;">
+                    <div class="alert-icon">🚀</div>
+                    <div class="alert-content">
+                        <strong>First-Time Administrator Setup</strong>
+                        <p style="margin: 0; font-size: 0.85rem;">No user accounts currently exist in the database. Please configure the primary system administrator account to continue.</p>
+                    </div>
+                </div>
+
+                <div class="alert alert-danger" id="authErrorAlert" style="display: none; margin-bottom: 1rem;"></div>
+
+                <!-- Sign In Form -->
+                <form id="loginForm">
+                    <div class="form-group mb-3">
+                        <label for="loginUsername">Username</label>
+                        <input type="text" class="form-control" id="loginUsername" placeholder="Enter username" autocomplete="username" required>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="loginPassword">Password</label>
+                        <input type="password" class="form-control" id="loginPassword" placeholder="Enter password" autocomplete="current-password" required>
+                    </div>
+                    <div class="form-actions" style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+                        <button type="button" class="btn btn-secondary" id="cancelAuthBtn">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="loginSubmitBtn">Sign In</button>
+                    </div>
+                </form>
+
+                <!-- First-Time Admin Setup Form -->
+                <form id="setupAdminForm" style="display: none;">
+                    <div class="form-group mb-3">
+                        <label for="setupAdminUsername">Administrator Username</label>
+                        <input type="text" class="form-control" id="setupAdminUsername" placeholder="e.g. sysadmin" required minlength="3">
+                        <small class="text-muted">3-40 alphanumeric characters, dots, underscores, or hyphens.</small>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="setupAdminEmail">Email (Optional)</label>
+                        <input type="email" class="form-control" id="setupAdminEmail" placeholder="admin@organization.gov">
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="setupAdminPassword">Administrator Password</label>
+                        <input type="password" class="form-control" id="setupAdminPassword" placeholder="Minimum 8 characters" required minlength="8">
+                        <small class="text-muted">Stored using cryptographic scrypt password hashing.</small>
+                    </div>
+                    <div class="form-actions" style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+                        <button type="submit" class="btn btn-primary" id="setupAdminSubmitBtn">Create Administrator Account</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create User Modal (Admin Only) -->
+    <div class="modal-overlay" id="createUserModal" style="display: none;">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3>➕ Create Authorized User Account</h3>
+                <button type="button" class="modal-close-btn" id="closeCreateUserModalBtn">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger" id="createUserErrorAlert" style="display: none; margin-bottom: 1rem;"></div>
+
+                <form id="createUserForm">
+                    <div class="form-group mb-3">
+                        <label for="newUsername">Username <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="newUsername" placeholder="e.g. inspector_smith" required minlength="3" maxlength="40">
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="newUserEmail">Email Address (Optional)</label>
+                        <input type="email" class="form-control" id="newUserEmail" placeholder="user@organization.gov">
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="newUserRole">Application Role <span class="text-danger">*</span></label>
+                        <select class="form-control" id="newUserRole" required>
+                            <option value="inspector">Inspector (Run AI detection, view records, export reports)</option>
+                            <option value="maintenance">Maintenance Staff (Review defects, update repair status & deadlines)</option>
+                            <option value="admin">Administrator (Full system management & user admin)</option>
+                        </select>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="newUserPassword">Initial Password <span class="text-danger">*</span></label>
+                        <input type="password" class="form-control" id="newUserPassword" placeholder="Minimum 8 characters" required minlength="8">
+                    </div>
+                    <div class="form-check mb-3">
+                        <input type="checkbox" class="form-check-input" id="newUserActive" checked>
+                        <label class="form-check-label" for="newUserActive">Account is Active (permitted to log in)</label>
+                    </div>
+                    <div class="form-actions" style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+                        <button type="button" class="btn btn-secondary" id="cancelCreateUserBtn">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="saveCreateUserBtn">Create Account</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
     <!-- Footer -->
     <footer class="app-footer">

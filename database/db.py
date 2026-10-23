@@ -82,14 +82,16 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
         ("defect_count", "INTEGER DEFAULT 0"),
         ("detections_json", "TEXT DEFAULT '[]'"),
         ("target_repair_date", "TEXT"),
-        ("updated_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+        ("updated_at", "TIMESTAMP"),
+        ("created_by_user_id", "INTEGER"),
+        ("created_by_username", "TEXT"),
     ]
 
     for col_name, col_type in columns_to_add:
         if col_name not in existing_cols:
             cursor.execute(f"ALTER TABLE defect_inspections ADD COLUMN {col_name} {col_type};")
 
-    # Table for chronological maintenance audit activity history (Phase 4.4)
+    # Table for chronological maintenance audit activity history (Phase 4.4 & 4.6)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS maintenance_activity_log (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -101,7 +103,31 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
         new_target_date TEXT,
         notes TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        user_id INTEGER,
+        username TEXT,
         FOREIGN KEY (inspection_id) REFERENCES defect_inspections(id) ON DELETE CASCADE
+    );
+    """)
+
+    # Safe schema migration for maintenance_activity_log (Phase 4.6 user attribution)
+    cursor.execute("PRAGMA table_info(maintenance_activity_log);")
+    existing_log_cols = {row["name"] for row in cursor.fetchall()}
+    for log_col, log_type in [("user_id", "INTEGER"), ("username", "TEXT")]:
+        if log_col not in existing_log_cols:
+            cursor.execute(f"ALTER TABLE maintenance_activity_log ADD COLUMN {log_col} {log_type};")
+
+    # Table for user accounts, credentials, and roles (Phase 4.6)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        email TEXT,
+        password_hash TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'inspector',
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_login_at TIMESTAMP
     );
     """)
 
@@ -228,6 +254,8 @@ def log_maintenance_activity(
     new_target_date: Optional[str] = None,
     notes: Optional[str] = None,
     created_at: Optional[str] = None,
+    user_id: Optional[int] = None,
+    username: Optional[str] = None,
     db_path: str = DEFAULT_DB_PATH
 ) -> int:
     """Records a chronological maintenance audit activity entry."""
@@ -239,21 +267,25 @@ def log_maintenance_activity(
         cursor.execute("""
         INSERT INTO maintenance_activity_log (
             inspection_id, action_type, previous_status, new_status,
-            previous_target_date, new_target_date, notes, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+            previous_target_date, new_target_date, notes, created_at,
+            user_id, username
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         """, (
             inspection_id, action_type, previous_status, new_status,
-            previous_target_date, new_target_date, (notes or "").strip(), created_at
+            previous_target_date, new_target_date, (notes or "").strip(), created_at,
+            user_id, username
         ))
     else:
         cursor.execute("""
         INSERT INTO maintenance_activity_log (
             inspection_id, action_type, previous_status, new_status,
-            previous_target_date, new_target_date, notes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?);
+            previous_target_date, new_target_date, notes,
+            user_id, username
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
         """, (
             inspection_id, action_type, previous_status, new_status,
-            previous_target_date, new_target_date, (notes or "").strip()
+            previous_target_date, new_target_date, (notes or "").strip(),
+            user_id, username
         ))
 
     log_id = cursor.lastrowid
@@ -270,7 +302,8 @@ def get_inspection_activity(inspection_id: int, db_path: str = DEFAULT_DB_PATH) 
 
     cursor.execute("""
     SELECT id, inspection_id, action_type, previous_status, new_status,
-           previous_target_date, new_target_date, notes, created_at
+           previous_target_date, new_target_date, notes, created_at,
+           user_id, username
     FROM maintenance_activity_log
     WHERE inspection_id = ?
     ORDER BY created_at ASC, id ASC;
@@ -416,8 +449,8 @@ def save_inspection(data: Dict[str, Any], db_path: str = DEFAULT_DB_PATH) -> Dic
         original_image_path, annotated_image_path, road_name, area, city,
         latitude, longitude, location_notes,
         inspection_mode, confidence_threshold, defect_count, detections_json,
-        target_repair_date
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        target_repair_date, created_by_user_id, created_by_username
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     """, (
         image_name,
         original_image_path,
@@ -438,21 +471,27 @@ def save_inspection(data: Dict[str, Any], db_path: str = DEFAULT_DB_PATH) -> Dic
         defect_count,
         detections_json,
         target_repair_date,
+        data.get("created_by_user_id") or data.get("user_id"),
+        data.get("created_by_username") or data.get("username"),
     ))
 
     inserted_id = cursor.lastrowid
     conn.commit()
 
     # Log initial creation in maintenance audit history
+    u_id = data.get("created_by_user_id") or data.get("user_id")
+    u_name = data.get("created_by_username") or data.get("username")
     cursor.execute("""
     INSERT INTO maintenance_activity_log (
-        inspection_id, action_type, new_status, new_target_date, notes
-    ) VALUES (?, 'created', ?, ?, ?);
+        inspection_id, action_type, new_status, new_target_date, notes, user_id, username
+    ) VALUES (?, 'created', ?, ?, ?, ?, ?);
     """, (
         inserted_id,
         status,
         target_repair_date,
-        location_notes or "Inspection record created and persisted in SQLite."
+        location_notes or "Inspection record created and persisted in SQLite.",
+        u_id,
+        u_name,
     ))
     conn.commit()
 
@@ -471,6 +510,10 @@ def get_inspections(
     search_query: Optional[str] = None,
     has_coords: Optional[bool] = None,
     deadline_filter: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    city: Optional[str] = None,
+    area: Optional[str] = None,
     ref_date: Optional[datetime.date] = None,
     db_path: str = DEFAULT_DB_PATH
 ) -> List[Dict[str, Any]]:
@@ -508,6 +551,28 @@ def get_inspections(
         conditions.append("latitude IS NOT NULL AND longitude IS NOT NULL")
     elif has_coords is False:
         conditions.append("(latitude IS NULL OR longitude IS NULL)")
+
+    # City & Area filters
+    if city and city.strip():
+        c_val = city.strip()
+        conditions.append("LOWER(city) LIKE ?")
+        params.append(f"%{c_val.lower()}%")
+
+    if area and area.strip():
+        a_val = area.strip()
+        conditions.append("LOWER(area) LIKE ?")
+        params.append(f"%{a_val.lower()}%")
+
+    # Date range filters (date of inspection upload)
+    if start_date and str(start_date).strip():
+        st_date = str(start_date).strip()[:10]
+        conditions.append("date(uploaded_at) >= ?")
+        params.append(st_date)
+
+    if end_date and str(end_date).strip():
+        en_date = str(end_date).strip()[:10]
+        conditions.append("date(uploaded_at) <= ?")
+        params.append(en_date)
 
     # Maintenance deadline filter (Phase 4.4)
     ref_today = (ref_date or datetime.date.today()).isoformat()
@@ -716,6 +781,8 @@ def update_inspection_status(
     new_status: str,
     notes: Optional[str] = None,
     target_repair_date: Optional[str] = None,
+    user_id: Optional[int] = None,
+    username: Optional[str] = None,
     db_path: str = DEFAULT_DB_PATH
 ) -> Optional[Dict[str, Any]]:
     """
@@ -757,16 +824,16 @@ def update_inspection_status(
     if new_status != old_status:
         cursor.execute("""
         INSERT INTO maintenance_activity_log (
-            inspection_id, action_type, previous_status, new_status, notes
-        ) VALUES (?, 'status_change', ?, ?, ?);
-        """, (inspection_id, old_status, new_status, (notes or "").strip()))
+            inspection_id, action_type, previous_status, new_status, notes, user_id, username
+        ) VALUES (?, 'status_change', ?, ?, ?, ?, ?);
+        """, (inspection_id, old_status, new_status, (notes or "").strip(), user_id, username))
 
     if new_target_date != old_target_date:
         cursor.execute("""
         INSERT INTO maintenance_activity_log (
-            inspection_id, action_type, previous_target_date, new_target_date, notes
-        ) VALUES (?, 'target_date_change', ?, ?, ?);
-        """, (inspection_id, old_target_date, new_target_date, (notes or "").strip()))
+            inspection_id, action_type, previous_target_date, new_target_date, notes, user_id, username
+        ) VALUES (?, 'target_date_change', ?, ?, ?, ?, ?);
+        """, (inspection_id, old_target_date, new_target_date, (notes or "").strip(), user_id, username))
 
     conn.commit()
 
@@ -780,6 +847,8 @@ def update_inspection_status(
 def update_inspection(
     inspection_id: int,
     data: Dict[str, Any],
+    user_id: Optional[int] = None,
+    username: Optional[str] = None,
     db_path: str = DEFAULT_DB_PATH
 ) -> Optional[Dict[str, Any]]:
     """
@@ -850,20 +919,23 @@ def update_inspection(
     ))
 
     # Activity log
+    u_id = user_id or data.get("user_id")
+    u_name = username or data.get("username")
+
     old_status = current.get("status")
     if new_status != old_status:
         cursor.execute("""
         INSERT INTO maintenance_activity_log (
-            inspection_id, action_type, previous_status, new_status, notes
-        ) VALUES (?, 'status_change', ?, ?, ?);
-        """, (inspection_id, old_status, new_status, (notes or "").strip()))
+            inspection_id, action_type, previous_status, new_status, notes, user_id, username
+        ) VALUES (?, 'status_change', ?, ?, ?, ?, ?);
+        """, (inspection_id, old_status, new_status, (notes or "").strip(), u_id, u_name))
 
     if new_target_date != old_target_date:
         cursor.execute("""
         INSERT INTO maintenance_activity_log (
-            inspection_id, action_type, previous_target_date, new_target_date, notes
-        ) VALUES (?, 'target_date_change', ?, ?, ?);
-        """, (inspection_id, old_target_date, new_target_date, (notes or "").strip()))
+            inspection_id, action_type, previous_target_date, new_target_date, notes, user_id, username
+        ) VALUES (?, 'target_date_change', ?, ?, ?, ?, ?);
+        """, (inspection_id, old_target_date, new_target_date, (notes or "").strip(), u_id, u_name))
 
     conn.commit()
 
