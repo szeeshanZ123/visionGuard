@@ -1,0 +1,9 @@
+path: /content/visionguard_home_dataset_experiment/exp_a_preserve
+train: images/train
+val: images/val
+test: images/test
+names:
+  0: wall_crack
+  1: damp_or_water_damage
+  2: peeling_paint_or_plaster
+  3: spalling_or_surface_damage
