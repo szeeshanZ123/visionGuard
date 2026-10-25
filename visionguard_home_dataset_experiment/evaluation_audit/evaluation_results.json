@@ -1,0 +1,613 @@
+{
+  "audit_version": "1.0",
+  "model_checkpoint": "ai/models/best.pt",
+  "evaluation_config": {
+    "confidence_threshold": 0.25,
+    "iou_match_threshold": 0.5,
+    "total_benchmark_images": 16
+  },
+  "overall_summary": {
+    "macro_precision": 0.0625,
+    "macro_recall": 0.0625,
+    "overall_f1": 0.0625,
+    "benchmark_map50": 0.0306,
+    "benchmark_map50_95": 0.0123,
+    "total_ground_truth": 15,
+    "total_true_positives": 1,
+    "total_false_positives": 6,
+    "total_false_negatives": 14
+  },
+  "negative_control_performance": {
+    "sound_pavement_images": 2,
+    "clean_images_without_false_alarms": 1,
+    "false_positive_detections_on_clean_roads": 3,
+    "specificity": 0.5
+  },
+  "per_class_performance": {
+    "D00_longitudinal_crack": {
+      "class_id": 0,
+      "display_name": "Longitudinal Crack",
+      "ground_truth_instances": 4,
+      "predictions_count": 0,
+      "true_positives": 0,
+      "false_positives": 0,
+      "false_negatives": 4,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "mean_iou": 0.0,
+      "benchmark_map50": 0.0
+    },
+    "D10_transverse_crack": {
+      "class_id": 1,
+      "display_name": "Transverse Crack",
+      "ground_truth_instances": 3,
+      "predictions_count": 0,
+      "true_positives": 0,
+      "false_positives": 0,
+      "false_negatives": 3,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "mean_iou": 0.0,
+      "benchmark_map50": 0.0
+    },
+    "D20_alligator_crack": {
+      "class_id": 2,
+      "display_name": "Alligator Crack",
+      "ground_truth_instances": 4,
+      "predictions_count": 4,
+      "true_positives": 1,
+      "false_positives": 3,
+      "false_negatives": 3,
+      "precision": 0.25,
+      "recall": 0.25,
+      "f1_score": 0.25,
+      "mean_iou": 0.571,
+      "benchmark_map50": 0.049
+    },
+    "D40_pothole": {
+      "class_id": 3,
+      "display_name": "Pothole",
+      "ground_truth_instances": 4,
+      "predictions_count": 3,
+      "true_positives": 0,
+      "false_positives": 3,
+      "false_negatives": 4,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "mean_iou": 0.0,
+      "benchmark_map50": 0.0
+    }
+  },
+  "training_and_full_split_baselines": {
+    "colab_validation_split_1150_images": {
+      "total_images": 1150,
+      "total_damage_instances": 973,
+      "macro_precision": 0.4502,
+      "macro_recall": 0.2229,
+      "map50": 0.1763,
+      "map50_95": 0.0794,
+      "per_class": {
+        "D00_longitudinal_crack": {
+          "instances": 248,
+          "precision": 0.5577,
+          "recall": 0.1169,
+          "map50": 0.0809,
+          "map50_95": 0.0353
+        },
+        "D10_transverse_crack": {
+          "instances": 12,
+          "precision": 0.0,
+          "recall": 0.0,
+          "map50": 0.0,
+          "map50_95": 0.0
+        },
+        "D20_alligator_crack": {
+          "instances": 281,
+          "precision": 0.6555,
+          "recall": 0.4875,
+          "map50": 0.3997,
+          "map50_95": 0.198
+        },
+        "D40_pothole": {
+          "instances": 432,
+          "precision": 0.5877,
+          "recall": 0.287,
+          "map50": 0.2245,
+          "map50_95": 0.0845
+        }
+      }
+    },
+    "colab_heldout_test_split_1200_images": {
+      "total_images": 1200,
+      "total_damage_instances": 1096,
+      "macro_precision": 0.4618,
+      "macro_recall": 0.2469,
+      "map50": 0.2026,
+      "map50_95": 0.088,
+      "per_class": {
+        "D00_longitudinal_crack": {
+          "instances": 257,
+          "precision": 0.6232,
+          "recall": 0.1673,
+          "map50": 0.1393,
+          "map50_95": 0.0547
+        },
+        "D10_transverse_crack": {
+          "instances": 12,
+          "precision": 0.0,
+          "recall": 0.0,
+          "map50": 0.0,
+          "map50_95": 0.0
+        },
+        "D20_alligator_crack": {
+          "instances": 304,
+          "precision": 0.6154,
+          "recall": 0.5526,
+          "map50": 0.4801,
+          "map50_95": 0.223
+        },
+        "D40_pothole": {
+          "instances": 523,
+          "precision": 0.6087,
+          "recall": 0.2677,
+          "map50": 0.1911,
+          "map50_95": 0.0745
+        }
+      }
+    }
+  },
+  "crack_localization_audit_findings": {
+    "annotation_fragmentation": "Long continuous cracks in RDD2022 are annotated as segmented fragments (100-300px) rather than single continuous envelopes to prevent excessive healthy road background inside diagonal bounding boxes.",
+    "spatial_downsampling_loss": "Standard 640x640 resolution downsamples 1-3mm crack apertures below the P3 feature stride (8px), severely reducing activation signal.",
+    "confidence_depression": "Model confidence on genuine hairline cracks drops to 5-15%, causing detections to be filtered out at standard confidence thresholds (>=0.25).",
+    "clean_road_sensitivity": "Lowering threshold to 0.05 recovers partial crack recall (up to 12.5%) but causes clean asphalt false alarms to surge from 3 to 18."
+  },
+  "sample_evaluations": [
+    {
+      "stem": "benchmark_01_d00_longitudinal_center",
+      "dimensions": {
+        "width": 1200,
+        "height": 896
+      },
+      "ground_truth_count": 1,
+      "predictions_count": 0,
+      "ground_truth": [
+        {
+          "class_id": 0,
+          "class_name": "D00_longitudinal_crack",
+          "bbox": [
+            370.0,
+            270.0,
+            540.0,
+            710.0
+          ],
+          "area": 74800.11071984639
+        }
+      ],
+      "predictions": []
+    },
+    {
+      "stem": "benchmark_02_d00_longitudinal_wheel",
+      "dimensions": {
+        "width": 1200,
+        "height": 896
+      },
+      "ground_truth_count": 1,
+      "predictions_count": 0,
+      "ground_truth": [
+        {
+          "class_id": 0,
+          "class_name": "D00_longitudinal_crack",
+          "bbox": [
+            400.0,
+            360.0,
+            530.0,
+            705.0
+          ],
+          "area": 44849.90359987203
+        }
+      ],
+      "predictions": []
+    },
+    {
+      "stem": "benchmark_03_d00_longitudinal_joint",
+      "dimensions": {
+        "width": 1200,
+        "height": 896
+      },
+      "ground_truth_count": 1,
+      "predictions_count": 0,
+      "ground_truth": [
+        {
+          "class_id": 0,
+          "class_name": "D00_longitudinal_crack",
+          "bbox": [
+            480.0,
+            260.0,
+            530.0,
+            695.0
+          ],
+          "area": 21750.170799974407
+        }
+      ],
+      "predictions": []
+    },
+    {
+      "stem": "benchmark_04_d00_mumbai_highway",
+      "dimensions": {
+        "width": 673,
+        "height": 450
+      },
+      "ground_truth_count": 2,
+      "predictions_count": 0,
+      "ground_truth": [
+        {
+          "class_id": 0,
+          "class_name": "D00_longitudinal_crack",
+          "bbox": [
+            83.0,
+            300.0,
+            222.0,
+            444.0
+          ],
+          "area": 20016.010656000002
+        },
+        {
+          "class_id": 2,
+          "class_name": "D20_alligator_crack",
+          "bbox": [
+            56.0,
+            243.0,
+            333.0,
+            450.0
+          ],
+          "area": 57339.01449
+        }
+      ],
+      "predictions": []
+    },
+    {
+      "stem": "benchmark_05_d10_transverse_lane",
+      "dimensions": {
+        "width": 1200,
+        "height": 896
+      },
+      "ground_truth_count": 1,
+      "predictions_count": 0,
+      "ground_truth": [
+        {
+          "class_id": 1,
+          "class_name": "D10_transverse_crack",
+          "bbox": [
+            100.0,
+            480.0,
+            940.0,
+            535.0
+          ],
+          "area": 46200.053760000104
+        }
+      ],
+      "predictions": []
+    },
+    {
+      "stem": "benchmark_06_d10_transverse_wide",
+      "dimensions": {
+        "width": 1200,
+        "height": 896
+      },
+      "ground_truth_count": 1,
+      "predictions_count": 0,
+      "ground_truth": [
+        {
+          "class_id": 1,
+          "class_name": "D10_transverse_crack",
+          "bbox": [
+            20.0,
+            500.0,
+            890.0,
+            540.0
+          ],
+          "area": 34800.11136000002
+        }
+      ],
+      "predictions": []
+    },
+    {
+      "stem": "benchmark_07_d10_transverse_suburban",
+      "dimensions": {
+        "width": 1200,
+        "height": 896
+      },
+      "ground_truth_count": 1,
+      "predictions_count": 0,
+      "ground_truth": [
+        {
+          "class_id": 1,
+          "class_name": "D10_transverse_crack",
+          "bbox": [
+            200.0,
+            460.0,
+            850.0,
+            515.0
+          ],
+          "area": 35750.063600025635
+        }
+      ],
+      "predictions": []
+    },
+    {
+      "stem": "benchmark_08_d20_alligator_urban",
+      "dimensions": {
+        "width": 1200,
+        "height": 896
+      },
+      "ground_truth_count": 1,
+      "predictions_count": 1,
+      "ground_truth": [
+        {
+          "class_id": 2,
+          "class_name": "D20_alligator_crack",
+          "bbox": [
+            230.0,
+            310.0,
+            830.0,
+            760.0
+          ],
+          "area": 269999.92319999996
+        }
+      ],
+      "predictions": [
+        {
+          "class_id": 2,
+          "class_name": "D20_alligator_crack",
+          "confidence": 0.2526,
+          "bbox": [
+            239.4,
+            401.5,
+            888.5,
+            678.2
+          ],
+          "matched": true
+        }
+      ]
+    },
+    {
+      "stem": "benchmark_09_d20_alligator_highway",
+      "dimensions": {
+        "width": 1200,
+        "height": 896
+      },
+      "ground_truth_count": 1,
+      "predictions_count": 1,
+      "ground_truth": [
+        {
+          "class_id": 2,
+          "class_name": "D20_alligator_crack",
+          "bbox": [
+            320.0,
+            415.0,
+            875.0,
+            765.0
+          ],
+          "area": 194250.0
+        }
+      ],
+      "predictions": [
+        {
+          "class_id": 2,
+          "class_name": "D20_alligator_crack",
+          "confidence": 0.5847,
+          "bbox": [
+            154.5,
+            354.1,
+            1182.2,
+            722.3
+          ],
+          "matched": false
+        }
+      ]
+    },
+    {
+      "stem": "benchmark_10_d20_alligator_rural",
+      "dimensions": {
+        "width": 1200,
+        "height": 896
+      },
+      "ground_truth_count": 1,
+      "predictions_count": 2,
+      "ground_truth": [
+        {
+          "class_id": 2,
+          "class_name": "D20_alligator_crack",
+          "bbox": [
+            500.0,
+            410.0,
+            710.0,
+            760.0
+          ],
+          "area": 73500.0
+        }
+      ],
+      "predictions": [
+        {
+          "class_id": 2,
+          "class_name": "D20_alligator_crack",
+          "confidence": 0.437,
+          "bbox": [
+            425.1,
+            345.2,
+            923.5,
+            651.1
+          ],
+          "matched": false
+        },
+        {
+          "class_id": 2,
+          "class_name": "D20_alligator_crack",
+          "confidence": 0.285,
+          "bbox": [
+            537.6,
+            361.1,
+            1017.2,
+            652.1
+          ],
+          "matched": false
+        }
+      ]
+    },
+    {
+      "stem": "benchmark_11_d40_pothole_lane",
+      "dimensions": {
+        "width": 1200,
+        "height": 896
+      },
+      "ground_truth_count": 1,
+      "predictions_count": 0,
+      "ground_truth": [
+        {
+          "class_id": 3,
+          "class_name": "D40_pothole",
+          "bbox": [
+            350.0,
+            480.0,
+            665.0,
+            590.0
+          ],
+          "area": 34650.040319999986
+        }
+      ],
+      "predictions": []
+    },
+    {
+      "stem": "benchmark_12_d40_pothole_suburban",
+      "dimensions": {
+        "width": 1200,
+        "height": 896
+      },
+      "ground_truth_count": 1,
+      "predictions_count": 0,
+      "ground_truth": [
+        {
+          "class_id": 3,
+          "class_name": "D40_pothole",
+          "bbox": [
+            385.0,
+            590.0,
+            660.0,
+            685.0
+          ],
+          "area": 26125.090800076818
+        }
+      ],
+      "predictions": []
+    },
+    {
+      "stem": "benchmark_13_d40_pothole_city",
+      "dimensions": {
+        "width": 1200,
+        "height": 896
+      },
+      "ground_truth_count": 1,
+      "predictions_count": 0,
+      "ground_truth": [
+        {
+          "class_id": 3,
+          "class_name": "D40_pothole",
+          "bbox": [
+            275.0,
+            465.0,
+            685.0,
+            665.0
+          ],
+          "area": 81999.97503989756
+        }
+      ],
+      "predictions": []
+    },
+    {
+      "stem": "benchmark_14_d40_pothole_cavity",
+      "dimensions": {
+        "width": 1200,
+        "height": 896
+      },
+      "ground_truth_count": 1,
+      "predictions_count": 0,
+      "ground_truth": [
+        {
+          "class_id": 3,
+          "class_name": "D40_pothole",
+          "bbox": [
+            315.0,
+            265.0,
+            670.0,
+            735.0
+          ],
+          "area": 166849.94831984644
+        }
+      ],
+      "predictions": []
+    },
+    {
+      "stem": "benchmark_15_bg_sound_asphalt",
+      "dimensions": {
+        "width": 800,
+        "height": 600
+      },
+      "ground_truth_count": 0,
+      "predictions_count": 0,
+      "ground_truth": [],
+      "predictions": []
+    },
+    {
+      "stem": "benchmark_16_bg_sound_highway",
+      "dimensions": {
+        "width": 1280,
+        "height": 960
+      },
+      "ground_truth_count": 0,
+      "predictions_count": 3,
+      "ground_truth": [],
+      "predictions": [
+        {
+          "class_id": 3,
+          "class_name": "D40_pothole",
+          "confidence": 0.3363,
+          "bbox": [
+            461.4,
+            495.9,
+            614.7,
+            568.6
+          ],
+          "matched": false
+        },
+        {
+          "class_id": 3,
+          "class_name": "D40_pothole",
+          "confidence": 0.3178,
+          "bbox": [
+            293.2,
+            398.3,
+            393.0,
+            444.0
+          ],
+          "matched": false
+        },
+        {
+          "class_id": 3,
+          "class_name": "D40_pothole",
+          "confidence": 0.2938,
+          "bbox": [
+            281.7,
+            391.0,
+            397.7,
+            449.7
+          ],
+          "matched": false
+        }
+      ]
+    }
+  ]
+}
