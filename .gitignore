@@ -46,6 +46,8 @@ reports/*
 # Raw dataset archives & temporary backups
 raw_home_data/
 backup_pre_home_integration/
+zenodo_images/
+zenodo_masks/
 *.zip
 *.tar.gz
 *.bak
