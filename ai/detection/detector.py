@@ -24,47 +24,146 @@ logger = logging.getLogger("visionguard.detector")
 if not logger.handlers:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 
-DEFAULT_MODEL_PATH = os.path.join("ai", "models", "best.pt")
+DEFAULT_ROAD_MODEL_PATH = os.path.join("ai", "models", "best.pt")
+DEFAULT_HOME_MODEL_PATH = os.path.join("ai", "models", "home_best.pt")
+DEFAULT_MODEL_PATH = DEFAULT_ROAD_MODEL_PATH
 
 # Canonical class taxonomy from Phase 3.4 (RDD2022 India dataset)
-CLASS_NAMES = {
+ROAD_CLASS_NAMES = {
     0: "D00_longitudinal_crack",
     1: "D10_transverse_crack",
     2: "D20_alligator_crack",
     3: "D40_pothole",
 }
 
-CLASS_DISPLAY_NAMES = {
+ROAD_CLASS_DISPLAY_NAMES = {
     "D00_longitudinal_crack": "Longitudinal Crack",
     "D10_transverse_crack": "Transverse Crack",
     "D20_alligator_crack": "Alligator Crack",
     "D40_pothole": "Pothole",
 }
 
-# Distinguishable BGR colors for OpenCV rendering
-CLASS_COLORS_BGR = {
+ROAD_CLASS_COLORS_BGR = {
     0: (0, 215, 255),    # Yellow / Gold (D00)
     1: (0, 140, 255),    # Orange (D10)
     2: (0, 0, 230),      # Red / Crimson (D20)
     3: (200, 50, 200),   # Purple / Magenta (D40)
 }
 
+# Canonical class taxonomy for Home & Building Defect Model
+HOME_CLASS_NAMES = {
+    0: "wall_crack",
+    1: "damp_or_water_damage",
+    2: "peeling_paint_or_plaster",
+    3: "spalling_or_surface_damage",
+}
+
+HOME_CLASS_DISPLAY_NAMES = {
+    "wall_crack": "Wall Crack",
+    "damp_or_water_damage": "Damp / Water Damage",
+    "peeling_paint_or_plaster": "Peeling Paint / Plaster",
+    "spalling_or_surface_damage": "Spalling / Surface Damage",
+}
+
+HOME_CLASS_COLORS_BGR = {
+    0: (0, 140, 255),    # Orange (Wall Crack)
+    1: (255, 144, 30),   # Deep Sky Blue (Damp / Water Damage)
+    2: (0, 215, 255),    # Gold / Yellow (Peeling Paint / Plaster)
+    3: (0, 0, 220),      # Crimson / Red (Spalling / Surface Damage)
+}
+
+# Backward compatibility aliases for existing road defect tests and code
+CLASS_NAMES = ROAD_CLASS_NAMES
+CLASS_DISPLAY_NAMES = ROAD_CLASS_DISPLAY_NAMES
+CLASS_COLORS_BGR = ROAD_CLASS_COLORS_BGR
+
+
+def compute_box_iou(box1: Dict[str, float], box2: Dict[str, float]) -> float:
+    """Computes Intersection-over-Union (IoU) between two bounding boxes."""
+    x1 = max(float(box1.get("x1", 0)), float(box2.get("x1", 0)))
+    y1 = max(float(box1.get("y1", 0)), float(box2.get("y1", 0)))
+    x2 = min(float(box1.get("x2", 0)), float(box2.get("x2", 0)))
+    y2 = min(float(box1.get("y2", 0)), float(box2.get("y2", 0)))
+    inter_area = max(0.0, x2 - x1) * max(0.0, y2 - y1)
+    area1 = max(0.0, float(box1.get("x2", 0)) - float(box1.get("x1", 0))) * max(0.0, float(box1.get("y2", 0)) - float(box1.get("y1", 0)))
+    area2 = max(0.0, float(box2.get("x2", 0)) - float(box2.get("x1", 0))) * max(0.0, float(box2.get("y2", 0)) - float(box2.get("y1", 0)))
+    union_area = area1 + area2 - inter_area
+    return inter_area / union_area if union_area > 0.0 else 0.0
+
+
+def suppress_overlapping_detections(
+    detections: List[Dict[str, Any]],
+    same_class_iou_thresh: float = 0.45,
+    cross_class_iou_thresh: float = 0.75,
+    iou_threshold: Optional[float] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Suppresses redundant overlapping bounding boxes using Non-Maximum Suppression (NMS).
+    Prevents overwhelming the UI with excessive cluttered overlapping detections.
+    """
+    if not detections or len(detections) <= 1:
+        return detections
+
+    if iou_threshold is not None:
+        same_class_iou_thresh = float(iou_threshold)
+
+    sorted_dets = sorted(detections, key=lambda d: d.get("confidence", 0.0), reverse=True)
+    kept: List[Dict[str, Any]] = []
+
+    for cand in sorted_dets:
+        cand_bbox = cand.get("bbox", {})
+        cand_class = cand.get("class_name")
+        suppress = False
+        for chosen in kept:
+            chosen_bbox = chosen.get("bbox", {})
+            iou = compute_box_iou(cand_bbox, chosen_bbox)
+            if cand_class == chosen.get("class_name") and iou > same_class_iou_thresh:
+                suppress = True
+                break
+            if iou > cross_class_iou_thresh:
+                suppress = True
+                break
+        if not suppress:
+            kept.append(cand)
+
+    return kept
+
 
 class DefectDetectionService:
     """
     Defect detection engine interface.
     Manages genuine model loading, inference, and OpenCV overlay generation.
+    Supports both 'road' (RDD2022) and 'home' (Building Defects) domains.
     """
 
-    def __init__(self, model_path: Optional[str] = None):
-        self.model_path = model_path or os.getenv("VISIONGUARD_MODEL_PATH", DEFAULT_MODEL_PATH)
+    def __init__(self, model_path: Optional[str] = None, domain: str = "road"):
+        self.domain = (domain or "road").lower().strip()
+        if self.domain not in ("road", "home"):
+            self.domain = "road"
+
+        if model_path is not None:
+            self.model_path = model_path
+        elif self.domain == "home":
+            self.model_path = os.getenv("VISIONGUARD_HOME_MODEL_PATH", DEFAULT_HOME_MODEL_PATH)
+        else:
+            self.model_path = os.getenv("VISIONGUARD_MODEL_PATH", DEFAULT_ROAD_MODEL_PATH)
+
         self.model = None
         self.is_loaded = False
         self.status_message = "Model uninitialized"
+
+        model_name = (
+            "YOLOv8 Home Defect Detector"
+            if self.domain == "home"
+            else "YOLOv8 Nano (RDD2022 India)"
+        )
+        supported_classes = [self.classes_map[i] for i in sorted(self.classes_map.keys())]
+
         self.model_info = {
-            "name": "YOLOv8 Nano (RDD2022 India)",
+            "name": model_name,
+            "domain": self.domain,
             "version": "1.0",
-            "supported_classes": [CLASS_NAMES[i] for i in sorted(CLASS_NAMES.keys())],
+            "supported_classes": supported_classes,
             "checkpoint_path": self.model_path,
             "inference_hardware": "CPU/CUDA",
         }
@@ -80,6 +179,18 @@ class DefectDetectionService:
         # Attempt to load checkpoint if present
         self.load_model()
 
+    @property
+    def classes_map(self) -> Dict[int, str]:
+        return HOME_CLASS_NAMES if self.domain == "home" else ROAD_CLASS_NAMES
+
+    @property
+    def display_names_map(self) -> Dict[str, str]:
+        return HOME_CLASS_DISPLAY_NAMES if self.domain == "home" else ROAD_CLASS_DISPLAY_NAMES
+
+    @property
+    def colors_bgr_map(self) -> Dict[int, Tuple[int, int, int]]:
+        return HOME_CLASS_COLORS_BGR if self.domain == "home" else ROAD_CLASS_COLORS_BGR
+
     def load_model(self) -> bool:
         """
         Loads the genuine YOLOv8 defect detection model into memory.
@@ -90,13 +201,22 @@ class DefectDetectionService:
         if not os.path.exists(self.model_path):
             self.is_loaded = False
             self.model = None
-            self.status_message = (
-                f"Model checkpoint not found at '{self.model_path}'. "
-                "If trained in Google Colab, download 'best.pt' from your Google Drive "
-                "('VisionGuard_Artifacts/best.pt') or run "
-                "'from google.colab import files; files.download(BEST_WEIGHTS_PATH)' "
-                f"and place it at '{self.model_path}'."
-            )
+            if self.domain == "home":
+                self.status_message = (
+                    f"Home model checkpoint not found at '{self.model_path}'. "
+                    "If trained in Google Colab, download 'home_best.pt' from your Google Drive "
+                    "('VisionGuard_Artifacts/home_best.pt') or run "
+                    "'from google.colab import files; files.download(BEST_WEIGHTS_PATH)' "
+                    f"and place it at '{self.model_path}'."
+                )
+            else:
+                self.status_message = (
+                    f"Model checkpoint not found at '{self.model_path}'. "
+                    "If trained in Google Colab, download 'best.pt' from your Google Drive "
+                    "('VisionGuard_Artifacts/best.pt') or run "
+                    "'from google.colab import files; files.download(BEST_WEIGHTS_PATH)' "
+                    f"and place it at '{self.model_path}'."
+                )
             return False
 
         try:
@@ -107,14 +227,15 @@ class DefectDetectionService:
             self.status_message = f"Model loaded successfully from '{self.model_path}'"
 
             # Reconcile class names with checkpoint metadata if available
-            names = getattr(self.model, "names", CLASS_NAMES)
+            names = getattr(self.model, "names", self.classes_map)
             if isinstance(names, dict):
-                classes = [names.get(i, CLASS_NAMES.get(i, f"Class_{i}")) for i in sorted(names.keys())]
+                classes = [names.get(i, self.classes_map.get(i, f"Class_{i}")) for i in sorted(names.keys())]
             else:
                 classes = list(names)
 
             self.model_info["classes"] = classes
             self.model_info["checkpoint_path"] = self.model_path
+            self.model_info["domain"] = self.domain
             return True
 
         except Exception as exc:
@@ -261,10 +382,11 @@ class DefectDetectionService:
                 }
                 return detections
 
-            model_names = getattr(self.model, "names", CLASS_NAMES)
+            model_names = getattr(self.model, "names", self.classes_map)
             raw_count = len(boxes)
             logger.info(
-                "YOLO inference: %d raw candidate box(es) detected before filtering (target threshold >= %.2f):",
+                "YOLO inference (%s): %d raw candidate box(es) detected before filtering (target threshold >= %.2f):",
+                self.domain,
                 raw_count,
                 conf_threshold,
             )
@@ -279,13 +401,13 @@ class DefectDetectionService:
                 cls_id = int(boxes.cls[i].cpu().numpy())
 
                 if isinstance(model_names, dict):
-                    cls_raw = model_names.get(cls_id, CLASS_NAMES.get(cls_id, f"Class_{cls_id}"))
+                    cls_raw = model_names.get(cls_id, self.classes_map.get(cls_id, f"Class_{cls_id}"))
                 elif isinstance(model_names, (list, tuple)) and cls_id < len(model_names):
                     cls_raw = model_names[cls_id]
                 else:
                     cls_raw = f"Class_{cls_id}"
 
-                distress_category = CLASS_DISPLAY_NAMES.get(
+                distress_category = self.display_names_map.get(
                     cls_raw, cls_raw.replace("_", " ").title()
                 )
 
@@ -300,8 +422,9 @@ class DefectDetectionService:
 
                 is_kept = conf >= conf_threshold
                 logger.info(
-                    "  [Raw Detection #%d] class_id=%d, class_name=%s (%s), conf=%.4f, bbox=[%.1f, %.1f, %.1f, %.1f] -> %s",
+                    "  [Raw Detection #%d] domain=%s, class_id=%d, class_name=%s (%s), conf=%.4f, bbox=[%.1f, %.1f, %.1f, %.1f] -> %s",
                     i + 1,
+                    self.domain,
                     cls_id,
                     cls_raw,
                     distress_category,
@@ -314,7 +437,13 @@ class DefectDetectionService:
                 )
 
                 if is_kept:
+                    disclaimer = (
+                        "Detection confidence is statistical likelihood, not building structural integrity or physical safety."
+                        if self.domain == "home"
+                        else "Detection confidence is statistical likelihood, not pavement structural safety."
+                    )
                     detections.append({
+                        "domain": self.domain,
                         "class_id": cls_id,
                         "class_name": cls_raw,
                         "distress_category": distress_category,
@@ -329,8 +458,15 @@ class DefectDetectionService:
                             "aspect_ratio": aspect_ratio,
                             "pixel_area": pixel_area,
                         },
-                        "disclaimer": "Detection confidence is statistical likelihood, not pavement structural safety.",
+                        "disclaimer": disclaimer,
                     })
+
+            # Suppress overlapping boxes to avoid overwhelming user interface
+            detections = suppress_overlapping_detections(
+                detections,
+                same_class_iou_thresh=0.45,
+                cross_class_iou_thresh=0.75,
+            )
 
             self.last_inference_stats = {
                 "raw_candidate_count": raw_count,
@@ -340,10 +476,11 @@ class DefectDetectionService:
             }
 
             logger.info(
-                "Threshold filtering complete: %d of %d raw detection(s) meet confidence threshold >= %.2f",
+                "Threshold filtering complete: %d of %d raw detection(s) meet confidence threshold >= %.2f (domain=%s)",
                 len(detections),
                 raw_count,
                 conf_threshold,
+                self.domain,
             )
             return detections
 
@@ -353,10 +490,12 @@ class DefectDetectionService:
                 raise RuntimeError(f"Error during model inference: {str(exc)}")
             return []
 
-    @staticmethod
+    @classmethod
     def draw_annotations(
+        cls,
         image_bgr: np.ndarray,
         detections: List[Dict[str, Any]],
+        domain: Optional[str] = None,
     ) -> np.ndarray:
         """
         Renders genuine visual overlays (bounding boxes and labels) using OpenCV.
@@ -365,6 +504,7 @@ class DefectDetectionService:
         Args:
             image_bgr: Original image as BGR NumPy array.
             detections: List of detection dictionaries.
+            domain: Optional inspection domain ('road' or 'home') to pick color palettes.
 
         Returns:
             Annotated BGR NumPy array.
@@ -395,7 +535,9 @@ class DefectDetectionService:
             conf = det.get("confidence", 0.0)
             category = det.get("distress_category", det.get("class_name", "Defect"))
 
-            color = CLASS_COLORS_BGR.get(cls_id, (0, 255, 0))
+            det_domain = det.get("domain") or domain or "road"
+            colors = HOME_CLASS_COLORS_BGR if det_domain == "home" else ROAD_CLASS_COLORS_BGR
+            color = colors.get(cls_id, (0, 255, 0))
 
             # Draw bounding rectangle
             cv2.rectangle(annotated, (x1, y1), (x2, y2), color, thickness=2)
@@ -448,11 +590,37 @@ class DefectDetectionService:
         return f"data:{mime};base64,{b64_str}"
 
 
+class HomeDefectDetectionService(DefectDetectionService):
+    """Specialized Home & Building Defect Detection Service."""
+
+    def __init__(self, model_path: Optional[str] = None):
+        super().__init__(model_path=model_path, domain="home")
+
+
+class RoadDefectDetectionService(DefectDetectionService):
+    """Specialized Road Defect Detection Service."""
+
+    def __init__(self, model_path: Optional[str] = None):
+        super().__init__(model_path=model_path, domain="road")
+
+
 __all__ = [
     "DefectDetectionService",
+    "HomeDefectDetectionService",
+    "RoadDefectDetectionService",
     "SlicedInferenceEngine",
     "CLASS_NAMES",
     "CLASS_DISPLAY_NAMES",
     "CLASS_COLORS_BGR",
     "DEFAULT_MODEL_PATH",
+    "ROAD_CLASS_NAMES",
+    "ROAD_CLASS_DISPLAY_NAMES",
+    "ROAD_CLASS_COLORS_BGR",
+    "DEFAULT_ROAD_MODEL_PATH",
+    "HOME_CLASS_NAMES",
+    "HOME_CLASS_DISPLAY_NAMES",
+    "HOME_CLASS_COLORS_BGR",
+    "DEFAULT_HOME_MODEL_PATH",
+    "suppress_overlapping_detections",
+    "compute_box_iou",
 ]

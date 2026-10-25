@@ -42,3 +42,10 @@ reports/*
 # Operating System & IDE
 .DS_Store
 .streamlit/
+
+# Raw dataset archives & temporary backups
+raw_home_data/
+backup_pre_home_integration/
+*.zip
+*.tar.gz
+*.bak

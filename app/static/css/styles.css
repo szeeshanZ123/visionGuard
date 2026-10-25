@@ -2358,3 +2358,95 @@ body {
     font-size: 0.75rem;
 }
 
+/* Domain Workflow Selector */
+.domain-selector-wrapper {
+    margin-bottom: 1.5rem;
+}
+
+.domain-selector-label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    font-size: 0.92rem;
+    color: var(--text-primary);
+}
+
+.domain-toggle-group {
+    display: flex;
+    gap: 0.85rem;
+    flex-wrap: wrap;
+}
+
+.domain-toggle-btn {
+    flex: 1;
+    min-width: 240px;
+    padding: 0.9rem 1.1rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    background: rgba(30, 41, 59, 0.6);
+    cursor: pointer;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    outline: none;
+    user-select: none;
+}
+
+.domain-toggle-btn:hover {
+    border-color: rgba(59, 130, 246, 0.5);
+    background: rgba(30, 41, 59, 0.85);
+    transform: translateY(-1px);
+}
+
+.domain-toggle-btn.active {
+    border-color: var(--primary);
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.18) 0%, rgba(99, 102, 241, 0.12) 100%);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35), 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+.domain-toggle-btn .domain-icon {
+    font-size: 1.85rem;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.domain-toggle-btn .domain-btn-meta strong {
+    display: block;
+    font-size: 0.95rem;
+    color: #ffffff;
+    margin-bottom: 0.2rem;
+}
+
+.domain-toggle-btn .domain-btn-meta span {
+    display: block;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+}
+
+.domain-toggle-btn.active .domain-btn-meta span {
+    color: #93c5fd;
+}
+
+/* Domain Badges in Records & Detail */
+.badge-domain-road {
+    background: rgba(59, 130, 246, 0.15);
+    color: #93c5fd;
+    border: 1px solid rgba(59, 130, 246, 0.35);
+}
+
+.badge-domain-home {
+    background: rgba(168, 85, 247, 0.15);
+    color: #d8b4fe;
+    border: 1px solid rgba(168, 85, 247, 0.35);
+}
+
+.upload-actions-row {
+    display: flex;
+    gap: 0.6rem;
+    justify-content: center;
+    margin: 0.75rem 0;
+    flex-wrap: wrap;
+}
+

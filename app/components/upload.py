@@ -27,20 +27,41 @@ def render_upload_section():
         "to initiate inspection ingestion."
     )
 
+    # Inspection Category Selector
+    category = st.radio(
+        "Inspection Target Category",
+        ["🛣️ Road Surface Distress", "🏠 Home & Building Defect"],
+        horizontal=True,
+    )
+
+    is_home = "Home" in category
+
     # Guidelines callout
     with st.expander("ℹ️ Capture & Ingestion Guidelines", expanded=False):
-        st.markdown(
-            """
-            - **Lighting**: Clear natural daylight without heavy shadows or lens glare.
-            - **Orientation**: Overhead or 45-degree angle capturing the road surface distress clearly.
-            - **Supported Formats**: JPG, JPEG, PNG, BMP, WEBP.
-            - **Max File Size**: 15 MB.
-            """
-        )
+        if is_home:
+            st.markdown(
+                """
+                - **Lighting**: Clear natural daylight on the wall or facade; avoid flash glare.
+                - **Orientation**: Perpendicular view capturing cracks, water stains, or plaster spalling.
+                - **Supported Formats**: JPG, JPEG, PNG, BMP, WEBP.
+                - **Max File Size**: 15 MB.
+                - **Target Defect Classes**: `wall_crack`, `damp_or_water_damage`, `peeling_paint_or_plaster`, `spalling_or_surface_damage`.
+                """
+            )
+        else:
+            st.markdown(
+                """
+                - **Lighting**: Clear natural daylight without heavy shadows or lens glare.
+                - **Orientation**: Overhead or 45-degree angle capturing the road surface distress clearly.
+                - **Supported Formats**: JPG, JPEG, PNG, BMP, WEBP.
+                - **Max File Size**: 15 MB.
+                - **Target Defect Classes**: `D00` (Longitudinal), `D10` (Transverse), `D20` (Alligator), `D40` (Pothole).
+                """
+            )
 
     # Image upload widget
     uploaded_file = st.file_uploader(
-        "Select Road or Infrastructure Image",
+        "Select Road or Infrastructure Image" if not is_home else "Select Building or Wall Image",
         type=["jpg", "jpeg", "png", "bmp", "webp"],
         help="Upload an image file to check validity and view metadata.",
     )

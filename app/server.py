@@ -90,13 +90,25 @@ from ai.preprocessing.image_ops import (
 )
 from ai.detection.detector import (
     DefectDetectionService,
+    HomeDefectDetectionService,
+    RoadDefectDetectionService,
     CLASS_NAMES,
     CLASS_DISPLAY_NAMES,
     DEFAULT_MODEL_PATH,
+    ROAD_CLASS_NAMES,
+    ROAD_CLASS_DISPLAY_NAMES,
+    DEFAULT_ROAD_MODEL_PATH,
+    HOME_CLASS_NAMES,
+    HOME_CLASS_DISPLAY_NAMES,
+    DEFAULT_HOME_MODEL_PATH,
 )
 
 
-def create_app(detector: Optional[DefectDetectionService] = None, test_config: Optional[dict] = None) -> Flask:
+def create_app(
+    detector: Optional[DefectDetectionService] = None,
+    home_detector: Optional[DefectDetectionService] = None,
+    test_config: Optional[dict] = None
+) -> Flask:
     """
     Application factory for the VisionGuard AI Flask backend.
     """
@@ -153,8 +165,18 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
     # Safe first-administrator bootstrap from environment variables
     init_admin_from_env(db_path)
 
-    # Initialize DefectDetectionService
-    app.detector = detector or DefectDetectionService()
+    # Initialize road and home DefectDetectionService instances
+    if test_config and "detector" in test_config:
+        app.detector = test_config["detector"]
+    else:
+        app.detector = detector or DefectDetectionService(domain="road")
+
+    app.road_detector = app.detector
+
+    if test_config and "home_detector" in test_config:
+        app.home_detector = test_config["home_detector"]
+    else:
+        app.home_detector = home_detector or DefectDetectionService(domain="home")
 
     # -------------------------------------------------------------------------
     # Authentication & Access Control Helpers / Decorators (Phase 4.6)
@@ -772,6 +794,20 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
                 "checkpoint_path": app.detector.model_path,
                 "supported_classes": [CLASS_NAMES[i] for i in sorted(CLASS_NAMES.keys())],
             },
+            "road_model": {
+                "domain": "road",
+                "loaded": app.detector.is_loaded,
+                "status_message": app.detector.status_message,
+                "checkpoint_path": app.detector.model_path,
+                "supported_classes": [ROAD_CLASS_NAMES[i] for i in sorted(ROAD_CLASS_NAMES.keys())],
+            },
+            "home_model": {
+                "domain": "home",
+                "loaded": app.home_detector.is_loaded,
+                "status_message": app.home_detector.status_message,
+                "checkpoint_path": app.home_detector.model_path,
+                "supported_classes": [HOME_CLASS_NAMES[i] for i in sorted(HOME_CLASS_NAMES.keys())],
+            },
             "limits": {
                 "max_file_size_mb": max_mb,
                 "supported_extensions": sorted(list(SUPPORTED_EXTENSIONS)),
@@ -781,19 +817,52 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
     @app.route("/api/classes", methods=["GET"])
     def api_classes():
         """
-        Returns supported defect classes and their descriptions.
+        Returns supported defect classes and their descriptions for road or home domain.
         """
+        domain = request.args.get("domain", "road").lower().strip()
+        if domain not in ("road", "home"):
+            return jsonify({
+                "status": "error",
+                "error_code": "INVALID_DOMAIN",
+                "message": f"Domain '{domain}' is invalid. Allowed domains: ['road', 'home'].",
+            }), 400
+
+        if domain == "home":
+            classes_data = []
+            for cid, cname in sorted(HOME_CLASS_NAMES.items()):
+                display_name = HOME_CLASS_DISPLAY_NAMES.get(cname, cname)
+                classes_data.append({
+                    "class_id": cid,
+                    "class_name": cname,
+                    "display_name": display_name,
+                    "domain": "home",
+                    "category": (
+                        "crack" if "crack" in cname
+                        else "water_damage" if "damp" in cname or "water" in cname
+                        else "surface_defect" if "peeling" in cname
+                        else "structural_loss"
+                    ),
+                })
+            return jsonify({
+                "status": "success",
+                "domain": "home",
+                "classes": classes_data,
+            }), 200
+
+        # Default / road domain
         classes_data = []
-        for cid, cname in sorted(CLASS_NAMES.items()):
-            display_name = CLASS_DISPLAY_NAMES.get(cname, cname)
+        for cid, cname in sorted(ROAD_CLASS_NAMES.items()):
+            display_name = ROAD_CLASS_DISPLAY_NAMES.get(cname, cname)
             classes_data.append({
                 "class_id": cid,
                 "class_name": cname,
                 "display_name": display_name,
+                "domain": "road",
                 "category": "crack" if "crack" in cname else "pothole",
             })
         return jsonify({
             "status": "success",
+            "domain": "road",
             "classes": classes_data,
         }), 200
 
@@ -801,16 +870,63 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
     @roles_required(ROLE_ADMIN)
     def api_reload_model():
         """
-        Re-attempts loading the model checkpoint from disk.
+        Re-attempts loading model checkpoints from disk.
+        Supports 'domain' query/json param ('road', 'home', or 'all').
         """
-        success = bool(app.detector.load_model())
-        status_code = 200 if success else 503
-        return jsonify({
-            "status": "success" if success else "error",
-            "loaded": bool(success),
-            "message": app.detector.status_message,
-            "checkpoint_path": app.detector.model_path,
-        }), status_code
+        domain = request.args.get("domain")
+        if not domain and request.is_json and isinstance(request.json, dict):
+            domain = request.json.get("domain")
+        domain = (domain or "road").lower().strip()
+
+        if domain not in ("road", "home", "all"):
+            return jsonify({
+                "status": "error",
+                "error_code": "INVALID_DOMAIN",
+                "message": f"Domain '{domain}' is invalid. Allowed: ['road', 'home', 'all'].",
+            }), 400
+
+        if domain == "home":
+            success = bool(app.home_detector.load_model())
+            status_code = 200 if success else 503
+            return jsonify({
+                "status": "success" if success else "error",
+                "domain": "home",
+                "reloaded_domain": "home",
+                "loaded": bool(success),
+                "message": app.home_detector.status_message,
+                "checkpoint_path": app.home_detector.model_path,
+            }), status_code
+        elif domain == "all":
+            road_ok = bool(app.detector.load_model())
+            home_ok = bool(app.home_detector.load_model())
+            all_ok = road_ok and home_ok
+            status_code = 200 if all_ok else 503
+            return jsonify({
+                "status": "success" if all_ok else "partial",
+                "domain": "all",
+                "reloaded_domain": "all",
+                "road": {
+                    "loaded": bool(road_ok),
+                    "message": app.detector.status_message,
+                    "checkpoint_path": app.detector.model_path,
+                },
+                "home": {
+                    "loaded": bool(home_ok),
+                    "message": app.home_detector.status_message,
+                    "checkpoint_path": app.home_detector.model_path,
+                },
+            }), status_code
+        else:
+            success = bool(app.detector.load_model())
+            status_code = 200 if success else 503
+            return jsonify({
+                "status": "success" if success else "error",
+                "domain": "road",
+                "reloaded_domain": "road",
+                "loaded": bool(success),
+                "message": app.detector.status_message,
+                "checkpoint_path": app.detector.model_path,
+            }), status_code
 
     @app.route("/api/inspect", methods=["POST"])
     @roles_required(ROLE_ADMIN, ROLE_INSPECTOR)
@@ -853,28 +969,55 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
                 400,
             )
 
-        # 3. Verify model checkpoint readiness
-        if not app.detector.is_loaded:
+        # 3. Resolve and validate inspection domain (road vs home)
+        domain_raw = (
+            request.form.get("domain")
+            or request.form.get("inspection_type")
+            or request.form.get("problem_type")
+            or "road"
+        )
+        domain = str(domain_raw).lower().strip()
+        if domain not in ("road", "home"):
+            return (
+                jsonify({
+                    "status": "error",
+                    "error_code": "INVALID_DOMAIN",
+                    "message": f"Unsupported inspection domain '{domain}'. Allowed values: ['road', 'home'].",
+                }),
+                400,
+            )
+
+        active_detector = app.home_detector if domain == "home" else app.detector
+
+        # 4. Verify model checkpoint readiness
+        if not active_detector.is_loaded:
+            setup_instructions = (
+                "1. Download 'home_best.pt' from your Google Drive ('VisionGuard_Artifacts/home_best.pt') "
+                "or Google Colab export.\n"
+                f"2. Copy 'home_best.pt' to '{active_detector.model_path}'.\n"
+                "3. Call 'POST /api/reload-model?domain=home' or restart the server."
+            ) if domain == "home" else (
+                "1. Download 'best.pt' from your Google Drive ('VisionGuard_Artifacts/best.pt') "
+                "or Google Colab export.\n"
+                f"2. Copy 'best.pt' to '{active_detector.model_path}'.\n"
+                "3. Call 'POST /api/reload-model?domain=road' or restart the server."
+            )
             return (
                 jsonify({
                     "status": "error",
                     "error_code": "MODEL_WEIGHTS_MISSING",
+                    "domain": domain,
                     "message": (
-                        f"Model weights checkpoint '{app.detector.model_path}' is not present on the server. "
+                        f"{'Home' if domain == 'home' else 'Road'} model weights checkpoint '{active_detector.model_path}' is not present on the server. "
                         "VisionGuard AI requires authentic model weights and does not fabricate detections."
                     ),
-                    "setup_instructions": (
-                        "1. Download 'best.pt' from your Google Drive ('VisionGuard_Artifacts/best.pt') "
-                        "or Google Colab export.\n"
-                        f"2. Copy 'best.pt' to '{app.detector.model_path}'.\n"
-                        "3. Call 'POST /api/reload-model' or restart the server."
-                    ),
+                    "setup_instructions": setup_instructions,
                     "metadata": metadata,
                 }),
                 503,
             )
 
-        # 4. Decode with OpenCV
+        # 5. Decode with OpenCV
         file_stream.seek(0)
         cv_img = load_image_as_opencv(file_stream)
         if cv_img is None:
@@ -887,7 +1030,7 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
                 400,
             )
 
-        # 5. Execute genuine detection
+        # 6. Execute genuine detection
         conf_param = request.form.get("confidence_threshold", "0.25")
         try:
             conf_thresh = float(conf_param)
@@ -900,21 +1043,21 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
             inspection_mode = "standard"
 
         try:
-            if inspection_mode in ["tiled", "sliced"] and hasattr(app.detector, "detect_sliced"):
-                detections = app.detector.detect_sliced(
+            if inspection_mode in ["tiled", "sliced"] and hasattr(active_detector, "detect_sliced"):
+                detections = active_detector.detect_sliced(
                     cv_img,
                     conf_threshold=conf_thresh,
                     raise_if_unloaded=True,
                 )
             else:
-                detections = app.detector.detect(
+                detections = active_detector.detect(
                     cv_img,
                     conf_threshold=conf_thresh,
                     raise_if_unloaded=True,
                 )
-            # 6. Generate genuine visual overlay
-            annotated_bgr = app.detector.draw_annotations(cv_img, detections)
-            annotated_b64 = app.detector.encode_image_to_base64(annotated_bgr)
+            # 7. Generate genuine visual overlay
+            annotated_bgr = active_detector.draw_annotations(cv_img, detections)
+            annotated_b64 = active_detector.encode_image_to_base64(annotated_bgr)
         except Exception as exc:
             logger.exception(f"Inference error processing '{filename}': {str(exc)}")
             return (
@@ -948,23 +1091,31 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
         except Exception:
             saved_path = None
 
+        disclaimer = (
+            "Notice: Detection confidence measures model statistical likelihood, "
+            "not physical structural safety, load-bearing capacity, or damage severity."
+        ) if domain == "home" else (
+            "Notice: Detection confidence measures model statistical likelihood, "
+            "not physical crack severity, cavity depth, or roadway structural safety."
+        )
+
         return jsonify({
             "status": "success",
+            "domain": domain,
+            "inspection_type": domain,
             "filename": filename,
             "metadata": metadata,
-            "model_info": app.detector.model_info,
+            "model_info": active_detector.model_info,
             "inspection_mode": inspection_mode,
             "confidence_threshold": conf_thresh,
-            "candidate_summary": getattr(app.detector, "last_inference_stats", {}),
+            "candidate_summary": getattr(active_detector, "last_inference_stats", {}),
             "detections": detections,
             "defect_count": len(detections),
             "annotated_image": annotated_b64,
             "original_file_path": orig_path,
             "processed_file_path": saved_path,
-            "disclaimer": (
-                "Notice: Detection confidence measures model statistical likelihood, "
-                "not physical crack severity, cavity depth, or roadway structural safety."
-            ),
+            "disclaimer": disclaimer,
+            "safety_disclaimer": disclaimer,
         }), 200
 
     # -------------------------------------------------------------------------
@@ -1040,6 +1191,8 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
             limit = 100
             offset = 0
 
+        domain_filter = request.args.get("domain") or request.args.get("inspection_type")
+
         inspections = get_inspections(
             status=status_filter if status_filter and status_filter.lower() != "all" else None,
             limit=limit,
@@ -1050,6 +1203,7 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
             deadline_filter=deadline_filter if deadline_filter and deadline_filter.lower() != "all" else None,
             assigned_to_user_id=parsed_assigned_user_id,
             assignment_status=assignment_status_filter,
+            domain=domain_filter if domain_filter and domain_filter.lower() != "all" else None,
             db_path=db_path
         )
         return jsonify({
@@ -1091,7 +1245,7 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
     @roles_required(ROLE_ADMIN, ROLE_INSPECTOR)
     def api_save_inspection():
         """
-        Saves a completed road inspection into the database.
+        Saves a completed road or home inspection into the database.
         Stores authentic detection coordinates, confidence, metadata, location, and status.
         """
         db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
@@ -1112,6 +1266,12 @@ def create_app(detector: Optional[DefectDetectionService] = None, test_config: O
                 "error_code": "INVALID_STATUS",
                 "message": f"Status '{status}' is invalid. Allowed: {ALLOWED_STATUSES}",
             }), 400
+
+        # Domain / Inspection Type
+        domain_val = (payload.get("domain") or payload.get("inspection_type") or "road").strip().lower()
+        if domain_val not in ("road", "home"):
+            domain_val = "road"
+        payload["inspection_type"] = domain_val
 
         # Location metadata validation
         road_name = payload.get("road_name", "")

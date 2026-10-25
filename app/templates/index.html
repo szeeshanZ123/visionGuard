@@ -403,14 +403,14 @@
                         <span class="guideline-icon">☀️</span>
                         <div>
                             <strong>Lighting</strong>
-                            <p>Clear natural daylight; avoid deep shadow cast or blinding lens flare.</p>
+                            <p id="guidelinesLightingText">Clear natural daylight; avoid deep shadow cast or blinding lens flare.</p>
                         </div>
                     </div>
                     <div class="guideline-item">
                         <span class="guideline-icon">📐</span>
                         <div>
-                            <strong>Orientation</strong>
-                            <p>Top-down overhead or ~45-degree angle capturing asphalt texture clearly.</p>
+                            <strong id="guidelinesOrientationHeading">Orientation</strong>
+                            <p id="guidelinesOrientationText">Top-down overhead or ~45-degree angle capturing asphalt texture clearly.</p>
                         </div>
                     </div>
                     <div class="guideline-item">
@@ -423,8 +423,8 @@
                     <div class="guideline-item">
                         <span class="guideline-icon">🎯</span>
                         <div>
-                            <strong>Distress Classes</strong>
-                            <p>D00 (Longitudinal), D10 (Transverse), D20 (Alligator), D40 (Pothole).</p>
+                            <strong id="guidelinesDistressHeading">Distress Classes (Road)</strong>
+                            <p id="guidelinesDistressClasses">D00 (Longitudinal), D10 (Transverse), D20 (Alligator), D40 (Pothole).</p>
                         </div>
                     </div>
                 </div>
@@ -434,16 +434,42 @@
         <!-- Image Upload & Controls Section -->
         <section class="inspection-input-card">
             <div class="card-header">
-                <h2>📷 Surface Distress Ingestion</h2>
-                <p>Upload a roadway or infrastructure surface photograph for genuine computer-vision inference.</p>
+                <h2>📷 Defect Ingestion & Inspection</h2>
+                <p>Upload or capture a road or building surface photograph for genuine computer-vision inference.</p>
+            </div>
+
+            <!-- Inspection Workflow / Model Selection -->
+            <div class="domain-selector-wrapper">
+                <label class="domain-selector-label">Target Inspection Workflow & Model:</label>
+                <div class="domain-toggle-group" id="domainToggleGroup" role="radiogroup" aria-label="Inspection Target">
+                    <button type="button" class="domain-toggle-btn active" id="domainRoadBtn" data-domain="road" aria-pressed="true">
+                        <span class="domain-icon">🛣️</span>
+                        <div class="domain-btn-meta">
+                            <strong>Road Surface Distress</strong>
+                            <span>YOLOv8 Nano (RDD2022 India) • Cracks & Potholes</span>
+                        </div>
+                    </button>
+                    <button type="button" class="domain-toggle-btn" id="domainHomeBtn" data-domain="home" aria-pressed="false">
+                        <span class="domain-icon">🏠</span>
+                        <div class="domain-btn-meta">
+                            <strong>Home & Building Defect</strong>
+                            <span>YOLOv8 Home Model • Cracks, Dampness, Peeling, Spalling</span>
+                        </div>
+                    </button>
+                </div>
             </div>
 
             <div class="upload-area" id="dropZone">
                 <input type="file" id="imageFileInput" accept=".jpg,.jpeg,.png,.bmp,.webp" style="display: none;">
+                <input type="file" id="cameraFileInput" accept="image/*" capture="environment" style="display: none;">
                 <div class="upload-prompt" id="uploadPrompt">
-                    <div class="upload-icon">📁</div>
-                    <h3>Drag & Drop road image here, or <button type="button" class="btn btn-secondary" id="browseBtn">Browse Files</button></h3>
-                    <p class="upload-subtext">Supported: JPG, PNG, WEBP • Max Size: 15 MB</p>
+                    <div class="upload-icon" id="uploadPromptIcon">🛣️</div>
+                    <h3 id="uploadPromptHeading">Drag & Drop road image here, or choose an option:</h3>
+                    <div class="upload-actions-row">
+                        <button type="button" class="btn btn-secondary" id="browseBtn">📁 Browse Files</button>
+                        <button type="button" class="btn btn-outline" id="cameraBtn">📷 Capture Photo</button>
+                    </div>
+                    <p class="upload-subtext" id="uploadPromptSubtext">Supported: JPG, PNG, WEBP • Max Size: 15 MB • Routing to Road Model</p>
                 </div>
                 <div class="preview-strip" id="previewStrip" style="display: none;">
                     <img id="clientPreviewImg" src="" alt="Client Preview" class="preview-thumbnail">
@@ -487,7 +513,7 @@
 
                 <div class="action-buttons">
                     <button type="button" class="btn btn-primary" id="inspectBtn" disabled>
-                        <span class="btn-text">Run Defect Inspection</span>
+                        <span class="btn-text" id="inspectBtnText">Run Defect Inspection</span>
                         <span class="spinner" id="inspectSpinner" style="display: none;"></span>
                     </button>
                 </div>
@@ -497,7 +523,10 @@
         <!-- Results Section (Populated Dynamically) -->
         <section class="results-container" id="resultsContainer" style="display: none;">
             <div class="results-header">
-                <h2>🔍 Inspection Findings</h2>
+                <div style="display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap;">
+                    <h2>🔍 Inspection Findings</h2>
+                    <span class="badge badge-info" id="resultsDomainBadge">🛣️ Road Inspection</span>
+                </div>
                 <span class="badge" id="resultsCountBadge">0 Defects Found</span>
             </div>
 
@@ -505,7 +534,7 @@
             <div class="comparison-grid">
                 <div class="image-column">
                     <div class="image-column-header">
-                        <h3>Original Road Image</h3>
+                        <h3 id="originalImageTitle">Original Surface Image</h3>
                         <span class="caption" id="origDimCaption">-- × -- px</span>
                     </div>
                     <div class="image-display-box">
@@ -516,7 +545,7 @@
                 <div class="image-column">
                     <div class="image-column-header">
                         <h3>Authentic AI Detection Overlay</h3>
-                        <span class="caption" id="modelCheckpointCaption">YOLOv8 Nano</span>
+                        <span class="caption" id="modelCheckpointCaption">YOLOv8</span>
                     </div>
                     <div class="image-display-box">
                         <img id="annotatedDisplayImg" src="" alt="Annotated Detection Overlay">
@@ -538,8 +567,8 @@
                 </div>
                 <div class="metric-card">
                     <span class="metric-label">Model Engine</span>
-                    <strong class="metric-value text-sm" id="metricModelName">YOLOv8n</strong>
-                    <span class="metric-caption">RDD2022 India Weights</span>
+                    <strong class="metric-value text-sm" id="metricModelName">YOLOv8</strong>
+                    <span class="metric-caption" id="metricModelCaption">Checkpoint Weights</span>
                 </div>
                 <div class="metric-card">
                     <span class="metric-label">Inspection Mode</span>
@@ -567,7 +596,7 @@
 
             <!-- Detailed Distress Annotations Table -->
             <div class="card detections-card">
-                <h3>Detected Road Distresses (Authentic Model Coordinates)</h3>
+                <h3 id="detectionsTableHeading">Detected Road Distresses (Authentic Model Coordinates)</h3>
                 <div class="table-responsive">
                     <table class="data-table" id="detectionsTable">
                         <thead>
@@ -599,7 +628,7 @@
                 </div>
                 <div class="save-form-grid">
                     <div class="form-group">
-                        <label for="saveRoadNameInput">Road / Highway / Corridor <span class="text-muted">(Optional)</span>:</label>
+                        <label for="saveRoadNameInput" id="saveLocationLabel">Road / Highway / Corridor <span class="text-muted">(Optional)</span>:</label>
                         <input type="text" id="saveRoadNameInput" class="form-control" placeholder="e.g. Western Express Highway, KM 14" maxlength="150">
                     </div>
                     <div class="form-group">
@@ -634,7 +663,7 @@
                     </div>
                     <div class="form-group full-width">
                         <label for="saveNotesInput">Location Notes / Inspection Observations <span class="text-muted">(Optional)</span>:</label>
-                        <textarea id="saveNotesInput" class="form-control" rows="2" placeholder="e.g. Northbound slow lane near flyover expansion joint; noticeable surface crack propagation."></textarea>
+                        <textarea id="saveNotesInput" class="form-control" rows="2" placeholder="e.g. Inspection observations, crack propagation notes, or environmental conditions."></textarea>
                     </div>
                 </div>
                 <div class="save-actions">
@@ -650,8 +679,8 @@
             <div class="alert alert-disclaimer">
                 <div class="alert-icon">🛡️</div>
                 <div class="alert-content">
-                    <strong>Civil Engineering Disclaimer & Safety Boundary:</strong>
-                    <p>
+                    <strong id="disclaimerHeading">Civil Engineering Disclaimer & Safety Boundary:</strong>
+                    <p id="disclaimerText">
                         VisionGuard AI detections and confidence ratings reflect <em>statistical model certainty</em>, 
                         <strong>not physical pavement failure severity, cavity depth, or roadway structural safety</strong>. 
                         A photograph alone cannot certify roadway load-bearing capacity, sub-base condition, or asphalt thickness. 

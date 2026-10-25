@@ -294,13 +294,118 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const detectionsTableBody = document.getElementById("detectionsTableBody");
 
+    // Target Workflow & Domain Elements
+    let selectedDomain = "road";
+    let lastHealthData = null;
+    const domainRoadBtn = document.getElementById("domainRoadBtn");
+    const domainHomeBtn = document.getElementById("domainHomeBtn");
+    const cameraFileInput = document.getElementById("cameraFileInput");
+    const cameraBtn = document.getElementById("cameraBtn");
+    const uploadPromptIcon = document.getElementById("uploadPromptIcon");
+    const uploadPromptHeading = document.getElementById("uploadPromptHeading");
+    const uploadPromptSubtext = document.getElementById("uploadPromptSubtext");
+    const guidelinesDistressHeading = document.getElementById("guidelinesDistressHeading");
+    const guidelinesDistressClasses = document.getElementById("guidelinesDistressClasses");
+    const saveLocationLabel = document.getElementById("saveLocationLabel");
+    const resultsDomainBadge = document.getElementById("resultsDomainBadge");
+    const originalImageTitle = document.getElementById("originalImageTitle");
+    const detectionsTableHeading = document.getElementById("detectionsTableHeading");
+    const disclaimerHeading = document.getElementById("disclaimerHeading");
+    const disclaimerText = document.getElementById("disclaimerText");
+
     let currentFile = null;
+
+    function updateModelStatusDisplay() {
+        if (!lastHealthData) return;
+        const isHome = selectedDomain === "home";
+        const modelInfo = isHome ? (lastHealthData.home_model || {}) : (lastHealthData.road_model || lastHealthData.model || {});
+
+        if (modelInfo.loaded) {
+            modelStatusBadge.textContent = isHome ? "Model: Home YOLOv8 (Loaded)" : "Model: Road YOLOv8n (Loaded)";
+            modelStatusBadge.className = "badge badge-success";
+            systemNoticeBanner.style.display = "none";
+        } else {
+            modelStatusBadge.textContent = isHome ? "Model: Home Checkpoint Missing" : "Model: Road Checkpoint Missing";
+            modelStatusBadge.className = "badge badge-warning";
+
+            systemNoticeTitle.textContent = isHome 
+                ? "Home Defect Model Checkpoint Awaiting Configuration" 
+                : "Road Defect Model Checkpoint Awaiting Configuration";
+            systemNoticeMsg.textContent = modelInfo.status_message || (isHome ? "Checkpoint 'home_best.pt' not loaded." : "Checkpoint 'best.pt' not loaded.");
+            systemNoticeInstructions.textContent = isHome
+                ? "Setup Steps:\n1. Download 'home_best.pt' from your Google Drive ('VisionGuard_Artifacts/home_best.pt').\n2. Place the file at: visionGuard/ai/models/home_best.pt\n3. Reload this page or call POST /api/reload-model?domain=home."
+                : "Setup Steps:\n1. Download 'best.pt' from your Google Drive ('VisionGuard_Artifacts/best.pt') or Colab export.\n2. Place the file at: visionGuard/ai/models/best.pt\n3. Reload this page or call POST /api/reload-model?domain=road.";
+            systemNoticeInstructions.style.display = "block";
+            systemNoticeBanner.style.display = "flex";
+        }
+    }
+
+    function setInspectionDomain(domain) {
+        selectedDomain = domain === "home" ? "home" : "road";
+        const isHome = selectedDomain === "home";
+
+        if (domainRoadBtn) {
+            domainRoadBtn.classList.toggle("active", !isHome);
+            domainRoadBtn.setAttribute("aria-pressed", (!isHome).toString());
+        }
+        if (domainHomeBtn) {
+            domainHomeBtn.classList.toggle("active", isHome);
+            domainHomeBtn.setAttribute("aria-pressed", isHome.toString());
+        }
+
+        if (uploadPromptIcon) uploadPromptIcon.textContent = isHome ? "🏠" : "🛣️";
+        if (uploadPromptHeading) {
+            uploadPromptHeading.textContent = isHome 
+                ? "Drag & Drop home or building image here, or choose an option:" 
+                : "Drag & Drop road image here, or choose an option:";
+        }
+        if (uploadPromptSubtext) {
+            uploadPromptSubtext.textContent = isHome
+                ? "Supported: JPG, PNG, WEBP • Max Size: 15 MB • Routing to Home Model"
+                : "Supported: JPG, PNG, WEBP • Max Size: 15 MB • Routing to Road Model";
+        }
+
+        if (guidelinesDistressHeading) {
+            guidelinesDistressHeading.textContent = isHome ? "Defect Classes (Home & Building)" : "Distress Classes (Road Surface)";
+        }
+        if (guidelinesDistressClasses) {
+            guidelinesDistressClasses.textContent = isHome
+                ? "wall_crack, damp_or_water_damage, peeling_paint_or_plaster, spalling_or_surface_damage"
+                : "D00 (Longitudinal), D10 (Transverse), D20 (Alligator), D40 (Pothole)";
+        }
+
+        if (saveLocationLabel) {
+            saveLocationLabel.innerHTML = isHome
+                ? 'Building / Structure / Room <span class="text-muted">(Optional)</span>:'
+                : 'Road / Highway / Corridor <span class="text-muted">(Optional)</span>:';
+        }
+        if (saveRoadNameInput) {
+            saveRoadNameInput.placeholder = isHome
+                ? "e.g. Block B, Apartment 302, Exterior Facade"
+                : "e.g. Western Express Highway, KM 14";
+        }
+        if (saveAreaInput) {
+            saveAreaInput.placeholder = isHome
+                ? "e.g. Living Room / 2nd Floor / Basement"
+                : "e.g. Bandra West / Sector 4";
+        }
+
+        updateModelStatusDisplay();
+    }
+
+    if (domainRoadBtn) {
+        domainRoadBtn.addEventListener("click", () => setInspectionDomain("road"));
+    }
+    if (domainHomeBtn) {
+        domainHomeBtn.addEventListener("click", () => setInspectionDomain("home"));
+    }
 
     // 1. Initial Health Check
     async function checkHealth() {
         try {
             const res = await fetch("/api/health");
             const data = await res.json();
+            lastHealthData = data;
 
             // DB status
             if (data.database && data.database.connected) {
@@ -311,25 +416,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 dbStatusBadge.className = "badge badge-danger";
             }
 
-            // Model status
-            if (data.model && data.model.loaded) {
-                modelStatusBadge.textContent = "Model: YOLOv8n (Loaded)";
-                modelStatusBadge.className = "badge badge-success";
-                systemNoticeBanner.style.display = "none";
-            } else {
-                modelStatusBadge.textContent = "Model: Weights Missing";
-                modelStatusBadge.className = "badge badge-warning";
-
-                systemNoticeTitle.textContent = "Model Checkpoint Awaiting Configuration";
-                systemNoticeMsg.textContent = data.model ? data.model.status_message : "Checkpoint 'best.pt' not loaded.";
-                systemNoticeInstructions.textContent = 
-                    "Setup Steps:\n" +
-                    "1. Download 'best.pt' from your Google Drive ('VisionGuard_Artifacts/best.pt') or Colab export.\n" +
-                    "2. Place the file at: visionGuard/ai/models/best.pt\n" +
-                    "3. Reload this page or call POST /api/reload-model.";
-                systemNoticeInstructions.style.display = "block";
-                systemNoticeBanner.style.display = "flex";
-            }
+            // Model status display updated for active domain
+            updateModelStatusDisplay();
         } catch (err) {
             dbStatusBadge.textContent = "Database: Error";
             dbStatusBadge.className = "badge badge-danger";
@@ -352,6 +440,18 @@ document.addEventListener("DOMContentLoaded", () => {
         e.stopPropagation();
         fileInput.click();
     });
+
+    if (cameraBtn && cameraFileInput) {
+        cameraBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            cameraFileInput.click();
+        });
+        cameraFileInput.addEventListener("change", (e) => {
+            if (e.target.files && e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+    }
 
     dropZone.addEventListener("click", () => {
         if (!currentFile) {
@@ -427,6 +527,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function clearSelectedFile() {
         currentFile = null;
         fileInput.value = "";
+        if (cameraFileInput) cameraFileInput.value = "";
         clientPreviewImg.src = "";
         uploadPrompt.style.display = "block";
         previewStrip.style.display = "none";
@@ -455,7 +556,9 @@ document.addEventListener("DOMContentLoaded", () => {
         // UI State: Loading
         inspectBtn.disabled = true;
         inspectSpinner.style.display = "inline-block";
-        inspectBtn.querySelector(".btn-text").textContent = "Analyzing Road Imagery...";
+        inspectBtn.querySelector(".btn-text").textContent = selectedDomain === "home" 
+            ? "Analyzing Building Imagery..." 
+            : "Analyzing Road Imagery...";
 
         const activeThreshold = parseFloat(confSlider.value) || 0.25;
         const modeRadio = document.querySelector('input[name="inspectionMode"]:checked');
@@ -465,6 +568,7 @@ document.addEventListener("DOMContentLoaded", () => {
         formData.append("image", currentFile);
         formData.append("confidence_threshold", activeThreshold.toFixed(2));
         formData.append("inspection_mode", activeMode);
+        formData.append("domain", selectedDomain);
 
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
@@ -531,10 +635,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     function handleApiError(status, data, message) {
-        if (status === 503 || (data && data.error_code === "MODEL_WEIGHTS_MISSING")) {
-            systemNoticeTitle.textContent = "Model Weights Checkpoint Required (HTTP 503)";
+        if (status === 503 || (data && (data.error_code === "MODEL_WEIGHTS_MISSING" || data.error_code === "HOME_MODEL_WEIGHTS_MISSING" || data.error_code === "ROAD_MODEL_WEIGHTS_MISSING"))) {
+            systemNoticeTitle.textContent = (data && data.error_code === "HOME_MODEL_WEIGHTS_MISSING")
+                ? "Home Model Checkpoint Required (HTTP 503)"
+                : "Model Weights Checkpoint Required (HTTP 503)";
             systemNoticeMsg.textContent = (data && data.message) || message;
-            systemNoticeInstructions.textContent = (data && data.setup_instructions) || "Place best.pt into ai/models/best.pt";
+            systemNoticeInstructions.textContent = (data && data.setup_instructions) || "Place model checkpoint into ai/models/";
             systemNoticeInstructions.style.display = "block";
             systemNoticeBanner.style.display = "flex";
             window.scrollTo({ top: 0, behavior: "smooth" });
@@ -548,6 +654,34 @@ document.addEventListener("DOMContentLoaded", () => {
         originalDisplayImg.src = clientPreviewImg.src;
         annotatedDisplayImg.src = data.annotated_image;
 
+        // Domain & Header Customization
+        const isHome = (data.domain === "home") || (selectedDomain === "home");
+        if (resultsDomainBadge) {
+            if (isHome) {
+                resultsDomainBadge.textContent = "🏠 Home & Building Defect Inspection";
+                resultsDomainBadge.className = "badge badge-domain-home";
+            } else {
+                resultsDomainBadge.textContent = "🛣️ Road Surface Distress Inspection";
+                resultsDomainBadge.className = "badge badge-domain-road";
+            }
+        }
+        if (originalImageTitle) {
+            originalImageTitle.textContent = isHome ? "Original Building Image" : "Original Surface Image";
+        }
+        if (detectionsTableHeading) {
+            detectionsTableHeading.textContent = isHome 
+                ? "Detected Building Defects (Authentic Model Coordinates)" 
+                : "Detected Road Distresses (Authentic Model Coordinates)";
+        }
+        if (disclaimerHeading) {
+            disclaimerHeading.textContent = isHome 
+                ? "Structural Engineering Disclaimer & Safety Boundary:" 
+                : "Civil Engineering Disclaimer & Safety Boundary:";
+        }
+        if (data.safety_disclaimer && disclaimerText) {
+            disclaimerText.textContent = data.safety_disclaimer;
+        }
+
         // Metadata
         const meta = data.metadata || {};
         origDimCaption.textContent = `${meta.width || "--"} × ${meta.height || "--"} px`;
@@ -560,8 +694,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Model caption
         const modelInfo = data.model_info || {};
-        modelCheckpointCaption.textContent = modelInfo.name || "YOLOv8n";
-        metricModelName.textContent = modelInfo.name || "YOLOv8 Nano";
+        modelCheckpointCaption.textContent = modelInfo.name || (isHome ? "YOLOv8 Home" : "YOLOv8n");
+        metricModelName.textContent = modelInfo.name || (isHome ? "YOLOv8 Home" : "YOLOv8 Nano");
 
         // Inspection Mode Telemetry
         const inspMode = (data.inspection_mode || "standard").toLowerCase();
@@ -619,9 +753,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 `;
             }
 
+            const zeroDefectMsg = isHome
+                ? `✅ No wall cracks, dampness, peeling paint, or spalling detected at confidence threshold ≥ ${usedThreshold}.`
+                : `✅ No surface cracks or potholes detected at confidence threshold ≥ ${usedThreshold}.`;
+
             emptyRow.innerHTML = `
                 <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">
-                    <div>✅ No surface cracks or potholes detected at confidence threshold ≥ ${usedThreshold}.</div>
+                    <div>${zeroDefectMsg}</div>
                     ${suggestionHtml}
                 </td>
             `;
@@ -1129,6 +1267,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const city = rec.city ? rec.city.trim() : "";
 
         let html = "";
+        const isHome = rec.inspection_type === "home";
+        const domainBadge = isHome 
+            ? '<span class="badge badge-domain-home" style="margin-right: 4px; font-size: 0.7rem; padding: 2px 6px;">🏠 Home</span> ' 
+            : '<span class="badge badge-domain-road" style="margin-right: 4px; font-size: 0.7rem; padding: 2px 6px;">🛣️ Road</span> ';
+
         if (road) {
             html += `<strong>${road}</strong>`;
             const sub = [];
@@ -1151,7 +1294,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const lonStr = Number(rec.longitude).toFixed(4);
             html += `<div class="geo-tag-pill" title="GPS: ${rec.latitude}, ${rec.longitude}">📍 ${latStr}, ${lonStr}</div>`;
         }
-        return html;
+        return domainBadge + html;
     }
 
     // Helper: Map status to badge class
@@ -1766,6 +1909,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 confidence_threshold: lastInspectionResult.confidence_threshold || 0.25,
                 detections: lastInspectionResult.detections || [],
                 status: status,
+                inspection_type: (lastInspectionResult && lastInspectionResult.domain) || selectedDomain || "road",
             };
 
             try {

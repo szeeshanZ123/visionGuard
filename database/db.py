@@ -93,6 +93,7 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
         ("assignment_instructions", "TEXT"),
         ("assignment_status", "TEXT DEFAULT 'unassigned'"),
         ("assignment_updated_at", "TIMESTAMP"),
+        ("inspection_type", "TEXT DEFAULT 'road'"),
     ]
 
     for col_name, col_type in columns_to_add:
@@ -490,14 +491,19 @@ def save_inspection(data: Dict[str, Any], db_path: str = DEFAULT_DB_PATH) -> Dic
             conn.close()
             return row_to_dict(existing)
 
+    # Inspection domain / type (road vs home)
+    inspection_type = (data.get("inspection_type") or data.get("domain") or "road").strip().lower()
+    if inspection_type not in ("road", "home"):
+        inspection_type = "road"
+
     cursor.execute("""
     INSERT INTO defect_inspections (
         image_name, file_path, status, defect_type, confidence, notes,
         original_image_path, annotated_image_path, road_name, area, city,
         latitude, longitude, location_notes,
         inspection_mode, confidence_threshold, defect_count, detections_json,
-        target_repair_date, created_by_user_id, created_by_username
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        target_repair_date, created_by_user_id, created_by_username, inspection_type
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     """, (
         image_name,
         original_image_path,
@@ -520,6 +526,7 @@ def save_inspection(data: Dict[str, Any], db_path: str = DEFAULT_DB_PATH) -> Dic
         target_repair_date,
         data.get("created_by_user_id") or data.get("user_id"),
         data.get("created_by_username") or data.get("username"),
+        inspection_type,
     ))
 
     inserted_id = cursor.lastrowid
@@ -564,6 +571,8 @@ def get_inspections(
     assigned_to_user_id: Optional[int] = None,
     assignment_status: Optional[str] = None,
     ref_date: Optional[datetime.date] = None,
+    domain: Optional[str] = None,
+    inspection_type: Optional[str] = None,
     db_path: str = DEFAULT_DB_PATH
 ) -> List[Dict[str, Any]]:
     """Retrieves saved inspections with optional filters, ordered chronologically newest first."""
@@ -573,6 +582,11 @@ def get_inspections(
 
     conditions = []
     params = []
+
+    target_type = inspection_type or domain
+    if target_type and target_type.strip() and target_type.strip().lower() != "all":
+        conditions.append("LOWER(COALESCE(inspection_type, 'road')) = ?")
+        params.append(target_type.strip().lower())
 
     if status and status.strip():
         st = status.strip()
