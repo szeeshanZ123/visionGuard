@@ -91,15 +91,34 @@ def compute_box_iou(box1: Dict[str, float], box2: Dict[str, float]) -> float:
     return inter_area / union_area if union_area > 0.0 else 0.0
 
 
+def compute_box_iom(box1: Dict[str, float], box2: Dict[str, float]) -> float:
+    """
+    Computes Intersection-over-Minimum (IoM / containment) between two bounding boxes.
+    Handles nested boxes where one bounding box is largely contained inside another.
+    """
+    x1 = max(float(box1.get("x1", 0)), float(box2.get("x1", 0)))
+    y1 = max(float(box1.get("y1", 0)), float(box2.get("y1", 0)))
+    x2 = min(float(box1.get("x2", 0)), float(box2.get("x2", 0)))
+    y2 = min(float(box1.get("y2", 0)), float(box2.get("y2", 0)))
+    inter_area = max(0.0, x2 - x1) * max(0.0, y2 - y1)
+    area1 = max(0.0, float(box1.get("x2", 0)) - float(box1.get("x1", 0))) * max(0.0, float(box1.get("y2", 0)) - float(box1.get("y1", 0)))
+    area2 = max(0.0, float(box2.get("x2", 0)) - float(box2.get("x1", 0))) * max(0.0, float(box2.get("y2", 0)) - float(box2.get("y1", 0)))
+    min_area = min(area1, area2)
+    return inter_area / min_area if min_area > 0.0 else 0.0
+
+
 def suppress_overlapping_detections(
     detections: List[Dict[str, Any]],
     same_class_iou_thresh: float = 0.45,
-    cross_class_iou_thresh: float = 0.75,
+    cross_class_iou_thresh: Optional[float] = None,
     iou_threshold: Optional[float] = None,
+    same_class_iom_thresh: float = 0.60,
+    class_aware: bool = True,
 ) -> List[Dict[str, Any]]:
     """
     Suppresses redundant overlapping bounding boxes using Non-Maximum Suppression (NMS).
-    Prevents overwhelming the UI with excessive cluttered overlapping detections.
+    Applies IoU and containment (IoM) suppression for same-class duplicates.
+    By default (class_aware=True), detections from different classes are strictly preserved.
     """
     if not detections or len(detections) <= 1:
         return detections
@@ -110,19 +129,43 @@ def suppress_overlapping_detections(
     sorted_dets = sorted(detections, key=lambda d: d.get("confidence", 0.0), reverse=True)
     kept: List[Dict[str, Any]] = []
 
+    def same_class(d1: Dict[str, Any], d2: Dict[str, Any]) -> bool:
+        if d1.get("class_id") is not None and d2.get("class_id") is not None:
+            return d1["class_id"] == d2["class_id"]
+        if d1.get("class_name") and d2.get("class_name"):
+            return d1["class_name"] == d2["class_name"]
+        if d1.get("distress_category") and d2.get("distress_category"):
+            return d1["distress_category"] == d2["distress_category"]
+        return True
+
     for cand in sorted_dets:
         cand_bbox = cand.get("bbox", {})
-        cand_class = cand.get("class_name")
         suppress = False
         for chosen in kept:
             chosen_bbox = chosen.get("bbox", {})
+            is_same = same_class(cand, chosen)
             iou = compute_box_iou(cand_bbox, chosen_bbox)
-            if cand_class == chosen.get("class_name") and iou > same_class_iou_thresh:
-                suppress = True
-                break
-            if iou > cross_class_iou_thresh:
-                suppress = True
-                break
+            iom = compute_box_iom(cand_bbox, chosen_bbox)
+
+            if is_same:
+                if iou >= same_class_iou_thresh or iom >= same_class_iom_thresh:
+                    suppress = True
+                    logger.debug(
+                        "Suppressed same-class duplicate [%s conf=%.3f] by [%s conf=%.3f] (IoU=%.3f, IoM=%.3f)",
+                        cand.get("class_name") or cand.get("distress_category"),
+                        cand.get("confidence", 0.0),
+                        chosen.get("class_name") or chosen.get("distress_category"),
+                        chosen.get("confidence", 0.0),
+                        iou,
+                        iom,
+                    )
+                    break
+            else:
+                # Different classes: only suppress if class_aware is explicitly set to False
+                if not class_aware and cross_class_iou_thresh is not None and iou > cross_class_iou_thresh:
+                    suppress = True
+                    break
+
         if not suppress:
             kept.append(cand)
 
@@ -332,6 +375,14 @@ class DefectDetectionService:
         if hasattr(self.slicer, "last_sliced_stats"):
             self.last_inference_stats = dict(self.slicer.last_sliced_stats)
 
+        # Consistent suppression check across all detections
+        detections = suppress_overlapping_detections(
+            detections,
+            same_class_iou_thresh=self.slicer.merge_iou_threshold,
+            same_class_iom_thresh=self.slicer.merge_iom_threshold,
+            class_aware=True,
+        )
+
         return detections
 
     def _detect_standard(
@@ -382,6 +433,7 @@ class DefectDetectionService:
                 }
                 return detections
 
+            img_h, img_w = image_bgr.shape[:2]
             model_names = getattr(self.model, "names", self.classes_map)
             raw_count = len(boxes)
             logger.info(
@@ -396,7 +448,10 @@ class DefectDetectionService:
 
             for i in range(raw_count):
                 xyxy = boxes.xyxy[i].cpu().numpy().tolist()
-                x1, y1, x2, y2 = float(xyxy[0]), float(xyxy[1]), float(xyxy[2]), float(xyxy[3])
+                x1 = max(0.0, min(float(img_w), float(xyxy[0])))
+                y1 = max(0.0, min(float(img_h), float(xyxy[1])))
+                x2 = max(0.0, min(float(img_w), float(xyxy[2])))
+                y2 = max(0.0, min(float(img_h), float(xyxy[3])))
                 conf = float(boxes.conf[i].cpu().numpy())
                 cls_id = int(boxes.cls[i].cpu().numpy())
 
@@ -417,6 +472,9 @@ class DefectDetectionService:
 
                 box_w = max(0.0, x2 - x1)
                 box_h = max(0.0, y2 - y1)
+                if box_w <= 0.0 or box_h <= 0.0:
+                    continue
+
                 aspect_ratio = round(box_w / box_h, 3) if box_h > 0 else 0.0
                 pixel_area = round(box_w * box_h, 1)
 
@@ -465,7 +523,8 @@ class DefectDetectionService:
             detections = suppress_overlapping_detections(
                 detections,
                 same_class_iou_thresh=0.45,
-                cross_class_iou_thresh=0.75,
+                same_class_iom_thresh=0.60,
+                class_aware=True,
             )
 
             self.last_inference_stats = {

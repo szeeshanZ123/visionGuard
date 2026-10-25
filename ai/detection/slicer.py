@@ -9,35 +9,81 @@ Implements high-resolution sliding-window inference (SAHI style) without externa
 5. Captures continuous longitudinal and alligator cracks along their full length without downsampling loss.
 """
 
+import logging
 from typing import List, Dict, Any, Tuple, Optional
 import numpy as np
+
+logger = logging.getLogger("visionguard.slicer")
+if not logger.handlers:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 
 
 def compute_iou(box1: Dict[str, float], box2: Dict[str, float]) -> float:
     """Computes Intersection over Union between two bbox dicts with keys x1, y1, x2, y2."""
-    ix1 = max(box1["x1"], box2["x1"])
-    iy1 = max(box1["y1"], box2["y1"])
-    ix2 = min(box1["x2"], box2["x2"])
-    iy2 = min(box1["y2"], box2["y2"])
+    ix1 = max(float(box1.get("x1", 0.0)), float(box2.get("x1", 0.0)))
+    iy1 = max(float(box1.get("y1", 0.0)), float(box2.get("y1", 0.0)))
+    ix2 = min(float(box1.get("x2", 0.0)), float(box2.get("x2", 0.0)))
+    iy2 = min(float(box1.get("y2", 0.0)), float(box2.get("y2", 0.0)))
 
     iw = max(0.0, ix2 - ix1)
     ih = max(0.0, iy2 - iy1)
     intersection = iw * ih
 
-    a1 = max(0.0, (box1["x2"] - box1["x1"]) * (box1["y2"] - box1["y1"]))
-    a2 = max(0.0, (box2["x2"] - box2["x1"]) * (box2["y2"] - box2["y1"]))
+    a1 = max(0.0, (float(box1.get("x2", 0.0)) - float(box1.get("x1", 0.0))) * (float(box1.get("y2", 0.0)) - float(box1.get("y1", 0.0))))
+    a2 = max(0.0, (float(box2.get("x2", 0.0)) - float(box2.get("x1", 0.0))) * (float(box2.get("y2", 0.0)) - float(box2.get("y1", 0.0))))
     union = a1 + a2 - intersection
 
     return intersection / union if union > 0 else 0.0
 
 
-def apply_nms(detections: List[Dict[str, Any]], iou_threshold: float = 0.45) -> List[Dict[str, Any]]:
+def compute_iom(box1: Dict[str, float], box2: Dict[str, float]) -> float:
+    """
+    Computes Intersection over Minimum (IoM / containment) between two bbox dicts.
+    Useful for multi-scale / nested boxes where a smaller tile detection is largely
+    contained inside an oversized global detection.
+    """
+    ix1 = max(float(box1.get("x1", 0.0)), float(box2.get("x1", 0.0)))
+    iy1 = max(float(box1.get("y1", 0.0)), float(box2.get("y1", 0.0)))
+    ix2 = min(float(box1.get("x2", 0.0)), float(box2.get("x2", 0.0)))
+    iy2 = min(float(box1.get("y2", 0.0)), float(box2.get("y2", 0.0)))
+
+    iw = max(0.0, ix2 - ix1)
+    ih = max(0.0, iy2 - iy1)
+    intersection = iw * ih
+
+    a1 = max(0.0, (float(box1.get("x2", 0.0)) - float(box1.get("x1", 0.0))) * (float(box1.get("y2", 0.0)) - float(box1.get("y1", 0.0))))
+    a2 = max(0.0, (float(box2.get("x2", 0.0)) - float(box2.get("x1", 0.0))) * (float(box2.get("y2", 0.0)) - float(box2.get("y1", 0.0))))
+    min_area = min(a1, a2)
+
+    return intersection / min_area if min_area > 0 else 0.0
+
+
+def apply_nms(
+    detections: List[Dict[str, Any]],
+    iou_threshold: float = 0.40,
+    iom_threshold: float = 0.60,
+    class_aware: bool = True,
+) -> List[Dict[str, Any]]:
     """
     Applies per-class Non-Maximum Suppression (NMS) to merge overlapping candidate boxes.
-    Higher-confidence boxes take priority. Overlapping boxes above iou_threshold with the same class_id are suppressed.
+    Supports both standard IoU and Intersection-over-Minimum (IoM / containment)
+    to handle multi-scale/nested boxes from global vs tiled passes and tile boundary overlaps.
+
+    Higher-confidence boxes take priority. When class_aware is True (default), detections
+    from different classes (e.g. wall crack vs peeling paint) never suppress each other.
+    Overlapping boxes of the same class exceeding iou_threshold OR iom_threshold are suppressed.
     """
     if not detections:
         return []
+
+    def same_class(d1: Dict[str, Any], d2: Dict[str, Any]) -> bool:
+        if d1.get("class_id") is not None and d2.get("class_id") is not None:
+            return d1["class_id"] == d2["class_id"]
+        if d1.get("class_name") and d2.get("class_name"):
+            return d1["class_name"] == d2["class_name"]
+        if d1.get("distress_category") and d2.get("distress_category"):
+            return d1["distress_category"] == d2["distress_category"]
+        return True
 
     # Sort descending by confidence score
     sorted_dets = sorted(detections, key=lambda d: d.get("confidence", 0.0), reverse=True)
@@ -48,12 +94,25 @@ def apply_nms(detections: List[Dict[str, Any]], iou_threshold: float = 0.45) -> 
         kept.append(best)
         remaining = []
         for cand in sorted_dets:
-            # Different classes do not suppress each other
-            if cand.get("class_id") != best.get("class_id"):
+            # When class-aware, different classes do not suppress each other
+            if class_aware and not same_class(best, cand):
                 remaining.append(cand)
             else:
                 iou = compute_iou(best["bbox"], cand["bbox"])
-                if iou < iou_threshold:
+                iom = compute_iom(best["bbox"], cand["bbox"])
+                if iou >= iou_threshold or iom >= iom_threshold:
+                    logger.debug(
+                        "Suppressed duplicate [%s conf=%.3f src=%s] by [%s conf=%.3f src=%s] (IoU=%.3f, IoM=%.3f)",
+                        cand.get("class_name") or cand.get("distress_category"),
+                        cand.get("confidence", 0.0),
+                        cand.get("source", "unknown"),
+                        best.get("class_name") or best.get("distress_category"),
+                        best.get("confidence", 0.0),
+                        best.get("source", "unknown"),
+                        iou,
+                        iom,
+                    )
+                else:
                     remaining.append(cand)
         sorted_dets = remaining
 
@@ -71,10 +130,12 @@ class SlicedInferenceEngine:
         slice_size: int = 384,
         overlap_ratio: float = 0.20,
         merge_iou_threshold: float = 0.40,
+        merge_iom_threshold: float = 0.60,
     ):
         self.slice_size = max(160, slice_size)
         self.overlap_ratio = max(0.05, min(0.60, overlap_ratio))
         self.merge_iou_threshold = merge_iou_threshold
+        self.merge_iom_threshold = merge_iom_threshold
         self.last_sliced_stats: Dict[str, Any] = {
             "slice_count": 0,
             "raw_candidate_count": 0,
@@ -152,8 +213,8 @@ class SlicedInferenceEngine:
         Executes tiled inference across overlapping image slices:
         1. Optionally runs global pass on full image.
         2. Generates overlapping tiles and runs genuine inference on each tile.
-        3. Shifts tile bboxes back to global coordinates.
-        4. Fuses all candidates using per-class NMS.
+        3. Shifts tile bboxes back to global coordinates and clips to image boundaries.
+        4. Fuses all candidates using per-class NMS with IoU + IoM containment.
         5. Tracks aggregate diagnostic telemetry (raw candidate count, top confidence).
         """
         if image_bgr is None or not isinstance(image_bgr, np.ndarray) or image_bgr.size == 0:
@@ -185,6 +246,30 @@ class SlicedInferenceEngine:
             for gd in global_dets:
                 cand = dict(gd)
                 cand["source"] = "global"
+                cand["tile_index"] = -1
+                cand["tile_coords"] = [0, 0, w, h]
+
+                # Clip global bounding box coordinates to image boundaries
+                gb = cand.get("bbox", {})
+                gx1 = max(0.0, min(float(w), float(gb.get("x1", 0.0))))
+                gy1 = max(0.0, min(float(h), float(gb.get("y1", 0.0))))
+                gx2 = max(0.0, min(float(w), float(gb.get("x2", 0.0))))
+                gy2 = max(0.0, min(float(h), float(gb.get("y2", 0.0))))
+                bw = round(max(0.0, gx2 - gx1), 1)
+                bh = round(max(0.0, gy2 - gy1), 1)
+                if bw <= 0.0 or bh <= 0.0:
+                    continue
+
+                cand["bbox"] = {
+                    "x1": round(gx1, 1),
+                    "y1": round(gy1, 1),
+                    "x2": round(gx2, 1),
+                    "y2": round(gy2, 1),
+                    "width": bw,
+                    "height": bh,
+                    "aspect_ratio": round(bw / bh, 3) if bh > 0 else 0.0,
+                    "pixel_area": round(bw * bh, 1),
+                }
                 all_candidates.append(cand)
 
             # Check detector's stats from global pass
@@ -197,7 +282,17 @@ class SlicedInferenceEngine:
 
         # 2. Sliced pass
         slice_coords = self.calculate_slices(w, h, slice_size=slice_size, overlap_ratio=overlap_ratio)
-        for (x_min, y_min, x_max, y_max) in slice_coords:
+        logger.info(
+            "Tiled inference starting: %d slices generated (image %dx%d, slice_size=%d, overlap=%.2f, fuse_with_global=%s)",
+            len(slice_coords),
+            w,
+            h,
+            slice_size or self.slice_size,
+            overlap_ratio if overlap_ratio is not None else self.overlap_ratio,
+            fuse_with_global,
+        )
+
+        for tile_idx, (x_min, y_min, x_max, y_max) in enumerate(slice_coords):
             # If the single slice covers the exact entire image, skip redundant slice
             if x_min == 0 and y_min == 0 and x_max == w and y_max == h and fuse_with_global:
                 continue
@@ -215,12 +310,16 @@ class SlicedInferenceEngine:
 
             for td in tile_dets:
                 tb = td["bbox"]
-                gx1 = round(tb["x1"] + x_min, 1)
-                gy1 = round(tb["y1"] + y_min, 1)
-                gx2 = round(tb["x2"] + x_min, 1)
-                gy2 = round(tb["y2"] + y_min, 1)
+                # Translate tile coordinates to global space and strictly clip to image boundaries
+                gx1 = max(0.0, min(float(w), round(tb["x1"] + x_min, 1)))
+                gy1 = max(0.0, min(float(h), round(tb["y1"] + y_min, 1)))
+                gx2 = max(0.0, min(float(w), round(tb["x2"] + x_min, 1)))
+                gy2 = max(0.0, min(float(h), round(tb["y2"] + y_min, 1)))
                 bw = round(max(0.0, gx2 - gx1), 1)
                 bh = round(max(0.0, gy2 - gy1), 1)
+                if bw <= 0.0 or bh <= 0.0:
+                    continue
+
                 ar = round(bw / bh, 3) if bh > 0 else 0.0
                 pa = round(bw * bh, 1)
 
@@ -236,11 +335,26 @@ class SlicedInferenceEngine:
                     "pixel_area": pa,
                 }
                 shifted_det["source"] = "tiled"
+                shifted_det["tile_index"] = tile_idx
                 shifted_det["tile_coords"] = [x_min, y_min, x_max, y_max]
                 all_candidates.append(shifted_det)
 
-        # 3. Fuse and deduplicate using NMS
-        fused = apply_nms(all_candidates, iou_threshold=self.merge_iou_threshold)
+        # 3. Fuse and deduplicate using NMS with IoU + IoM containment
+        raw_count = len(all_candidates)
+        fused = apply_nms(
+            all_candidates,
+            iou_threshold=self.merge_iou_threshold,
+            iom_threshold=self.merge_iom_threshold,
+            class_aware=True,
+        )
+        logger.info(
+            "Tiled inference candidate fusion complete: %d raw candidates -> %d fused detections (suppressed %d duplicates, IoU thresh=%.2f, IoM thresh=%.2f)",
+            raw_count,
+            len(fused),
+            raw_count - len(fused),
+            self.merge_iou_threshold,
+            self.merge_iom_threshold,
+        )
 
         # 4. Save aggregate sliced stats
         suggested = round(max(0.05, top_raw_conf - 0.004), 2) if top_raw_conf >= 0.045 else None

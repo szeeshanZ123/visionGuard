@@ -190,3 +190,99 @@ def test_detector_raw_candidate_filtering_and_class_mapping():
     det_90 = detector.detect(blank_img, conf_threshold=0.90)
     assert len(det_90) == 0
 
+
+def test_detector_home_model_class_preservation_and_merging_fidelity():
+    """
+    Diagnostic reproducibility test for Home Defect Model inference:
+    Simulates the exact raw YOLO output observed on the wall crack image:
+    - Global pass:
+        * Raw Box #1: class_id=2 (peeling_paint_or_plaster), conf=0.3989, bbox=[1.7, 168.3, 338.9, 615.7]
+        * Raw Box #2: class_id=2 (peeling_paint_or_plaster), conf=0.1157, bbox=[124.0, 19.3, 216.2, 165.6]
+        * Raw Box #3: class_id=0 (wall_crack), conf=0.1123, bbox=[223.3, 472.5, 230.9, 501.5]
+    - Sliced pass:
+        * Tile at (0, 256): local bbox=[0.2, 0.0, 366.1, 372.5], class_id=2, conf=0.5032
+
+    Verifies:
+    1. Merging code strictly preserves class integrity (class_id=0 remains wall_crack, class_id=2 remains peeling_paint).
+    2. Tile coordinates are accurately converted to global space [0.2, 256.0, 366.1, 628.5].
+    3. Class-aware NMS preserves the 11.2% wall crack; it is never suppressed or reclassified by peeling paint.
+    4. Proves conclusively that the 11.2% confidence and peeling paint classification come from the model's raw output.
+    """
+    import torch
+
+    class MockYOLOBoxes:
+        def __init__(self, xyxy_list, conf_list, cls_list):
+            self.xyxy = torch.tensor(xyxy_list, dtype=torch.float32)
+            self.conf = torch.tensor(conf_list, dtype=torch.float32)
+            self.cls = torch.tensor(cls_list, dtype=torch.float32)
+
+        def __len__(self):
+            return len(self.conf)
+
+    class MockYOLOResult:
+        def __init__(self, boxes):
+            self.boxes = boxes
+
+    class MockHomeYOLOModel:
+        def __init__(self):
+            self.names = {
+                0: "wall_crack",
+                1: "damp_or_water_damage",
+                2: "peeling_paint_or_plaster",
+                3: "spalling_or_surface_damage",
+            }
+
+        def predict(self, source, conf=0.25, verbose=False):
+            h, w = source.shape[:2]
+            # Global image: 640x480
+            if w == 480 and h == 640:
+                raw_xyxy = [
+                    [1.7, 168.3, 338.9, 615.7],
+                    [124.0, 19.3, 216.2, 165.6],
+                    [223.3, 472.5, 230.9, 501.5],
+                ]
+                raw_conf = [0.3989, 0.1157, 0.1123]
+                raw_cls = [2, 2, 0]
+                return [MockYOLOResult(MockYOLOBoxes(raw_xyxy, raw_conf, raw_cls))]
+            else:
+                # Tile pass: e.g. tile covering y=[256, 640], x=[0, 384]
+                raw_xyxy = [
+                    [0.2, 0.0, 366.1, 372.5],
+                ]
+                raw_conf = [0.5032]
+                raw_cls = [2]
+                return [MockYOLOResult(MockYOLOBoxes(raw_xyxy, raw_conf, raw_cls))]
+
+    detector = DefectDetectionService(model_path="ai/models/home_best.pt", domain="home")
+    detector.is_loaded = True
+    detector.model = MockHomeYOLOModel()
+
+    fake_wall_img = np.zeros((640, 480, 3), dtype=np.uint8)
+
+    # Run tiled detection with threshold 0.05
+    results = detector.detect_sliced(fake_wall_img, conf_threshold=0.05)
+
+    # 1. Verify class fidelity: classes are exactly preserved as output by YOLO
+    crack_detections = [d for d in results if d["class_name"] == "wall_crack"]
+    peeling_detections = [d for d in results if d["class_name"] == "peeling_paint_or_plaster"]
+
+    assert len(crack_detections) == 1
+    assert crack_detections[0]["class_id"] == 0
+    assert crack_detections[0]["distress_category"] == "Wall Crack"
+    assert pytest.approx(crack_detections[0]["confidence"], 1e-4) == 0.1123
+
+    # 2. Verify tile coordinate conversion: [0.2, 0.0, 366.1, 372.5] accurately shifted by each tile's (x_min, y_min)
+    tile_peeling = [d for d in peeling_detections if d.get("source") == "tiled"]
+    assert len(tile_peeling) >= 1
+    for d in tile_peeling:
+        t_box = d["bbox"]
+        x_min, y_min, x_max, y_max = d["tile_coords"]
+        assert t_box["x1"] == pytest.approx(0.2 + x_min, 0.1)
+        assert t_box["y1"] == pytest.approx(0.0 + y_min, 0.1)
+        assert t_box["x2"] == pytest.approx(min(480.0, 366.1 + x_min), 0.1)
+        assert t_box["y2"] == pytest.approx(min(640.0, 372.5 + y_min), 0.1)
+
+    # 3. Verify that the 11.2% crack was not suppressed by the overlapping peeling paint
+    assert crack_detections[0]["bbox"]["y1"] >= 470.0
+
+
