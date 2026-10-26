@@ -178,12 +178,30 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
         status TEXT NOT NULL DEFAULT 'draft',
         created_by_user_id INTEGER,
         created_by_username TEXT,
+        complainant_name TEXT,
+        complainant_contact TEXT,
+        submission_channel TEXT,
+        submission_reference TEXT,
+        submitted_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (inspection_id) REFERENCES defect_inspections(id) ON DELETE CASCADE
     );
     """)
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_complaint_drafts_insp ON complaint_drafts(inspection_id);")
+
+    # Ensure schema migrations for complaint_drafts columns if existing DB
+    cursor.execute("PRAGMA table_info(complaint_drafts);")
+    existing_cd_cols = {col[1] for col in cursor.fetchall()}
+    for col_name, col_type in [
+        ("complainant_name", "TEXT"),
+        ("complainant_contact", "TEXT"),
+        ("submission_channel", "TEXT"),
+        ("submission_reference", "TEXT"),
+        ("submitted_at", "TIMESTAMP"),
+    ]:
+        if col_name not in existing_cd_cols:
+            cursor.execute(f"ALTER TABLE complaint_drafts ADD COLUMN {col_name} {col_type};")
 
     # Table for system audit logs / metadata
     cursor.execute("""
@@ -424,6 +442,13 @@ def row_to_dict(row: sqlite3.Row, ref_date: Optional[datetime.date] = None) -> D
     d["assignment_status"] = d.get("assignment_status") or "unassigned"
     d["assignment_updated_at"] = d.get("assignment_updated_at")
 
+    # Complaint & Civic Filing tracking fields (Phase 4)
+    d["complaint_draft_id"] = d.get("complaint_draft_id")
+    d["complaint_status"] = d.get("complaint_status") or "none"
+    d["submission_channel"] = d.get("complaint_submission_channel") or d.get("submission_channel")
+    d["submission_reference"] = d.get("complaint_submission_reference") or d.get("submission_reference")
+    d["submitted_at"] = d.get("complaint_submitted_at") or d.get("submitted_at")
+
     return d
 
 
@@ -593,6 +618,8 @@ def get_inspections(
     ref_date: Optional[datetime.date] = None,
     domain: Optional[str] = None,
     inspection_type: Optional[str] = None,
+    complaint_status: Optional[str] = None,
+    sort_by: Optional[str] = "newest",
     db_path: str = DEFAULT_DB_PATH
 ) -> List[Dict[str, Any]]:
     """Retrieves saved inspections with optional filters, ordered chronologically newest first."""
@@ -600,61 +627,70 @@ def get_inspections(
     conn = get_db_connection(db_path)
     cursor = conn.cursor()
 
+    # Check if complaint_drafts table exists in SQLite
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='complaint_drafts';")
+    has_complaints_table = bool(cursor.fetchone())
+
     conditions = []
     params = []
 
     target_type = inspection_type or domain
     if target_type and target_type.strip() and target_type.strip().lower() != "all":
-        conditions.append("LOWER(COALESCE(inspection_type, 'road')) = ?")
+        conditions.append("LOWER(COALESCE(di.inspection_type, 'road')) = ?")
         params.append(target_type.strip().lower())
 
     if status and status.strip():
         st = status.strip()
         if st in ALLOWED_STATUSES:
-            conditions.append("status = ?")
+            conditions.append("di.status = ?")
             params.append(st)
         elif st.lower() in ["in progress group", "in-progress", "active"]:
-            conditions.append("status IN ('In Progress', 'Repair in Progress', 'Under Review')")
+            conditions.append("di.status IN ('In Progress', 'Repair in Progress', 'Under Review')")
 
     if category and category.strip():
         cat = category.strip()
         if cat.lower() in ["sound", "none", "clean"]:
-            conditions.append("(defect_count = 0 OR defect_type LIKE '%None%')")
+            conditions.append("(di.defect_count = 0 OR di.defect_type LIKE '%None%')")
         else:
-            conditions.append("(defect_type LIKE ? OR detections_json LIKE ?)")
+            conditions.append("(di.defect_type LIKE ? OR di.detections_json LIKE ?)")
             params.append(f"%{cat}%")
             params.append(f"%{cat}%")
 
     if search_query and search_query.strip():
+        raw_q = search_query.strip().lstrip("#")
         q_term = f"%{search_query.strip()}%"
-        conditions.append("(road_name LIKE ? OR area LIKE ? OR city LIKE ? OR location_notes LIKE ? OR image_name LIKE ?)")
-        params.extend([q_term, q_term, q_term, q_term, q_term])
+        if raw_q.isdigit():
+            conditions.append("(di.id = ? OR di.road_name LIKE ? OR di.area LIKE ? OR di.city LIKE ? OR di.location_notes LIKE ? OR di.image_name LIKE ?)")
+            params.extend([int(raw_q), q_term, q_term, q_term, q_term, q_term])
+        else:
+            conditions.append("(di.road_name LIKE ? OR di.area LIKE ? OR di.city LIKE ? OR di.location_notes LIKE ? OR di.image_name LIKE ?)")
+            params.extend([q_term, q_term, q_term, q_term, q_term])
 
     if has_coords is True:
-        conditions.append("latitude IS NOT NULL AND longitude IS NOT NULL")
+        conditions.append("di.latitude IS NOT NULL AND di.longitude IS NOT NULL")
     elif has_coords is False:
-        conditions.append("(latitude IS NULL OR longitude IS NULL)")
+        conditions.append("(di.latitude IS NULL OR di.longitude IS NULL)")
 
     # City & Area filters
     if city and city.strip():
         c_val = city.strip()
-        conditions.append("LOWER(city) LIKE ?")
+        conditions.append("LOWER(di.city) LIKE ?")
         params.append(f"%{c_val.lower()}%")
 
     if area and area.strip():
         a_val = area.strip()
-        conditions.append("LOWER(area) LIKE ?")
+        conditions.append("LOWER(di.area) LIKE ?")
         params.append(f"%{a_val.lower()}%")
 
     # Date range filters (date of inspection upload)
     if start_date and str(start_date).strip():
         st_date = str(start_date).strip()[:10]
-        conditions.append("date(uploaded_at) >= ?")
+        conditions.append("date(di.uploaded_at) >= ?")
         params.append(st_date)
 
     if end_date and str(end_date).strip():
         en_date = str(end_date).strip()[:10]
-        conditions.append("date(uploaded_at) <= ?")
+        conditions.append("date(di.uploaded_at) <= ?")
         params.append(en_date)
 
     # Maintenance deadline filter (Phase 4.4)
@@ -662,45 +698,84 @@ def get_inspections(
     if deadline_filter and deadline_filter.strip():
         dl = deadline_filter.strip().lower()
         if dl == "overdue":
-            # Active/unresolved defects whose target repair date has passed
-            conditions.append("status != 'Resolved' AND target_repair_date IS NOT NULL AND target_repair_date != '' AND target_repair_date < ?")
+            conditions.append("di.status != 'Resolved' AND di.target_repair_date IS NOT NULL AND di.target_repair_date != '' AND di.target_repair_date < ?")
             params.append(ref_today)
         elif dl == "due_today":
-            conditions.append("status != 'Resolved' AND target_repair_date = ?")
+            conditions.append("di.status != 'Resolved' AND di.target_repair_date = ?")
             params.append(ref_today)
         elif dl == "upcoming":
-            conditions.append("status != 'Resolved' AND target_repair_date > ?")
+            conditions.append("di.status != 'Resolved' AND di.target_repair_date > ?")
             params.append(ref_today)
         elif dl == "resolved":
-            conditions.append("status = 'Resolved'")
+            conditions.append("di.status = 'Resolved'")
         elif dl in ["no_deadline", "none"]:
-            conditions.append("(target_repair_date IS NULL OR target_repair_date = '')")
+            conditions.append("(di.target_repair_date IS NULL OR di.target_repair_date = '')")
 
     # Maintenance task assignment filters (Phase 4.7)
     if assigned_to_user_id is not None:
-        conditions.append("assigned_to_user_id = ?")
+        conditions.append("di.assigned_to_user_id = ?")
         params.append(assigned_to_user_id)
 
     if assignment_status and assignment_status.strip() and assignment_status.lower() != "all":
         ast = assignment_status.strip().lower()
         if ast == "unassigned":
-            conditions.append("(assigned_to_user_id IS NULL OR assignment_status = 'unassigned')")
+            conditions.append("(di.assigned_to_user_id IS NULL OR di.assignment_status = 'unassigned')")
         elif ast in ["assigned", "in_progress", "completed", "cancelled"]:
-            conditions.append("assignment_status = ?")
+            conditions.append("di.assignment_status = ?")
             params.append(ast)
 
     if created_by_user_id is not None:
-        conditions.append("created_by_user_id = ?")
+        conditions.append("di.created_by_user_id = ?")
         params.append(created_by_user_id)
+
+    # Complaint filing status filter (Phase 4)
+    if complaint_status and complaint_status.strip() and complaint_status.strip().lower() != "all" and has_complaints_table:
+        cst = complaint_status.strip().lower()
+        if cst in ("none", "uncreated", "no_draft"):
+            conditions.append("(cd.id IS NULL OR cd.status IS NULL)")
+        else:
+            conditions.append("LOWER(COALESCE(cd.status, '')) = ?")
+            params.append(cst)
 
     where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
 
-    query = f"""
-    SELECT * FROM defect_inspections
-    {where_clause}
-    ORDER BY uploaded_at DESC, id DESC
-    LIMIT ? OFFSET ?;
-    """
+    # Sorting
+    sort_by_val = (sort_by or "newest").strip().lower()
+    if sort_by_val in ("oldest", "asc"):
+        order_clause = "ORDER BY di.uploaded_at ASC, di.id ASC"
+    elif sort_by_val in ("defects_desc", "defects"):
+        order_clause = "ORDER BY di.defect_count DESC, di.uploaded_at DESC, di.id DESC"
+    else:
+        order_clause = "ORDER BY di.uploaded_at DESC, di.id DESC"
+
+    if has_complaints_table:
+        cursor.execute("PRAGMA table_info(complaint_drafts);")
+        cd_cols = {col[1] for col in cursor.fetchall()}
+        sub_ch_col = "cd.submission_channel AS complaint_submission_channel" if "submission_channel" in cd_cols else "NULL AS complaint_submission_channel"
+        sub_ref_col = "cd.submission_reference AS complaint_submission_reference" if "submission_reference" in cd_cols else "NULL AS complaint_submission_reference"
+        sub_at_col = "cd.submitted_at AS complaint_submitted_at" if "submitted_at" in cd_cols else "NULL AS complaint_submitted_at"
+        query = f"""
+        SELECT di.*,
+               cd.id AS complaint_draft_id,
+               cd.status AS complaint_status,
+               {sub_ch_col},
+               {sub_ref_col},
+               {sub_at_col}
+        FROM defect_inspections di
+        LEFT JOIN complaint_drafts cd ON di.id = cd.inspection_id
+        {where_clause}
+        {order_clause}
+        LIMIT ? OFFSET ?;
+        """
+    else:
+        query = f"""
+        SELECT di.*
+        FROM defect_inspections di
+        {where_clause}
+        {order_clause}
+        LIMIT ? OFFSET ?;
+        """
+
     params.extend([limit, offset])
 
     cursor.execute(query, tuple(params))
@@ -911,8 +986,69 @@ def get_inspection_by_id(
     else:
         res["assigned_to_user_active"] = None
 
+    # Attach complaint draft summary if complaint_drafts table exists
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='complaint_drafts';")
+    if cursor.fetchone():
+        cursor.execute("SELECT * FROM complaint_drafts WHERE inspection_id = ?;", (inspection_id,))
+        cd_row = cursor.fetchone()
+        if cd_row:
+            cd_dict = dict(cd_row)
+            res["complaint_draft"] = cd_dict
+            res["complaint_status"] = cd_dict.get("status") or "none"
+            res["submission_channel"] = cd_dict.get("submission_channel")
+            res["submission_reference"] = cd_dict.get("submission_reference")
+            res["submitted_at"] = cd_dict.get("submitted_at")
+        else:
+            res["complaint_draft"] = None
+            res["complaint_status"] = "none"
+    else:
+        res["complaint_draft"] = None
+        res["complaint_status"] = "none"
+
     conn.close()
     return res
+
+
+def get_citizen_dashboard_summary(
+    user_id: int,
+    db_path: str = DEFAULT_DB_PATH
+) -> Dict[str, int]:
+    """Calculates summary counts for a citizen's own inspections and complaint submissions."""
+    init_db(db_path)
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT COUNT(*) as count FROM defect_inspections WHERE created_by_user_id = ?;", (user_id,))
+    total = cursor.fetchone()["count"]
+
+    cursor.execute("SELECT COUNT(*) as count FROM defect_inspections WHERE created_by_user_id = ? AND status = 'Open';", (user_id,))
+    open_count = cursor.fetchone()["count"]
+
+    cursor.execute("SELECT COUNT(*) as count FROM defect_inspections WHERE created_by_user_id = ? AND status IN ('Under Review', 'In Progress', 'Repair in Progress');", (user_id,))
+    under_review_count = cursor.fetchone()["count"]
+
+    cursor.execute("SELECT COUNT(*) as count FROM defect_inspections WHERE created_by_user_id = ? AND status = 'Resolved';", (user_id,))
+    resolved_count = cursor.fetchone()["count"]
+
+    submitted_complaints = 0
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='complaint_drafts';")
+    if cursor.fetchone():
+        cursor.execute("""
+        SELECT COUNT(*) as count FROM complaint_drafts cd
+        JOIN defect_inspections di ON cd.inspection_id = di.id
+        WHERE di.created_by_user_id = ? AND cd.status = 'submitted';
+        """, (user_id,))
+        submitted_complaints = cursor.fetchone()["count"]
+
+    conn.close()
+
+    return {
+        "total": total,
+        "open": open_count,
+        "under_review": under_review_count,
+        "resolved": resolved_count,
+        "submitted_complaints": submitted_complaints,
+    }
 
 
 def update_inspection_status(
