@@ -1127,8 +1127,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const mapCountBadgeHeader = document.getElementById("mapCountBadgeHeader");
     const queueCountBadgeHeader = document.getElementById("queueCountBadgeHeader");
 
-    // Phase 4.7: Maintenance Work Queue & Task Assignment Elements
+    // Phase 4.7 & Phase 5: Maintenance Work Queue & Task Assignment Elements
     const queueSubtitle = document.getElementById("queueSubtitle");
+    const queueDomainFilter = document.getElementById("queueDomainFilter");
+    const queueSortFilter = document.getElementById("queueSortFilter");
+    const queueAssigneeFilterWrap = document.getElementById("queueAssigneeFilterWrap");
+    const queueAssigneeFilter = document.getElementById("queueAssigneeFilter");
     const queueStatusFilter = document.getElementById("queueStatusFilter");
     const queueUrgencyFilter = document.getElementById("queueUrgencyFilter");
     const queueCategoryFilter = document.getElementById("queueCategoryFilter");
@@ -1143,6 +1147,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const queueTableBody = document.getElementById("queueTableBody");
     const queueEmptyState = document.getElementById("queueEmptyState");
     const queueEmptyText = document.getElementById("queueEmptyText");
+    const queueEmptyResetBtn = document.getElementById("queueEmptyResetBtn");
+    const queueErrorState = document.getElementById("queueErrorState");
+    const queueErrorText = document.getElementById("queueErrorText");
+    const queueRetryBtn = document.getElementById("queueRetryBtn");
 
     const detailAssignmentCard = document.getElementById("detailAssignmentCard");
     const detailAssignmentStatusBadge = document.getElementById("detailAssignmentStatusBadge");
@@ -1610,8 +1618,10 @@ document.addEventListener("DOMContentLoaded", () => {
             case "Open": return "badge badge-status-open";
             case "In Progress": return "badge badge-status-in-progress";
             case "Under Review": return "badge badge-status-review";
+            case "Assigned": return "badge badge-status-assigned";
             case "Repair in Progress": return "badge badge-status-repair";
             case "Resolved": return "badge badge-status-resolved";
+            case "Reopened": return "badge badge-status-reopened";
             default: return "badge badge-secondary";
         }
     }
@@ -1660,6 +1670,24 @@ document.addEventListener("DOMContentLoaded", () => {
                     break;
                 case "status_change":
                     actionBadge = `<span class="activity-action-badge action-status-change">Status</span>`;
+                    break;
+                case "resolved":
+                    actionBadge = `<span class="activity-action-badge action-resolved">Resolved</span>`;
+                    break;
+                case "reopened":
+                    actionBadge = `<span class="activity-action-badge action-reopened">Reopened</span>`;
+                    break;
+                case "assigned":
+                    actionBadge = `<span class="activity-action-badge action-assigned">Assigned</span>`;
+                    break;
+                case "reassigned":
+                    actionBadge = `<span class="activity-action-badge action-reassigned">Reassigned</span>`;
+                    break;
+                case "assignment_cancelled":
+                    actionBadge = `<span class="activity-action-badge action-cancelled">Cancelled</span>`;
+                    break;
+                case "repair_notes_added":
+                    actionBadge = `<span class="activity-action-badge action-repair-notes">Repair Notes</span>`;
                     break;
                 case "target_date_change":
                     actionBadge = `<span class="activity-action-badge action-target-date-change">Target Date</span>`;
@@ -3047,7 +3075,26 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // Status Update Action
+    // Status Update Action & Dynamic Notes Requirement (Phase 5)
+    if (detailStatusSelect) {
+        detailStatusSelect.addEventListener("change", () => {
+            const val = detailStatusSelect.value;
+            if (val === "Resolved") {
+                if (detailStatusNotes) {
+                    detailStatusNotes.placeholder = "Required: Enter physical verification evidence, repair actions taken, and findings...";
+                }
+            } else if (val === "Reopened") {
+                if (detailStatusNotes) {
+                    detailStatusNotes.placeholder = "Required: Enter reason for reopening inspection report...";
+                }
+            } else {
+                if (detailStatusNotes) {
+                    detailStatusNotes.placeholder = "Enter internal repair notes, workflow updates, or progress comments...";
+                }
+            }
+        });
+    }
+
     if (updateStatusBtn) {
         updateStatusBtn.addEventListener("click", async () => {
             if (!currentDetailId) return;
@@ -3055,6 +3102,29 @@ document.addEventListener("DOMContentLoaded", () => {
             const newStatus = detailStatusSelect ? detailStatusSelect.value : "";
             const targetRepairDate = detailTargetDateInput ? detailTargetDateInput.value.trim() : "";
             const notes = detailStatusNotes ? detailStatusNotes.value.trim() : "";
+
+            // Client-side validations for required notes
+            if (newStatus === "Resolved" && !notes) {
+                detailStatusFeedback.innerHTML = `
+                    <div class="alert alert-danger alert-sm" style="margin-top: 0.75rem;">
+                        <strong>⚠️ Resolution Notes Required:</strong> Please enter verified physical repair evidence and findings before resolving this report.
+                    </div>
+                `;
+                detailStatusFeedback.style.display = "block";
+                if (detailStatusNotes) detailStatusNotes.focus();
+                return;
+            }
+
+            if (newStatus === "Reopened" && !notes) {
+                detailStatusFeedback.innerHTML = `
+                    <div class="alert alert-danger alert-sm" style="margin-top: 0.75rem;">
+                        <strong>⚠️ Reason Required:</strong> Please enter a reason note for reopening this inspection report.
+                    </div>
+                `;
+                detailStatusFeedback.style.display = "block";
+                if (detailStatusNotes) detailStatusNotes.focus();
+                return;
+            }
 
             updateStatusBtn.disabled = true;
             updateStatusSpinner.style.display = "inline-block";
@@ -3122,6 +3192,11 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
 
+                // Clear entered notes input for subsequent updates
+                if (detailStatusNotes) {
+                    detailStatusNotes.value = "";
+                }
+
                 // Refresh activity log
                 try {
                     const actRes = await fetch(`/api/inspections/${currentDetailId}/activity`);
@@ -3140,9 +3215,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 loadRecordsHeaderCount();
                 loadDashboardStats();
+                loadMaintenanceQueue();
             } catch (err) {
                 console.error("Status update error:", err);
-                alert(`Error updating inspection record:\n${err.message}`);
+                detailStatusFeedback.innerHTML = `
+                    <div class="alert alert-danger alert-sm" style="margin-top: 0.75rem;">
+                        <strong>⚠️ Update Failed:</strong> ${escapeHtml(err.message)}
+                    </div>
+                `;
+                detailStatusFeedback.style.display = "block";
             } finally {
                 updateStatusBtn.disabled = false;
                 updateStatusSpinner.style.display = "none";
@@ -4516,21 +4597,55 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Maintenance Work Queue Loader
+    // Maintenance Work Queue Loader (Phase 4.7 & Phase 5)
+    async function loadQueueStaffFilterOptions() {
+        if (!queueAssigneeFilter || !currentUser || currentUser.role !== "admin") return;
+        if (queueAssigneeFilter.options.length > 2) return;
+        try {
+            const res = await fetch("/api/maintenance/staff");
+            const data = await res.json();
+            if (!res.ok || data.status !== "success") return;
+            const staff = data.staff || [];
+            let html = '<option value="">All Staff</option><option value="unassigned">Unassigned Only</option>';
+            staff.forEach(s => {
+                const display = s.full_name ? `${s.username} (${s.full_name})` : s.username;
+                html += `<option value="${s.id}">${escapeHtml(display)}</option>`;
+            });
+            queueAssigneeFilter.innerHTML = html;
+        } catch (_) {}
+    }
+
     async function loadMaintenanceQueue() {
         if (!queueTableBody) return;
         if (!currentUser) {
+            if (queueEmptyState) queueEmptyState.style.display = "none";
+            if (queueErrorState) queueErrorState.style.display = "none";
+            if (queueTable) queueTable.style.display = "table";
             queueTableBody.innerHTML = `<tr><td colspan="9" class="text-center" style="padding: 2.5rem; color: var(--text-muted);">
                 🔒 Authentication Required. Please <button class="btn btn-sm btn-primary guest-login-btn" style="margin-left: 0.5rem;">Sign In</button> to view maintenance tasks.
             </td></tr>`;
             bindGuestLoginButtons();
             return;
         }
+
+        if (queueErrorState) queueErrorState.style.display = "none";
+
+        // Show/hide admin-specific assignee filter
+        if (currentUser.role === "admin") {
+            if (queueAssigneeFilterWrap) queueAssigneeFilterWrap.style.display = "flex";
+            loadQueueStaffFilterOptions();
+        } else {
+            if (queueAssigneeFilterWrap) queueAssigneeFilterWrap.style.display = "none";
+        }
+
         queueTableBody.innerHTML = `<tr><td colspan="9" class="text-center" style="padding: 2rem; color: var(--text-muted);">Loading maintenance tasks...</td></tr>`;
 
         const status = queueStatusFilter ? queueStatusFilter.value : "";
         const urgency = queueUrgencyFilter ? queueUrgencyFilter.value : "";
         const category = queueCategoryFilter ? queueCategoryFilter.value : "";
+        const domain = queueDomainFilter ? queueDomainFilter.value : "";
+        const sortBy = queueSortFilter ? queueSortFilter.value : "newest";
+        const assignee = (queueAssigneeFilter && currentUser.role === "admin") ? queueAssigneeFilter.value : "";
         const q = queueSearchInput ? queueSearchInput.value.trim() : "";
 
         try {
@@ -4538,13 +4653,28 @@ document.addEventListener("DOMContentLoaded", () => {
             if (status) params.append("status", status);
             if (urgency) params.append("urgency", urgency);
             if (category) params.append("category", category);
+            if (domain) params.append("domain", domain);
+            if (sortBy) params.append("sort_by", sortBy);
             if (q) params.append("q", q);
+
+            if (assignee === "unassigned") {
+                params.append("assignment_status", "unassigned");
+            } else if (assignee) {
+                params.append("assigned_to_user_id", assignee);
+            }
+
+            if (currentUser.role === "admin" && !assignee) {
+                params.append("include_unassigned", "1");
+            }
 
             const res = await fetch(`/api/maintenance/queue?${params.toString()}`);
             const data = await res.json();
 
             if (!res.ok || data.status !== "success") {
                 if (res.status === 401 || res.status === 403) {
+                    if (queueEmptyState) queueEmptyState.style.display = "none";
+                    if (queueErrorState) queueErrorState.style.display = "none";
+                    if (queueTable) queueTable.style.display = "table";
                     queueTableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger" style="padding: 2rem;">🔒 Access Restricted: Login as Maintenance Staff or Administrator to view tasks.</td></tr>`;
                     return;
                 }
@@ -4569,24 +4699,32 @@ document.addEventListener("DOMContentLoaded", () => {
             if (tasks.length === 0) {
                 if (queueEmptyState) queueEmptyState.style.display = "block";
                 if (queueTable) queueTable.style.display = "none";
+                if (queueErrorState) queueErrorState.style.display = "none";
                 return;
             }
 
             if (queueEmptyState) queueEmptyState.style.display = "none";
+            if (queueErrorState) queueErrorState.style.display = "none";
             if (queueTable) queueTable.style.display = "table";
 
             queueTableBody.innerHTML = "";
             tasks.forEach(t => {
                 const tr = document.createElement("tr");
 
+                // Category Badge (Home vs Road)
+                const isHome = (t.inspection_type || "").toLowerCase() === "home";
+                const catBadge = isHome
+                    ? '<span class="badge badge-info" style="font-size:0.75rem; padding: 2px 6px;">🏡 Home</span>'
+                    : '<span class="badge badge-primary" style="font-size:0.75rem; padding: 2px 6px;">🛣️ Road</span>';
+
                 // Assignee
-                let techDisplay = t.assigned_to_username ? `<strong>${escapeHtml(t.assigned_to_username)}</strong>` : "<em>Unassigned</em>";
+                let techDisplay = t.assigned_to_username ? `<strong>${escapeHtml(t.assigned_to_username)}</strong>` : '<span class="text-muted"><em>Unassigned</em></span>';
                 if (t.assigned_to_user_active === false) {
                     techDisplay += ` <span class="badge badge-warning" style="font-size:0.68rem; padding: 1px 4px;">Deactivated</span>`;
                 }
 
                 // Road / Location
-                const roadName = t.road_name ? `<strong>${escapeHtml(t.road_name)}</strong>` : "<em>Unspecified Road</em>";
+                const roadName = t.road_name ? `<strong>${escapeHtml(t.road_name)}</strong>` : (isHome ? "<em>Residential Property</em>" : "<em>Unspecified Road</em>");
                 const subLoc = [t.area, t.city].filter(Boolean).map(escapeHtml).join(", ");
                 const locHtml = subLoc ? `${roadName}<br/><small style="color:var(--text-muted);">${subLoc}</small>` : roadName;
 
@@ -4596,29 +4734,26 @@ document.addEventListener("DOMContentLoaded", () => {
                     : `<span class="text-success">0 (Sound)</span>`;
                 const conf = (t.defect_count > 0 && t.confidence) ? ` <small class="text-muted">${(t.confidence * 100).toFixed(0)}%</small>` : "";
 
+                // Creation Date
+                const createdDate = t.uploaded_at ? escapeHtml(t.uploaded_at.split("T")[0]) : "—";
+
                 // Target Date & Urgency
                 const targetDate = t.target_repair_date || "Not Scheduled";
                 const urgBadge = getDeadlineBadge(t);
                 const targetHtml = `<div>${escapeHtml(targetDate)}</div><div style="margin-top:2px;">${urgBadge}</div>`;
 
-                // Status badges
+                // Workflow status badge
                 const wfBadge = `<span class="${getStatusBadgeClass(t.status)}" style="font-size:0.75rem; padding:2px 6px;">${escapeHtml(t.status)}</span>`;
-                const assignBadge = `<span class="${getAssignmentBadgeClass(t.assignment_status)}" style="font-size:0.75rem; padding:2px 6px;">${escapeHtml(formatAssignmentStatus(t.assignment_status))}</span>`;
-
-                // Instructions
-                const instr = t.assignment_instructions 
-                    ? `<div style="max-width:200px; font-size:0.8rem; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(t.assignment_instructions)}">${escapeHtml(t.assignment_instructions)}</div>`
-                    : `<span class="text-muted" style="font-size:0.75rem;">None</span>`;
 
                 tr.innerHTML = `
                     <td><strong>#${t.id}</strong></td>
-                    <td>${techDisplay}</td>
-                    <td>${locHtml}</td>
+                    <td>${catBadge}</td>
                     <td>${defectCount}${conf}</td>
+                    <td>${locHtml}</td>
+                    <td><small style="color:var(--text-muted);">${createdDate}</small></td>
                     <td>${targetHtml}</td>
                     <td>${wfBadge}</td>
-                    <td>${assignBadge}</td>
-                    <td>${instr}</td>
+                    <td>${techDisplay}</td>
                     <td style="text-align: right;">
                         <button type="button" class="btn btn-primary btn-sm open-queue-task-btn" data-id="${t.id}">
                             👁️ Open Task
@@ -4637,23 +4772,36 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         } catch (err) {
             console.error("Load queue error:", err);
-            queueTableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger" style="padding: 2rem;">Error loading queue: ${escapeHtml(err.message)}</td></tr>`;
+            if (queueErrorState) {
+                if (queueErrorText) queueErrorText.textContent = err.message || "Failed to load maintenance work queue.";
+                queueErrorState.style.display = "block";
+            }
+            if (queueTable) queueTable.style.display = "none";
+            if (queueEmptyState) queueEmptyState.style.display = "none";
         }
+    }
+
+    function resetAllQueueFilters() {
+        if (queueStatusFilter) queueStatusFilter.value = "";
+        if (queueUrgencyFilter) queueUrgencyFilter.value = "";
+        if (queueCategoryFilter) queueCategoryFilter.value = "";
+        if (queueDomainFilter) queueDomainFilter.value = "";
+        if (queueSortFilter) queueSortFilter.value = "newest";
+        if (queueAssigneeFilter) queueAssigneeFilter.value = "";
+        if (queueSearchInput) queueSearchInput.value = "";
+        loadMaintenanceQueue();
     }
 
     if (queueStatusFilter) queueStatusFilter.addEventListener("change", loadMaintenanceQueue);
     if (queueUrgencyFilter) queueUrgencyFilter.addEventListener("change", loadMaintenanceQueue);
     if (queueCategoryFilter) queueCategoryFilter.addEventListener("change", loadMaintenanceQueue);
+    if (queueDomainFilter) queueDomainFilter.addEventListener("change", loadMaintenanceQueue);
+    if (queueSortFilter) queueSortFilter.addEventListener("change", loadMaintenanceQueue);
+    if (queueAssigneeFilter) queueAssigneeFilter.addEventListener("change", loadMaintenanceQueue);
     if (queueSearchInput) queueSearchInput.addEventListener("input", debounce(loadMaintenanceQueue, 300));
-    if (resetQueueFiltersBtn) {
-        resetQueueFiltersBtn.addEventListener("click", () => {
-            if (queueStatusFilter) queueStatusFilter.value = "";
-            if (queueUrgencyFilter) queueUrgencyFilter.value = "";
-            if (queueCategoryFilter) queueCategoryFilter.value = "";
-            if (queueSearchInput) queueSearchInput.value = "";
-            loadMaintenanceQueue();
-        });
-    }
+    if (resetQueueFiltersBtn) resetQueueFiltersBtn.addEventListener("click", resetAllQueueFilters);
+    if (queueEmptyResetBtn) queueEmptyResetBtn.addEventListener("click", resetAllQueueFilters);
+    if (queueRetryBtn) queueRetryBtn.addEventListener("click", loadMaintenanceQueue);
     if (refreshQueueBtn) refreshQueueBtn.addEventListener("click", loadMaintenanceQueue);
 
     // Hash Route Support (e.g. #map, #records, #new, #dashboard, #reports, #queue, #users)
@@ -4693,7 +4841,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 switchView("reports");
             }
         } else if (hash === "queue" || hash === "maintenance-queue" || hash === "work-queue") {
-            if (currentUser.role === "inspector") {
+            if (currentUser.role === "inspector" || currentUser.role === "citizen") {
                 switchView("dashboard");
             } else {
                 switchView("queue");

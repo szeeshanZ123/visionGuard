@@ -721,6 +721,18 @@ body {
     border: 1px solid rgba(16, 185, 129, 0.35);
 }
 
+.badge-status-assigned {
+    background-color: rgba(99, 102, 241, 0.18);
+    color: #818CF8;
+    border: 1px solid rgba(99, 102, 241, 0.35);
+}
+
+.badge-status-reopened {
+    background-color: rgba(239, 68, 68, 0.18);
+    color: #F87171;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
 /* Save Inspection Card */
 .save-inspection-card {
     margin-top: 1.5rem;
@@ -1804,6 +1816,42 @@ body {
     background: rgba(16, 185, 129, 0.2);
     color: #34d399;
     border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.action-resolved {
+    background: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.action-reopened {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.action-assigned {
+    background: rgba(99, 102, 241, 0.2);
+    color: #818cf8;
+    border: 1px solid rgba(99, 102, 241, 0.35);
+}
+
+.action-reassigned {
+    background: rgba(168, 85, 247, 0.2);
+    color: #c084fc;
+    border: 1px solid rgba(168, 85, 247, 0.35);
+}
+
+.action-cancelled {
+    background: rgba(100, 116, 139, 0.2);
+    color: #94a3b8;
+    border: 1px solid rgba(100, 116, 139, 0.35);
+}
+
+.action-repair-notes {
+    background: rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.35);
 }
 
 .transition-arrow {

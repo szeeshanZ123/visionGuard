@@ -1296,10 +1296,12 @@
                         <label for="detailStatusSelect">Change Status To:</label>
                         <select id="detailStatusSelect" class="form-control">
                             <option value="Open">🔵 Open</option>
-                            <option value="In Progress">🟠 In Progress</option>
                             <option value="Under Review">🟡 Under Review</option>
+                            <option value="Assigned">📋 Assigned</option>
+                            <option value="In Progress">🟠 In Progress</option>
                             <option value="Repair in Progress">🟠 Repair in Progress</option>
                             <option value="Resolved">🟢 Resolved</option>
+                            <option value="Reopened">🔄 Reopened</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -2076,9 +2078,18 @@
                 <div class="records-actions">
                     <div class="filter-controls-row">
                         <div class="filter-group">
+                            <label for="queueDomainFilter">Domain:</label>
+                            <select id="queueDomainFilter" class="form-control form-control-sm">
+                                <option value="">All Domains</option>
+                                <option value="road">🛣️ Road</option>
+                                <option value="home">🏠 Home</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
                             <label for="queueStatusFilter">Assignment Status:</label>
                             <select id="queueStatusFilter" class="form-control form-control-sm">
                                 <option value="">All Statuses</option>
+                                <option value="unassigned">Unassigned</option>
                                 <option value="assigned">Assigned</option>
                                 <option value="in_progress">In Progress</option>
                                 <option value="completed">Completed</option>
@@ -2107,9 +2118,25 @@
                                 <option value="Sound">Sound Surface (0 Defects)</option>
                             </select>
                         </div>
+                        <div class="filter-group">
+                            <label for="queueSortFilter">Sort By:</label>
+                            <select id="queueSortFilter" class="form-control form-control-sm">
+                                <option value="newest">📅 Newest</option>
+                                <option value="oldest">📅 Oldest</option>
+                                <option value="priority">⚠️ Priority</option>
+                                <option value="deadline">⏰ Target Date</option>
+                            </select>
+                        </div>
+                        <div class="filter-group" id="queueAssigneeFilterWrap" style="display: none;">
+                            <label for="queueAssigneeFilter">Assigned Staff:</label>
+                            <select id="queueAssigneeFilter" class="form-control form-control-sm">
+                                <option value="">All Staff</option>
+                                <option value="unassigned">Unassigned Only</option>
+                            </select>
+                        </div>
                         <div class="filter-group flex-grow">
                             <label for="queueSearchInput">Search Location:</label>
-                            <input type="text" id="queueSearchInput" class="form-control form-control-sm" placeholder="Search road, area, or instructions...">
+                            <input type="text" id="queueSearchInput" class="form-control form-control-sm" placeholder="Search road, defect, tech, or #id...">
                         </div>
                         <div class="filter-buttons">
                             <button type="button" class="btn btn-secondary btn-sm" id="resetQueueFiltersBtn" title="Reset all filters">✕ Reset</button>
@@ -2150,13 +2177,13 @@
                         <thead>
                             <tr>
                                 <th style="width: 50px;">#</th>
-                                <th>Assigned To</th>
-                                <th>Road / Location</th>
-                                <th>Defect Details</th>
+                                <th>Category</th>
+                                <th>Defect Summary</th>
+                                <th>Location</th>
+                                <th>Created</th>
                                 <th>Target Date & Urgency</th>
                                 <th>Workflow Status</th>
-                                <th>Assignment Status</th>
-                                <th>Instructions</th>
+                                <th>Assigned Staff</th>
                                 <th style="width: 140px; text-align: right;">Actions</th>
                             </tr>
                         </thead>
@@ -2170,6 +2197,14 @@
                     <div class="empty-icon">🎉</div>
                     <h3>No Assigned Tasks</h3>
                     <p id="queueEmptyText">You currently have no maintenance tasks assigned matching the selected filters.</p>
+                    <button type="button" class="btn btn-secondary btn-sm" id="queueEmptyResetBtn" style="margin-top: 0.5rem;">✕ Reset Filters</button>
+                </div>
+                <!-- Error State -->
+                <div class="empty-state text-danger" id="queueErrorState" style="display: none; padding: 2rem;">
+                    <div class="empty-icon">⚠️</div>
+                    <h3>Failed to Load Queue</h3>
+                    <p id="queueErrorText">An error occurred while fetching maintenance tasks.</p>
+                    <button type="button" class="btn btn-secondary btn-sm" id="queueRetryBtn" style="margin-top: 0.5rem;">🔄 Retry</button>
                 </div>
             </div>
             
