@@ -2277,51 +2277,152 @@
     </div>
 
     <!-- Civic Complaint Draft Modal -->
+    <!-- Civic Complaint Draft Modal -->
     <div class="modal-overlay" id="complaintDraftModal" style="display: none;">
-        <div class="modal-dialog" style="max-width: 700px;">
-            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 0.85rem 1.25rem; border-bottom: 1px solid var(--border-color);">
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <span style="font-size: 1.3rem;">📝</span>
+        <div class="modal-dialog" style="max-width: 800px; max-height: 90vh; display: flex; flex-direction: column;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 0.85rem 1.25rem; border-bottom: 1px solid var(--border-color); flex-shrink: 0;">
+                <div style="display: flex; align-items: center; gap: 0.65rem;">
+                    <span style="font-size: 1.35rem;">📝</span>
                     <div>
-                        <h3 style="margin: 0; font-size: 1.1rem;">Civic Complaint Draft Assistance</h3>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <h3 style="margin: 0; font-size: 1.1rem; color: #f8fafc;">Civic Complaint Notice Assistance</h3>
+                            <span id="complaintStatusBadge" class="complaint-status-badge complaint-status-draft">Draft</span>
+                        </div>
                         <small class="text-muted" id="complaintDraftSubtitle">Formal grievance notice for inspection #--</small>
                     </div>
                 </div>
                 <button type="button" class="modal-close-btn" id="closeComplaintDraftModalBtn">✕</button>
             </div>
-            <div class="modal-body" style="padding: 1.25rem;">
-                <div class="alert alert-warning" style="margin-bottom: 1rem; font-size: 0.82rem; line-height: 1.4;">
+            <div class="modal-body" style="padding: 1.25rem; overflow-y: auto;">
+                <!-- Unsubmitted Draft Disclaimer -->
+                <div id="complaintDraftNoticeAlert" class="alert alert-warning" style="margin-bottom: 1rem; font-size: 0.82rem; line-height: 1.45;">
                     <div class="alert-icon">⚠️</div>
                     <div class="alert-content">
-                        <strong>Unsubmitted Draft Notice:</strong>
-                        <p style="margin: 0.2rem 0 0 0;">This document is an editable complaint draft compiled for citizen or administrative assistance. <strong>VisionGuard AI does NOT submit filings to municipal or state authorities.</strong> You must review, copy or export, and submit this notice through your local authority's official grievance portal.</p>
+                        <strong>Unsubmitted Civic Notice:</strong>
+                        <p style="margin: 0.2rem 0 0 0;">This document is an editable complaint compiled by VisionGuard AI for citizen assistance. <strong>VisionGuard AI does NOT directly submit filings to government agencies.</strong> To initiate remediation, review your information, export this notice, and file it via your local authority's official grievance portal or society office.</p>
+                    </div>
+                </div>
+
+                <!-- Official Submission Record Banner (Visible when submitted) -->
+                <div id="complaintSubmittedBanner" class="alert alert-success" style="display: none; margin-bottom: 1rem; font-size: 0.82rem; line-height: 1.45; border-color: rgba(34, 197, 94, 0.4); background: rgba(34, 197, 94, 0.12);">
+                    <div class="alert-icon">✅</div>
+                    <div class="alert-content">
+                        <strong style="color: #4ade80;">Official Grievance Submission Recorded:</strong>
+                        <p style="margin: 0.2rem 0 0 0; color: #dcfce7;">
+                            Filed via: <strong id="submittedChannelLabel">--</strong> &nbsp;|&nbsp;
+                            Ref #: <strong id="submittedRefLabel">--</strong> &nbsp;|&nbsp;
+                            Date: <span id="submittedDateLabel">--</span>
+                        </p>
                     </div>
                 </div>
 
                 <div id="complaintFeedback" class="alert alert-danger" style="display: none; margin-bottom: 1rem;"></div>
 
+                <!-- Inspection Findings Evidence Bar -->
+                <div class="complaint-evidence-bar" id="complaintEvidenceBar">
+                    <span class="complaint-evidence-item">🏷️ Category: <strong id="complaintEvidenceDomain">Road</strong></span>
+                    <span class="complaint-evidence-item">🔍 Defect: <strong id="complaintEvidenceDefects">--</strong></span>
+                    <span class="complaint-evidence-item">🎯 Confidence: <strong id="complaintEvidenceConf">--</strong></span>
+                    <span class="complaint-evidence-item">📍 GPS: <strong id="complaintEvidenceGps">--</strong></span>
+                    <span class="complaint-evidence-item">📷 Evidence: <strong id="complaintEvidencePhoto">--</strong></span>
+                </div>
+
                 <form id="complaintDraftForm">
                     <input type="hidden" id="complaintDraftInspId">
-                    <div class="form-group mb-3">
-                        <label for="complaintAgencyInput"><strong>Recipient Agency / Municipal Authority:</strong></label>
-                        <input type="text" class="form-control" id="complaintAgencyInput" maxlength="200" required>
+                    <input type="hidden" id="complaintDraftCurrentStatus" value="draft">
+
+                    <!-- Complainant Details -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; margin-bottom: 0.85rem;">
+                        <div class="form-group">
+                            <label for="complaintComplainantName" style="font-size: 0.82rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.25rem;">Complainant Full Name:</label>
+                            <input type="text" class="form-control" id="complaintComplainantName" maxlength="150" placeholder="e.g. John Doe">
+                        </div>
+                        <div class="form-group">
+                            <label for="complaintComplainantContact" style="font-size: 0.82rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.25rem;">Contact Number / Email:</label>
+                            <input type="text" class="form-control" id="complaintComplainantContact" maxlength="200" placeholder="e.g. +91 98765 43210 / citizen@example.com">
+                        </div>
                     </div>
+
+                    <!-- Confirmed Location and Recipient Agency -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; margin-bottom: 0.85rem;">
+                        <div class="form-group">
+                            <label for="complaintLocationInput" style="font-size: 0.82rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.25rem;">Confirmed Location / Address:</label>
+                            <input type="text" class="form-control" id="complaintLocationInput" maxlength="200" placeholder="e.g. Grand Trunk Road, KM 102">
+                        </div>
+                        <div class="form-group">
+                            <label for="complaintAgencyInput" style="font-size: 0.82rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.25rem;">Recipient Agency / Authority: *</label>
+                            <input type="text" class="form-control" id="complaintAgencyInput" maxlength="200" required>
+                        </div>
+                    </div>
+
                     <div class="form-group mb-3">
-                        <label for="complaintSubjectInput"><strong>Subject Line:</strong></label>
+                        <label for="complaintSubjectInput" style="font-size: 0.82rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.25rem;">Subject Line: *</label>
                         <input type="text" class="form-control" id="complaintSubjectInput" maxlength="300" required>
                     </div>
+
                     <div class="form-group mb-3">
-                        <label for="complaintBodyTextarea"><strong>Complaint Body (Fully Editable):</strong></label>
-                        <textarea class="form-control" id="complaintBodyTextarea" rows="12" style="font-family: monospace; font-size: 0.88rem; line-height: 1.45;" required></textarea>
-                    </div>
-                    <div class="complaint-actions-row" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border-color);">
-                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                            <button type="button" class="btn btn-secondary btn-sm" id="copyComplaintDraftBtn">📋 Copy Draft</button>
-                            <button type="button" class="btn btn-secondary btn-sm" id="exportComplaintTxtBtn">📄 Export .txt</button>
-                            <button type="button" class="btn btn-primary btn-sm" id="exportComplaintPdfBtn">📑 Export .pdf</button>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                            <label for="complaintBodyTextarea" style="font-size: 0.82rem; font-weight: 600; color: #cbd5e1; margin: 0;">Complaint Body (Editable Notice Text): *</label>
+                            <small class="text-muted" style="font-size: 0.75rem;">Mandatory civil disclaimer is preserved automatically.</small>
                         </div>
-                        <div style="display: flex; gap: 0.5rem;">
+                        <textarea class="form-control" id="complaintBodyTextarea" rows="11" style="font-family: monospace; font-size: 0.85rem; line-height: 1.45;" required></textarea>
+                    </div>
+
+                    <!-- Official Submission Channels Guidance Accordion -->
+                    <div class="official-guidance-container" id="complaintGuidanceContainer">
+                        <div class="official-guidance-header" id="toggleOfficialGuidanceBtn">
+                            <span>🏛️ Official Channels & Submission Guidance</span>
+                            <span id="guidanceToggleIcon">▼</span>
+                        </div>
+                        <div class="official-guidance-body" id="complaintGuidanceBody" style="display: none;">
+                            <p style="margin-top: 0; margin-bottom: 0.6rem; color: #94a3b8;">
+                                Follow these steps to file your grievance with the designated authority:
+                            </p>
+                            <div id="officialChannelsList"></div>
+                        </div>
+                    </div>
+
+                    <!-- Manual Submission Recording Panel -->
+                    <div class="manual-submit-panel" id="manualSubmissionPanel" style="display: none;">
+                        <div class="manual-submit-header">
+                            <span>🏛️ Record Your Official Grievance Submission</span>
+                        </div>
+                        <p style="font-size: 0.8rem; color: #cbd5e1; margin: 0.2rem 0 0.8rem 0;">
+                            Have you filed this grievance through your municipal portal, CPGRAMS, 311 helpline, or housing society desk? Record the filing details below to track it in your citizen records.
+                        </p>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                            <div>
+                                <label for="manualSubmissionChannel" style="font-size: 0.78rem; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 0.2rem;">Filing Channel / Portal: *</label>
+                                <input type="text" class="form-control" id="manualSubmissionChannel" placeholder="e.g. CPGRAMS / Municipal Grievance App / Society Office" maxlength="150">
+                            </div>
+                            <div>
+                                <label for="manualSubmissionRef" style="font-size: 0.78rem; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 0.2rem;">Reference / Token # (if any):</label>
+                                <input type="text" class="form-control" id="manualSubmissionRef" placeholder="e.g. CPG-2026-98102 or Ack #44" maxlength="150">
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+                            <input type="checkbox" id="manualSubmissionConfirmCheck" style="width: 16px; height: 16px; cursor: pointer;">
+                            <label for="manualSubmissionConfirmCheck" style="font-size: 0.8rem; color: #f8fafc; cursor: pointer; margin: 0;">
+                                I confirm I have officially submitted this grievance notice to the authorized entity.
+                            </label>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                            <button type="button" class="btn btn-secondary btn-sm" id="cancelManualSubmitBtn">Cancel</button>
+                            <button type="button" class="btn btn-success btn-sm" id="confirmManualSubmitBtn">Confirm & Mark as Submitted</button>
+                        </div>
+                    </div>
+
+                    <!-- Modal Action Row -->
+                    <div class="complaint-actions-row" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border-color); flex-shrink: 0;">
+                        <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+                            <button type="button" class="btn btn-secondary btn-sm" id="copyComplaintDraftBtn" title="Copy complaint text to clipboard">📋 Copy Text</button>
+                            <button type="button" class="btn btn-secondary btn-sm" id="exportComplaintTxtBtn" title="Download text format">📄 Export .txt</button>
+                            <button type="button" class="btn btn-primary btn-sm" id="exportComplaintPdfBtn" title="Download formal PDF document">📑 Export .pdf</button>
+                        </div>
+                        <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
                             <button type="button" class="btn btn-secondary btn-sm" id="cancelComplaintDraftBtn">Close</button>
+                            <button type="button" class="btn btn-outline-info btn-sm" id="markReadyComplaintBtn" title="Mark draft as reviewed and ready to file">🚀 Mark Ready</button>
+                            <button type="button" class="btn btn-outline-success btn-sm" id="openManualSubmitBtn" title="Log external filing details">🏛️ Log Submission</button>
                             <button type="submit" class="btn btn-primary btn-sm" id="saveComplaintDraftBtn">💾 Save Draft</button>
                         </div>
                     </div>
@@ -2336,6 +2437,6 @@
     </footer>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="/static/js/app.js?v=20261026_p2"></script>
+    <script src="/static/js/app.js?v=20261026_p3"></script>
 </body>
 </html>

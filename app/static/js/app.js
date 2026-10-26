@@ -4489,7 +4489,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
     // -------------------------------------------------------------------------
-    // Civic Complaint Draft Assistance UI Controller
+    // Civic Complaint Draft Assistance UI Controller (Phase 3)
     // -------------------------------------------------------------------------
     const openComplaintDraftBtn = document.getElementById("openComplaintDraftBtn");
     const complaintDraftModal = document.getElementById("complaintDraftModal");
@@ -4497,15 +4497,84 @@ document.addEventListener("DOMContentLoaded", () => {
     const cancelComplaintDraftBtn = document.getElementById("cancelComplaintDraftBtn");
     const complaintDraftForm = document.getElementById("complaintDraftForm");
     const complaintDraftInspId = document.getElementById("complaintDraftInspId");
+    const complaintDraftCurrentStatus = document.getElementById("complaintDraftCurrentStatus");
     const complaintDraftSubtitle = document.getElementById("complaintDraftSubtitle");
+    const complaintStatusBadge = document.getElementById("complaintStatusBadge");
+    const complaintDraftNoticeAlert = document.getElementById("complaintDraftNoticeAlert");
+    const complaintSubmittedBanner = document.getElementById("complaintSubmittedBanner");
+    const submittedChannelLabel = document.getElementById("submittedChannelLabel");
+    const submittedRefLabel = document.getElementById("submittedRefLabel");
+    const submittedDateLabel = document.getElementById("submittedDateLabel");
+    const complaintFeedback = document.getElementById("complaintFeedback");
+
+    const complaintEvidenceDomain = document.getElementById("complaintEvidenceDomain");
+    const complaintEvidenceDefects = document.getElementById("complaintEvidenceDefects");
+    const complaintEvidenceConf = document.getElementById("complaintEvidenceConf");
+    const complaintEvidenceGps = document.getElementById("complaintEvidenceGps");
+    const complaintEvidencePhoto = document.getElementById("complaintEvidencePhoto");
+
+    const complaintComplainantName = document.getElementById("complaintComplainantName");
+    const complaintComplainantContact = document.getElementById("complaintComplainantContact");
+    const complaintLocationInput = document.getElementById("complaintLocationInput");
     const complaintAgencyInput = document.getElementById("complaintAgencyInput");
     const complaintSubjectInput = document.getElementById("complaintSubjectInput");
     const complaintBodyTextarea = document.getElementById("complaintBodyTextarea");
-    const complaintFeedback = document.getElementById("complaintFeedback");
+
+    const toggleOfficialGuidanceBtn = document.getElementById("toggleOfficialGuidanceBtn");
+    const complaintGuidanceBody = document.getElementById("complaintGuidanceBody");
+    const guidanceToggleIcon = document.getElementById("guidanceToggleIcon");
+    const officialChannelsList = document.getElementById("officialChannelsList");
+
+    const manualSubmissionPanel = document.getElementById("manualSubmissionPanel");
+    const openManualSubmitBtn = document.getElementById("openManualSubmitBtn");
+    const cancelManualSubmitBtn = document.getElementById("cancelManualSubmitBtn");
+    const confirmManualSubmitBtn = document.getElementById("confirmManualSubmitBtn");
+    const manualSubmissionChannel = document.getElementById("manualSubmissionChannel");
+    const manualSubmissionRef = document.getElementById("manualSubmissionRef");
+    const manualSubmissionConfirmCheck = document.getElementById("manualSubmissionConfirmCheck");
+
+    const markReadyComplaintBtn = document.getElementById("markReadyComplaintBtn");
     const saveComplaintDraftBtn = document.getElementById("saveComplaintDraftBtn");
     const copyComplaintDraftBtn = document.getElementById("copyComplaintDraftBtn");
     const exportComplaintTxtBtn = document.getElementById("exportComplaintTxtBtn");
     const exportComplaintPdfBtn = document.getElementById("exportComplaintPdfBtn");
+
+    function updateComplaintStatusBadge(status, draft) {
+        const st = (status || "draft").toLowerCase();
+        if (complaintDraftCurrentStatus) complaintDraftCurrentStatus.value = st;
+
+        if (complaintStatusBadge) {
+            complaintStatusBadge.className = "complaint-status-badge";
+            if (st === "submitted") {
+                complaintStatusBadge.classList.add("complaint-status-submitted");
+                complaintStatusBadge.textContent = "✅ Submitted";
+            } else if (st === "ready_to_submit") {
+                complaintStatusBadge.classList.add("complaint-status-ready");
+                complaintStatusBadge.textContent = "🚀 Ready to Submit";
+            } else if (st === "exported") {
+                complaintStatusBadge.classList.add("complaint-status-exported");
+                complaintStatusBadge.textContent = "📑 Exported";
+            } else {
+                complaintStatusBadge.classList.add("complaint-status-draft");
+                complaintStatusBadge.textContent = "📝 Draft";
+            }
+        }
+
+        if (st === "submitted" && draft) {
+            if (complaintSubmittedBanner) {
+                complaintSubmittedBanner.style.display = "flex";
+                if (submittedChannelLabel) submittedChannelLabel.textContent = draft.submission_channel || "Manual Citizen Filing";
+                if (submittedRefLabel) submittedRefLabel.textContent = draft.submission_reference || "Self-Reported";
+                if (submittedDateLabel) submittedDateLabel.textContent = draft.submitted_at ? String(draft.submitted_at).substring(0, 19) : "Recorded";
+            }
+            if (complaintDraftNoticeAlert) complaintDraftNoticeAlert.style.display = "none";
+            if (openManualSubmitBtn) openManualSubmitBtn.style.display = "none";
+        } else {
+            if (complaintSubmittedBanner) complaintSubmittedBanner.style.display = "none";
+            if (complaintDraftNoticeAlert) complaintDraftNoticeAlert.style.display = "flex";
+            if (openManualSubmitBtn) openManualSubmitBtn.style.display = "inline-block";
+        }
+    }
 
     async function openComplaintDraftModal(inspectionId) {
         if (!inspectionId) return;
@@ -4513,6 +4582,7 @@ document.addEventListener("DOMContentLoaded", () => {
             complaintFeedback.style.display = "none";
             complaintFeedback.textContent = "";
         }
+        if (manualSubmissionPanel) manualSubmissionPanel.style.display = "none";
         if (complaintDraftInspId) complaintDraftInspId.value = inspectionId;
         if (complaintDraftSubtitle) complaintDraftSubtitle.textContent = `Loading draft for Inspection #${inspectionId}...`;
         if (complaintDraftModal) complaintDraftModal.style.display = "flex";
@@ -4524,10 +4594,62 @@ document.addEventListener("DOMContentLoaded", () => {
                 throw new Error(data.message || "Failed to load complaint draft.");
             }
             const draft = data.draft;
-            if (complaintDraftSubtitle) complaintDraftSubtitle.textContent = `Formal grievance draft for Record #${inspectionId} (${draft.complaint_type || "distress"})`;
+            const domain = (draft.inspection_type || "road").toUpperCase();
+
+            if (complaintDraftSubtitle) {
+                complaintDraftSubtitle.textContent = `Formal grievance draft for Record #${inspectionId} (${domain} Problem)`;
+            }
+
+            // Evidence Bar
+            if (complaintEvidenceDomain) complaintEvidenceDomain.textContent = domain;
+            if (complaintEvidenceDefects) {
+                const count = draft.inspection_defect_count || 1;
+                complaintEvidenceDefects.textContent = `${draft.inspection_defect_type || "Distress"} (${count} area${count === 1 ? '' : 's'})`;
+            }
+            if (complaintEvidenceConf) {
+                complaintEvidenceConf.textContent = draft.inspection_confidence ? `${Math.round(draft.inspection_confidence * 100)}%` : "N/A";
+            }
+            if (complaintEvidenceGps) {
+                if (draft.inspection_latitude && draft.inspection_longitude) {
+                    complaintEvidenceGps.textContent = `${Number(draft.inspection_latitude).toFixed(4)}, ${Number(draft.inspection_longitude).toFixed(4)}`;
+                } else {
+                    complaintEvidenceGps.textContent = "Not recorded";
+                }
+            }
+            if (complaintEvidencePhoto) complaintEvidencePhoto.textContent = draft.inspection_image_name || `Record #${inspectionId} Photo`;
+
+            // Form inputs
+            if (complaintComplainantName) {
+                complaintComplainantName.value = draft.complainant_name || (currentUser && currentUser.username !== "guest" ? currentUser.username : "");
+            }
+            if (complaintComplainantContact) complaintComplainantContact.value = draft.complainant_contact || "";
+            if (complaintLocationInput) complaintLocationInput.value = draft.inspection_location || "";
             if (complaintAgencyInput) complaintAgencyInput.value = draft.recipient_agency || "";
             if (complaintSubjectInput) complaintSubjectInput.value = draft.subject || "";
             if (complaintBodyTextarea) complaintBodyTextarea.value = draft.complaint_body || "";
+
+            // Official submission guidance channels
+            if (officialChannelsList) {
+                officialChannelsList.innerHTML = "";
+                const channels = draft.official_channels || [];
+                channels.forEach(ch => {
+                    const card = document.createElement("div");
+                    card.className = "official-channel-card";
+                    card.innerHTML = `
+                        <div class="official-channel-title">
+                            <span>🏛️</span>
+                            <span>${escapeHtml(ch.channel_name)}</span>
+                            <small class="text-muted" style="margin-left: auto; font-size: 0.72rem;">${escapeHtml(ch.authority_type)}</small>
+                        </div>
+                        <div style="font-size: 0.8rem; line-height: 1.4; color: #cbd5e1;">
+                            ${escapeHtml(ch.instructions)}
+                        </div>
+                    `;
+                    officialChannelsList.appendChild(card);
+                });
+            }
+
+            updateComplaintStatusBadge(draft.status || "draft", draft);
         } catch (err) {
             console.error("Failed to load complaint draft:", err);
             if (complaintFeedback) {
@@ -4544,6 +4666,7 @@ document.addEventListener("DOMContentLoaded", () => {
             complaintFeedback.style.display = "none";
             complaintFeedback.textContent = "";
         }
+        if (manualSubmissionPanel) manualSubmissionPanel.style.display = "none";
     }
 
     if (openComplaintDraftBtn) {
@@ -4557,6 +4680,173 @@ document.addEventListener("DOMContentLoaded", () => {
     if (closeComplaintDraftModalBtn) closeComplaintDraftModalBtn.addEventListener("click", closeComplaintDraftModal);
     if (cancelComplaintDraftBtn) cancelComplaintDraftBtn.addEventListener("click", closeComplaintDraftModal);
 
+    // Toggle Official Submission Guidance
+    if (toggleOfficialGuidanceBtn && complaintGuidanceBody) {
+        toggleOfficialGuidanceBtn.addEventListener("click", () => {
+            const isHidden = complaintGuidanceBody.style.display === "none";
+            complaintGuidanceBody.style.display = isHidden ? "block" : "none";
+            if (guidanceToggleIcon) guidanceToggleIcon.textContent = isHidden ? "▲" : "▼";
+        });
+    }
+
+    // Toggle Manual Submission Panel
+    if (openManualSubmitBtn && manualSubmissionPanel) {
+        openManualSubmitBtn.addEventListener("click", () => {
+            const isHidden = manualSubmissionPanel.style.display === "none";
+            manualSubmissionPanel.style.display = isHidden ? "block" : "none";
+            if (isHidden && manualSubmissionChannel) {
+                manualSubmissionChannel.focus();
+            }
+        });
+    }
+
+    if (cancelManualSubmitBtn && manualSubmissionPanel) {
+        cancelManualSubmitBtn.addEventListener("click", () => {
+            manualSubmissionPanel.style.display = "none";
+        });
+    }
+
+    // Confirm & Log Manual Citizen Submission
+    if (confirmManualSubmitBtn) {
+        confirmManualSubmitBtn.addEventListener("click", async () => {
+            const inspId = complaintDraftInspId ? complaintDraftInspId.value : currentDetailId;
+            if (!inspId) return;
+
+            const isConfirmed = manualSubmissionConfirmCheck && manualSubmissionConfirmCheck.checked;
+            if (!isConfirmed) {
+                if (complaintFeedback) {
+                    complaintFeedback.style.display = "block";
+                    complaintFeedback.className = "alert alert-danger";
+                    complaintFeedback.textContent = "Please check the confirmation box certifying that you have submitted this grievance to the official authority.";
+                }
+                return;
+            }
+
+            const channel = manualSubmissionChannel ? manualSubmissionChannel.value.trim() : "";
+            if (!channel) {
+                if (complaintFeedback) {
+                    complaintFeedback.style.display = "block";
+                    complaintFeedback.className = "alert alert-danger";
+                    complaintFeedback.textContent = "Please enter the filing channel or authority name.";
+                }
+                if (manualSubmissionChannel) manualSubmissionChannel.focus();
+                return;
+            }
+
+            const refNum = manualSubmissionRef ? manualSubmissionRef.value.trim() : "";
+            confirmManualSubmitBtn.disabled = true;
+            confirmManualSubmitBtn.textContent = "Recording...";
+
+            try {
+                const payload = {
+                    manual_submission: true,
+                    submission_channel: channel,
+                    submission_reference: refNum || "Self-Reported",
+                    recipient_agency: complaintAgencyInput ? complaintAgencyInput.value.trim() : "",
+                    subject: complaintSubjectInput ? complaintSubjectInput.value.trim() : "",
+                    complaint_body: complaintBodyTextarea ? complaintBodyTextarea.value.trim() : "",
+                    complainant_name: complaintComplainantName ? complaintComplainantName.value.trim() : "",
+                    complainant_contact: complaintComplainantContact ? complaintComplainantContact.value.trim() : "",
+                    location_address: complaintLocationInput ? complaintLocationInput.value.trim() : "",
+                };
+
+                const res = await fetch(`/api/inspections/${inspId}/complaint-draft`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok || data.status !== "success") {
+                    throw new Error(data.message || "Failed to record submission.");
+                }
+
+                if (manualSubmissionPanel) manualSubmissionPanel.style.display = "none";
+                updateComplaintStatusBadge("submitted", data.draft);
+
+                if (complaintFeedback) {
+                    complaintFeedback.style.display = "block";
+                    complaintFeedback.className = "alert alert-success";
+                    complaintFeedback.textContent = "✓ Official grievance submission recorded successfully for your citizen records.";
+                }
+
+                // Refresh citizen dashboard table if active
+                if (typeof loadCitizenDashboard === "function") {
+                    loadCitizenDashboard();
+                }
+            } catch (err) {
+                if (complaintFeedback) {
+                    complaintFeedback.style.display = "block";
+                    complaintFeedback.className = "alert alert-danger";
+                    complaintFeedback.textContent = `Error recording submission: ${err.message}`;
+                }
+            } finally {
+                confirmManualSubmitBtn.disabled = false;
+                confirmManualSubmitBtn.textContent = "Confirm & Mark as Submitted";
+            }
+        });
+    }
+
+    // Mark as Ready to Submit
+    if (markReadyComplaintBtn) {
+        markReadyComplaintBtn.addEventListener("click", async () => {
+            const inspId = complaintDraftInspId ? complaintDraftInspId.value : currentDetailId;
+            if (!inspId) return;
+
+            const agency = complaintAgencyInput ? complaintAgencyInput.value.trim() : "";
+            const subject = complaintSubjectInput ? complaintSubjectInput.value.trim() : "";
+            const body = complaintBodyTextarea ? complaintBodyTextarea.value.trim() : "";
+
+            if (!agency || !subject || !body) {
+                if (complaintFeedback) {
+                    complaintFeedback.style.display = "block";
+                    complaintFeedback.className = "alert alert-danger";
+                    complaintFeedback.textContent = "Agency, Subject, and Complaint Body are all required.";
+                }
+                return;
+            }
+
+            markReadyComplaintBtn.disabled = true;
+            markReadyComplaintBtn.textContent = "Marking Ready...";
+
+            try {
+                const res = await fetch(`/api/inspections/${inspId}/complaint-draft`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        status: "ready_to_submit",
+                        recipient_agency: agency,
+                        subject: subject,
+                        complaint_body: body,
+                        complainant_name: complaintComplainantName ? complaintComplainantName.value.trim() : "",
+                        complainant_contact: complaintComplainantContact ? complaintComplainantContact.value.trim() : "",
+                        location_address: complaintLocationInput ? complaintLocationInput.value.trim() : "",
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok || data.status !== "success") {
+                    throw new Error(data.message || "Failed to mark ready.");
+                }
+
+                updateComplaintStatusBadge("ready_to_submit", data.draft);
+                if (complaintFeedback) {
+                    complaintFeedback.style.display = "block";
+                    complaintFeedback.className = "alert alert-success";
+                    complaintFeedback.textContent = "✓ Notice marked as Ready to Submit. You can now export the document and file it with the official authority.";
+                }
+            } catch (err) {
+                if (complaintFeedback) {
+                    complaintFeedback.style.display = "block";
+                    complaintFeedback.className = "alert alert-danger";
+                    complaintFeedback.textContent = `Error: ${err.message}`;
+                }
+            } finally {
+                markReadyComplaintBtn.disabled = false;
+                markReadyComplaintBtn.textContent = "🚀 Mark Ready";
+            }
+        });
+    }
+
+    // Save Draft Form
     if (complaintDraftForm) {
         complaintDraftForm.addEventListener("submit", async (e) => {
             e.preventDefault();
@@ -4566,6 +4856,9 @@ document.addEventListener("DOMContentLoaded", () => {
             const agency = complaintAgencyInput ? complaintAgencyInput.value.trim() : "";
             const subject = complaintSubjectInput ? complaintSubjectInput.value.trim() : "";
             const body = complaintBodyTextarea ? complaintBodyTextarea.value.trim() : "";
+            const cName = complaintComplainantName ? complaintComplainantName.value.trim() : "";
+            const cContact = complaintComplainantContact ? complaintComplainantContact.value.trim() : "";
+            const loc = complaintLocationInput ? complaintLocationInput.value.trim() : "";
 
             if (saveComplaintDraftBtn) {
                 saveComplaintDraftBtn.disabled = true;
@@ -4573,19 +4866,30 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             try {
+                const currentSt = complaintDraftCurrentStatus ? complaintDraftCurrentStatus.value : "draft";
+                const payload = {
+                    recipient_agency: agency,
+                    subject: subject,
+                    complaint_body: body,
+                    complainant_name: cName,
+                    complainant_contact: cContact,
+                    location_address: loc,
+                };
+                if (currentSt !== "submitted") {
+                    payload.status = currentSt || "draft";
+                }
+
                 const res = await fetch(`/api/inspections/${inspId}/complaint-draft`, {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        recipient_agency: agency,
-                        subject: subject,
-                        complaint_body: body,
-                    })
+                    body: JSON.stringify(payload)
                 });
                 const data = await res.json();
                 if (!res.ok || data.status !== "success") {
                     throw new Error(data.message || "Failed to update draft.");
                 }
+                updateComplaintStatusBadge(data.draft.status || "draft", data.draft);
+
                 if (complaintFeedback) {
                     complaintFeedback.style.display = "block";
                     complaintFeedback.className = "alert alert-success";

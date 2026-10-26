@@ -3070,5 +3070,130 @@ body {
     gap: 0.5rem;
 }
 
+/* ==========================================================================
+   VisionGuard AI — Phase 3: Citizen Complaint Workflow Styles
+   ========================================================================== */
 
+.complaint-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.74rem;
+    font-weight: 600;
+    padding: 0.22rem 0.65rem;
+    border-radius: 9999px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
 
+.complaint-status-draft {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.complaint-status-ready {
+    background: rgba(59, 130, 246, 0.15);
+    color: #93c5fd;
+    border: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+.complaint-status-submitted {
+    background: rgba(34, 197, 94, 0.15);
+    color: #4ade80;
+    border: 1px solid rgba(34, 197, 94, 0.4);
+}
+
+.complaint-status-exported {
+    background: rgba(168, 85, 247, 0.15);
+    color: #d8b4fe;
+    border: 1px solid rgba(168, 85, 247, 0.4);
+}
+
+.complaint-evidence-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding: 0.65rem 0.85rem;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 0.82rem;
+}
+
+.complaint-evidence-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.5rem;
+    background: rgba(30, 41, 59, 0.7);
+    border-radius: 4px;
+    color: #cbd5e1;
+}
+
+.complaint-evidence-item strong {
+    color: #f1f5f9;
+}
+
+.official-guidance-container {
+    margin-top: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.5);
+    overflow: hidden;
+}
+
+.official-guidance-header {
+    padding: 0.65rem 1rem;
+    background: rgba(30, 41, 59, 0.5);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #f8fafc;
+}
+
+.official-guidance-body {
+    padding: 0.85rem 1rem;
+    font-size: 0.83rem;
+    color: #cbd5e1;
+}
+
+.official-channel-card {
+    background: rgba(30, 41, 59, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    padding: 0.6rem 0.8rem;
+    margin-bottom: 0.5rem;
+}
+
+.official-channel-title {
+    font-weight: 600;
+    color: #93c5fd;
+    margin-bottom: 0.2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.manual-submit-panel {
+    background: rgba(34, 197, 94, 0.06);
+    border: 1px solid rgba(34, 197, 94, 0.35);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.manual-submit-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #4ade80;
+    margin-bottom: 0.4rem;
+}
