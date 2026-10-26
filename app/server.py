@@ -1467,6 +1467,15 @@ def create_app(
                     "message": "Access denied: This inspection task is assigned to another team member.",
                 }), 403
 
+        if curr_user and curr_user["role"] == ROLE_CITIZEN:
+            created_by = record.get("created_by_user_id")
+            if created_by is not None and int(created_by) != int(curr_user["id"]):
+                return jsonify({
+                    "status": "error",
+                    "error_code": "FORBIDDEN_REPORT_ACCESS",
+                    "message": "Access denied: Citizens may only view their own inspection records.",
+                }), 403
+
         disclaimer_text = (
             "VisionGuard AI defect detections represent 2D camera bounding boxes only. "
             "Confidence scores indicate visual recognition likelihood, not defect severity or structural safety. "
@@ -1748,6 +1757,16 @@ def create_app(
         if not record:
             return jsonify({"status": "error", "message": f"Inspection #{inspection_id} not found."}), 404
 
+        curr_user = get_current_user_record()
+        if curr_user and curr_user["role"] == ROLE_CITIZEN:
+            created_by = record.get("created_by_user_id")
+            if created_by is not None and int(created_by) != int(curr_user["id"]):
+                return jsonify({
+                    "status": "error",
+                    "error_code": "FORBIDDEN_REPORT_ACCESS",
+                    "message": "Access denied: Citizens may only access images from their own inspection records.",
+                }), 403
+
         if img_type == "original":
             target_path = record.get("original_image_path") or record.get("file_path")
         elif img_type == "annotated":
@@ -1779,6 +1798,17 @@ def create_app(
                 "error_code": "INSPECTION_NOT_FOUND",
                 "message": f"Inspection record #{inspection_id} not found.",
             }), 404
+
+        curr_user = get_current_user_record()
+        if curr_user and curr_user["role"] == ROLE_CITIZEN:
+            created_by = record.get("created_by_user_id")
+            if created_by is not None and int(created_by) != int(curr_user["id"]):
+                return jsonify({
+                    "status": "error",
+                    "error_code": "FORBIDDEN_REPORT_ACCESS",
+                    "message": "Access denied: Citizens may only view activity history for their own inspection records.",
+                }), 403
+
         activities = get_inspection_activity(inspection_id, db_path=db_path)
         return jsonify({
             "status": "success",
@@ -1927,6 +1957,15 @@ def create_app(
         """
         db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
         curr_user = get_current_user_record()
+        if curr_user and curr_user["role"] == ROLE_CITIZEN:
+            rec = get_inspection_by_id(inspection_id, db_path=db_path)
+            if rec and rec.get("created_by_user_id") is not None and int(rec["created_by_user_id"]) != int(curr_user["id"]):
+                return jsonify({
+                    "status": "error",
+                    "error_code": "FORBIDDEN_REPORT_ACCESS",
+                    "message": "Access denied: Citizens may only access complaint drafts for their own inspections.",
+                }), 403
+
         u_id = curr_user["id"] if curr_user else None
         u_name = curr_user["username"] if curr_user else None
 
@@ -1966,6 +2005,15 @@ def create_app(
         db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
         payload = request.get_json(silent=True) or {}
         curr_user = get_current_user_record()
+        if curr_user and curr_user["role"] == ROLE_CITIZEN:
+            rec = get_inspection_by_id(inspection_id, db_path=db_path)
+            if rec and rec.get("created_by_user_id") is not None and int(rec["created_by_user_id"]) != int(curr_user["id"]):
+                return jsonify({
+                    "status": "error",
+                    "error_code": "FORBIDDEN_REPORT_ACCESS",
+                    "message": "Access denied: Citizens may only edit complaint drafts for their own inspections.",
+                }), 403
+
         u_id = curr_user["id"] if curr_user else None
         u_name = curr_user["username"] if curr_user else None
 
@@ -2003,18 +2051,47 @@ def create_app(
         Exports the complaint draft as a plain text document.
         """
         db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        curr_user = get_current_user_record()
+        if curr_user and curr_user["role"] == ROLE_CITIZEN:
+            rec = get_inspection_by_id(inspection_id, db_path=db_path)
+            if rec and rec.get("created_by_user_id") is not None and int(rec["created_by_user_id"]) != int(curr_user["id"]):
+                return jsonify({
+                    "status": "error",
+                    "error_code": "FORBIDDEN_REPORT_ACCESS",
+                    "message": "Access denied: Citizens may only export complaint drafts for their own inspections.",
+                }), 403
+
         try:
             draft = get_or_create_complaint_draft(inspection_id=inspection_id, db_path=db_path)
-            # Mark status as exported
-            update_complaint_draft(inspection_id, {"status": "exported"}, db_path=db_path)
+            # Mark status as exported only if not already ready_to_submit or submitted
+            if draft.get("status") not in ("submitted", "ready_to_submit"):
+                update_complaint_draft(inspection_id, {"status": "exported"}, db_path=db_path)
 
             filename = f"visionguard_complaint_draft_insp_{inspection_id}.txt"
-            content = (
-                f"SUBJECT: {draft.get('subject')}\n"
-                f"TO: {draft.get('recipient_agency')}\n"
-                f"{'='*72}\n\n"
-                f"{draft.get('complaint_body')}\n"
-            )
+            status_val = str(draft.get("status", "draft")).upper().replace("_", " ")
+            complainant_val = draft.get("complainant_name") or "Not Specified"
+            contact_val = draft.get("complainant_contact") or "Not Specified"
+            location_val = draft.get("inspection_location") or "Not Specified"
+
+            header_lines = [
+                "VISIONGUARD AI — CIVIC COMPLAINT & GRIEVANCE RECORD",
+                f"STATUS: {status_val}",
+            ]
+            if draft.get("status") == "submitted":
+                header_lines.append(f"SUBMITTED VIA: {draft.get('submission_channel', 'Manual Submission')}")
+                header_lines.append(f"OFFICIAL REFERENCE: {draft.get('submission_reference', 'Self-Reported')}")
+                header_lines.append(f"SUBMISSION TIMESTAMP: {draft.get('submitted_at', '')}")
+
+            header_lines.extend([
+                f"COMPLAINANT: {complainant_val} (Contact: {contact_val})",
+                f"CONFIRMED LOCATION: {location_val}",
+                f"{'='*72}",
+                f"TO: {draft.get('recipient_agency')}",
+                f"SUBJECT: {draft.get('subject')}",
+                f"{'='*72}\n",
+                draft.get("complaint_body", ""),
+            ])
+            content = "\n".join(header_lines)
             byte_stream = io.BytesIO(content.encode("utf-8"))
             return send_file(
                 byte_stream,
@@ -2035,6 +2112,16 @@ def create_app(
         Exports the complaint draft as a printable PDF with legal draft disclaimer.
         """
         db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        curr_user = get_current_user_record()
+        if curr_user and curr_user["role"] == ROLE_CITIZEN:
+            rec = get_inspection_by_id(inspection_id, db_path=db_path)
+            if rec and rec.get("created_by_user_id") is not None and int(rec["created_by_user_id"]) != int(curr_user["id"]):
+                return jsonify({
+                    "status": "error",
+                    "error_code": "FORBIDDEN_REPORT_ACCESS",
+                    "message": "Access denied: Citizens may only export complaint drafts for their own inspections.",
+                }), 403
+
         try:
             pdf_bytes = export_complaint_draft_pdf(inspection_id=inspection_id, db_path=db_path)
             filename = f"visionguard_complaint_draft_insp_{inspection_id}.pdf"
