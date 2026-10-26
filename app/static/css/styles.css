@@ -2885,4 +2885,190 @@ body {
     background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%);
 }
 
+/* =============================================================================
+   Phase 2: GPS Location & Manual Address (Citizen Inspection Flow)
+   ============================================================================= */
+
+.location-context-card {
+    background: linear-gradient(145deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.85) 100%);
+    border: 1px solid rgba(56, 189, 248, 0.22);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    transition: border-color 0.2s ease;
+}
+
+.location-context-card:hover {
+    border-color: rgba(56, 189, 248, 0.35);
+}
+
+.location-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+}
+
+.location-header-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+}
+
+.location-card-icon {
+    font-size: 1.75rem;
+    background: rgba(56, 189, 248, 0.12);
+    padding: 0.5rem;
+    border-radius: 10px;
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.location-privacy-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: rgba(16, 185, 129, 0.12);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.3rem 0.65rem;
+    border-radius: 9999px;
+    letter-spacing: 0.02em;
+}
+
+.location-why-callout {
+    display: flex;
+    gap: 0.85rem;
+    background: rgba(15, 23, 42, 0.65);
+    border: 1px solid var(--border-color);
+    border-left: 4px solid var(--primary-color, #38bdf8);
+    border-radius: 8px;
+    padding: 1rem 1.15rem;
+    margin-bottom: 1.25rem;
+}
+
+.location-why-callout .callout-icon {
+    font-size: 1.35rem;
+    margin-top: 2px;
+}
+
+.location-why-callout .callout-content p {
+    margin: 0.25rem 0 0.5rem 0;
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.location-actions-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.location-btn-icon {
+    margin-right: 0.35rem;
+}
+
+.location-status-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    padding: 0.85rem 1rem;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    line-height: 1.45;
+    margin-bottom: 1.25rem;
+    transition: all 0.2s ease;
+}
+
+.location-status-banner.status-success {
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    color: #6ee7b7;
+}
+
+.location-status-banner.status-warning {
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    color: #fcd34d;
+}
+
+.location-status-banner.status-info {
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    color: #7dd3fc;
+}
+
+.location-status-banner.status-danger {
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    color: #fca5a5;
+}
+
+.location-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.confirmed-location-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.85rem 1.15rem;
+    transition: all 0.2s ease;
+}
+
+.confirmed-location-bar.confirmed-active {
+    border-color: rgba(52, 211, 153, 0.45);
+    background: rgba(6, 78, 59, 0.18);
+}
+
+.confirmed-location-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex: 1 1 300px;
+}
+
+.confirmed-status-indicator {
+    font-size: 1.1rem;
+}
+
+.confirmed-location-details .confirmed-label {
+    display: block;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-bottom: 2px;
+}
+
+.confirmed-location-details .confirmed-val {
+    font-size: 0.92rem;
+    color: #f8fafc;
+}
+
+.confirmed-location-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+
 

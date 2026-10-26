@@ -349,6 +349,29 @@ document.addEventListener("DOMContentLoaded", () => {
     const disclaimerHeading = document.getElementById("disclaimerHeading");
     const disclaimerText = document.getElementById("disclaimerText");
 
+    // Phase 2: Location & Address Elements
+    const btnUseCurrentLocation = document.getElementById("btnUseCurrentLocation");
+    const btnUseCurrentLocationText = document.getElementById("btnUseCurrentLocationText");
+    const locationSpinner = document.getElementById("locationSpinner");
+    const btnClearLocation = document.getElementById("btnClearLocation");
+    const locationStatusBanner = document.getElementById("locationStatusBanner");
+    const locationStatusIcon = document.getElementById("locationStatusIcon");
+    const locationStatusText = document.getElementById("locationStatusText");
+    const inspLocationRoad = document.getElementById("inspLocationRoad");
+    const inspLocationRoadLabel = document.getElementById("inspLocationRoadLabel");
+    const inspLocationArea = document.getElementById("inspLocationArea");
+    const inspLocationAreaLabel = document.getElementById("inspLocationAreaLabel");
+    const inspLocationCity = document.getElementById("inspLocationCity");
+    const inspLocationLat = document.getElementById("inspLocationLat");
+    const inspLocationLon = document.getElementById("inspLocationLon");
+    const inspLocationNotes = document.getElementById("inspLocationNotes");
+    const locationCardTitle = document.getElementById("locationCardTitle");
+    const locationCardSubtitle = document.getElementById("locationCardSubtitle");
+    const confirmedLocationBar = document.getElementById("confirmedLocationBar");
+    const confirmedLocationIndicator = document.getElementById("confirmedLocationIndicator");
+    const confirmedLocationDisplay = document.getElementById("confirmedLocationDisplay");
+    const btnConfirmLocation = document.getElementById("btnConfirmLocation");
+
     let currentFile = null;
 
     function updateModelStatusDisplay() {
@@ -426,6 +449,34 @@ document.addEventListener("DOMContentLoaded", () => {
                 : "e.g. Bandra West / Sector 4";
         }
 
+        // Phase 2 Location Card Domain Customization
+        if (inspLocationRoadLabel) {
+            inspLocationRoadLabel.innerHTML = isHome
+                ? 'Building / Structure / Room <span class="text-muted">(Optional)</span>:'
+                : 'Road / Street / Corridor <span class="text-muted">(Optional)</span>:';
+        }
+        if (inspLocationRoad) {
+            inspLocationRoad.placeholder = isHome
+                ? "e.g. Block B, Apartment 302, Exterior Facade"
+                : "e.g. Western Express Highway, KM 14";
+        }
+        if (inspLocationAreaLabel) {
+            inspLocationAreaLabel.innerHTML = isHome
+                ? 'Floor / Wing / Specific Area <span class="text-muted">(Optional)</span>:'
+                : 'Area / Neighborhood / Landmark <span class="text-muted">(Optional)</span>:';
+        }
+        if (inspLocationArea) {
+            inspLocationArea.placeholder = isHome
+                ? "e.g. Living Room / 2nd Floor / Basement"
+                : "e.g. Bandra West / Sector 4";
+        }
+        if (locationCardSubtitle) {
+            locationCardSubtitle.textContent = isHome
+                ? "Pinpoint the building or room where this structural defect was observed."
+                : "Pinpoint where this road surface defect was observed so repair teams can navigate to the exact hazard.";
+        }
+        updateConfirmedLocationDisplay(false);
+
         updateModelStatusDisplay();
     }
 
@@ -435,6 +486,181 @@ document.addEventListener("DOMContentLoaded", () => {
     if (domainHomeBtn) {
         domainHomeBtn.addEventListener("click", () => setInspectionDomain("home"));
     }
+
+    // -------------------------------------------------------------------------
+    // Phase 2: GPS Location & Manual Address Handlers
+    // -------------------------------------------------------------------------
+    function showLocationStatus(type, message) {
+        if (!locationStatusBanner || !locationStatusText) return;
+        locationStatusBanner.className = `location-status-banner status-${type}`;
+        if (locationStatusIcon) {
+            if (type === "success") locationStatusIcon.textContent = "✅";
+            else if (type === "warning") locationStatusIcon.textContent = "⚠️";
+            else if (type === "danger") locationStatusIcon.textContent = "❌";
+            else locationStatusIcon.textContent = "ℹ️";
+        }
+        locationStatusText.textContent = message;
+        locationStatusBanner.style.display = "flex";
+    }
+
+    function hideLocationStatus() {
+        if (locationStatusBanner) locationStatusBanner.style.display = "none";
+    }
+
+    function updateConfirmedLocationDisplay(wasExplicitlyClicked) {
+        if (!confirmedLocationDisplay) return;
+
+        const road = inspLocationRoad ? inspLocationRoad.value.trim() : "";
+        const area = inspLocationArea ? inspLocationArea.value.trim() : "";
+        const city = inspLocationCity ? inspLocationCity.value.trim() : "";
+        const latStr = inspLocationLat ? inspLocationLat.value.trim() : "";
+        const lonStr = inspLocationLon ? inspLocationLon.value.trim() : "";
+        const notes = inspLocationNotes ? inspLocationNotes.value.trim() : "";
+
+        const hasAnyInput = Boolean(road || area || city || latStr || lonStr || notes);
+
+        if (btnClearLocation) {
+            btnClearLocation.style.display = hasAnyInput ? "inline-block" : "none";
+        }
+
+        let addressParts = [];
+        if (road) addressParts.push(road);
+        if (area) addressParts.push(area);
+        if (city) addressParts.push(city);
+        const addressText = addressParts.join(", ");
+
+        let coordsText = "";
+        let hasValidCoords = false;
+        if (latStr !== "" || lonStr !== "") {
+            const latNum = parseFloat(latStr);
+            const lonNum = parseFloat(lonStr);
+            if (!isNaN(latNum) && !isNaN(lonNum) && latNum >= -90 && latNum <= 90 && lonNum >= -180 && lonNum <= 180) {
+                coordsText = `${latNum.toFixed(4)}, ${lonNum.toFixed(4)}`;
+                hasValidCoords = true;
+            } else {
+                coordsText = "Invalid range (-90 to +90, -180 to +180)";
+            }
+        }
+
+        if (addressText && hasValidCoords) {
+            confirmedLocationDisplay.textContent = `${addressText} • GPS: [${coordsText}]`;
+            if (confirmedLocationIndicator) confirmedLocationIndicator.textContent = "📍";
+            if (confirmedLocationBar) confirmedLocationBar.classList.add("confirmed-active");
+        } else if (addressText) {
+            confirmedLocationDisplay.textContent = addressText;
+            if (confirmedLocationIndicator) confirmedLocationIndicator.textContent = "📍";
+            if (confirmedLocationBar) confirmedLocationBar.classList.add("confirmed-active");
+        } else if (hasValidCoords) {
+            confirmedLocationDisplay.textContent = `GPS Pin: [${coordsText}] (No manual street address)`;
+            if (confirmedLocationIndicator) confirmedLocationIndicator.textContent = "📍";
+            if (confirmedLocationBar) confirmedLocationBar.classList.add("confirmed-active");
+        } else if (hasAnyInput) {
+            confirmedLocationDisplay.textContent = notes ? `Notes: ${notes}` : `Partial location information entered`;
+            if (confirmedLocationIndicator) confirmedLocationIndicator.textContent = "📍";
+            if (confirmedLocationBar) confirmedLocationBar.classList.add("confirmed-active");
+        } else {
+            confirmedLocationDisplay.textContent = "No location specified (Inspection will proceed without geotagging)";
+            if (confirmedLocationIndicator) confirmedLocationIndicator.textContent = "⚪";
+            if (confirmedLocationBar) confirmedLocationBar.classList.remove("confirmed-active");
+        }
+
+        if (wasExplicitlyClicked && btnConfirmLocation) {
+            btnConfirmLocation.textContent = "✓ Location Confirmed";
+            btnConfirmLocation.classList.remove("btn-outline-success");
+            btnConfirmLocation.classList.add("btn-success");
+            setTimeout(() => {
+                btnConfirmLocation.textContent = "✓ Confirm Location";
+                btnConfirmLocation.classList.remove("btn-success");
+                btnConfirmLocation.classList.add("btn-outline-success");
+            }, 2500);
+        }
+    }
+
+    function clearLocationInputs() {
+        if (inspLocationRoad) inspLocationRoad.value = "";
+        if (inspLocationArea) inspLocationArea.value = "";
+        if (inspLocationCity) inspLocationCity.value = "";
+        if (inspLocationLat) inspLocationLat.value = "";
+        if (inspLocationLon) inspLocationLon.value = "";
+        if (inspLocationNotes) inspLocationNotes.value = "";
+        hideLocationStatus();
+        if (btnUseCurrentLocationText) btnUseCurrentLocationText.textContent = "Use My Current Location";
+        if (locationSpinner) locationSpinner.style.display = "none";
+        if (btnUseCurrentLocation) btnUseCurrentLocation.disabled = false;
+        updateConfirmedLocationDisplay(false);
+    }
+
+    function requestBrowserGeolocation() {
+        if (!navigator.geolocation) {
+            showLocationStatus("info", "ℹ️ Geolocation is not supported by your current browser. You can enter the street address or building details manually below.");
+            return;
+        }
+
+        if (locationSpinner) locationSpinner.style.display = "inline-block";
+        if (btnUseCurrentLocation) btnUseCurrentLocation.disabled = true;
+        if (btnUseCurrentLocationText) btnUseCurrentLocationText.textContent = "Acquiring GPS Position...";
+        showLocationStatus("info", "📡 Requesting your current GPS coordinates from the browser...");
+
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                if (locationSpinner) locationSpinner.style.display = "none";
+                if (btnUseCurrentLocation) btnUseCurrentLocation.disabled = false;
+                if (btnUseCurrentLocationText) btnUseCurrentLocationText.textContent = "Update GPS Location";
+
+                const lat = pos.coords.latitude;
+                const lon = pos.coords.longitude;
+                const acc = Math.round(pos.coords.accuracy || 0);
+
+                if (inspLocationLat) inspLocationLat.value = lat.toFixed(6);
+                if (inspLocationLon) inspLocationLon.value = lon.toFixed(6);
+
+                showLocationStatus("success", `✅ GPS Coordinates detected with accuracy of ±${acc}m! Latitude and Longitude updated below.`);
+                updateConfirmedLocationDisplay(false);
+            },
+            (err) => {
+                if (locationSpinner) locationSpinner.style.display = "none";
+                if (btnUseCurrentLocation) btnUseCurrentLocation.disabled = false;
+                if (btnUseCurrentLocationText) btnUseCurrentLocationText.textContent = "Use My Current Location";
+
+                switch (err.code) {
+                    case err.PERMISSION_DENIED:
+                        showLocationStatus("warning", "⚠️ Location permission denied by your browser. You can enter the street address or landmark manually below — inspections are never blocked.");
+                        break;
+                    case err.POSITION_UNAVAILABLE:
+                        showLocationStatus("warning", "⚠️ GPS position is unavailable on your device or network. Please enter the street address or building location manually below.");
+                        break;
+                    case err.TIMEOUT:
+                        showLocationStatus("warning", "⏱️ Geolocation request timed out. Please retry or enter the address manually below.");
+                        break;
+                    default:
+                        showLocationStatus("warning", `⚠️ Location request failed (${err.message || "Unknown error"}). You can enter the location manually below.`);
+                        break;
+                }
+                updateConfirmedLocationDisplay(false);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 60000,
+            }
+        );
+    }
+
+    if (btnUseCurrentLocation) {
+        btnUseCurrentLocation.addEventListener("click", requestBrowserGeolocation);
+    }
+    if (btnClearLocation) {
+        btnClearLocation.addEventListener("click", clearLocationInputs);
+    }
+    if (btnConfirmLocation) {
+        btnConfirmLocation.addEventListener("click", () => updateConfirmedLocationDisplay(true));
+    }
+    [inspLocationRoad, inspLocationArea, inspLocationCity, inspLocationLat, inspLocationLon, inspLocationNotes].forEach(elem => {
+        if (elem) {
+            elem.addEventListener("input", () => updateConfirmedLocationDisplay(false));
+            elem.addEventListener("change", () => updateConfirmedLocationDisplay(false));
+        }
+    });
 
     // 1. Initial Health Check
     async function checkHealth() {
@@ -851,12 +1077,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const saveFeedback = document.getElementById("saveFeedback");
         const saveCardStatusBadge = document.getElementById("saveCardStatusBadge");
 
-        if (saveRoadNameInput) saveRoadNameInput.value = "";
-        if (saveAreaInput) saveAreaInput.value = "";
-        if (saveCityInput) saveCityInput.value = "";
-        if (saveLatInput) saveLatInput.value = "";
-        if (saveLonInput) saveLonInput.value = "";
-        if (saveNotesInput) saveNotesInput.value = "";
+        if (saveRoadNameInput) saveRoadNameInput.value = inspLocationRoad ? inspLocationRoad.value.trim() : "";
+        if (saveAreaInput) saveAreaInput.value = inspLocationArea ? inspLocationArea.value.trim() : "";
+        if (saveCityInput) saveCityInput.value = inspLocationCity ? inspLocationCity.value.trim() : "";
+        if (saveLatInput) saveLatInput.value = inspLocationLat ? inspLocationLat.value.trim() : "";
+        if (saveLonInput) saveLonInput.value = inspLocationLon ? inspLocationLon.value.trim() : "";
+        if (saveNotesInput) saveNotesInput.value = inspLocationNotes ? inspLocationNotes.value.trim() : "";
         if (saveStatusSelect) saveStatusSelect.value = "Open";
         if (saveInspectionBtn) {
             saveInspectionBtn.disabled = false;
@@ -3665,6 +3891,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (citizenStartRoadReportBtn) {
         citizenStartRoadReportBtn.addEventListener("click", () => {
+            clearLocationInputs();
             setInspectionDomain("road");
             switchView("new");
         });
@@ -3672,6 +3899,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (citizenStartHomeReportBtn) {
         citizenStartHomeReportBtn.addEventListener("click", () => {
+            clearLocationInputs();
             setInspectionDomain("home");
             switchView("new");
         });

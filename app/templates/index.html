@@ -7,7 +7,7 @@
     <meta name="description" content="AI-Powered Infrastructure Defect Detection & Road Inspection Platform using genuine YOLOv8 computer vision.">
     <meta name="csrf-token" content="{{ csrf_token or '' }}">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-    <link rel="stylesheet" href="/static/css/styles.css?v=20261023">
+    <link rel="stylesheet" href="/static/css/styles.css?v=20261026_p2">
     <style>
         .modal-overlay {
             position: fixed;
@@ -714,6 +714,112 @@
                             <span>YOLOv8 Home Model • Cracks, Dampness, Peeling, Spalling</span>
                         </div>
                     </button>
+                </div>
+            </div>
+
+            <!-- Defect Location & Geospatial Context Card (Phase 2) -->
+            <div class="card location-context-card" id="inspectionLocationCard">
+                <div class="location-header-row">
+                    <div class="location-header-meta">
+                        <span class="location-card-icon">📍</span>
+                        <div>
+                            <h3 id="locationCardTitle" style="margin: 0; font-size: 1.12rem;">Defect Location & Geospatial Context</h3>
+                            <p id="locationCardSubtitle" class="card-subtitle" style="margin: 0.25rem 0 0 0;">
+                                Pinpoint where this defect was observed so repair teams can navigate to the exact hazard.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="location-privacy-badge" title="Location is strictly scoped to your report and authorized staff">
+                        <span>🔒 Confidential Civic Data</span>
+                    </div>
+                </div>
+
+                <!-- Educational Callout: Why Location is Useful -->
+                <div class="location-why-callout">
+                    <div class="callout-icon">💡</div>
+                    <div class="callout-content">
+                        <strong>Why provide location?</strong>
+                        <p>
+                            Adding a street address or GPS pin allows municipal road crews or building management to immediately locate and remediate the hazard, plots the defect on the civic Defect Map, and automatically formats location telemetry in your formal complaint letters.
+                        </p>
+                        <small class="text-muted">
+                            🛡️ <em>Privacy Guarantee:</em> Location data remains private, is never shared with third parties, and is accessible only to you and authorized maintenance personnel. Location is optional and will never block analysis.
+                        </small>
+                    </div>
+                </div>
+
+                <!-- Geolocation Trigger & Actions -->
+                <div class="location-actions-row">
+                    <button type="button" class="btn btn-outline-primary" id="btnUseCurrentLocation">
+                        <span class="location-btn-icon">📍</span>
+                        <span id="btnUseCurrentLocationText">Use My Current Location</span>
+                        <span class="spinner spinner-sm" id="locationSpinner" style="display: none; margin-left: 0.5rem;"></span>
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="btnClearLocation" style="display: none;">
+                        ✕ Clear Location
+                    </button>
+                </div>
+
+                <!-- Geolocation Feedback Banner (Dynamic States: Granted, Denied, Unavailable, Timeout, Unsupported) -->
+                <div class="location-status-banner" id="locationStatusBanner" style="display: none;" role="status">
+                    <span class="status-icon" id="locationStatusIcon">ℹ️</span>
+                    <div class="status-text" id="locationStatusText"></div>
+                </div>
+
+                <!-- Manual Address & Coordinate Fallback Form -->
+                <div class="location-form-grid">
+                    <div class="form-group">
+                        <label for="inspLocationRoad" id="inspLocationRoadLabel">
+                            Road / Street / Corridor <span class="text-muted">(Optional)</span>:
+                        </label>
+                        <input type="text" id="inspLocationRoad" class="form-control" placeholder="e.g. Western Express Highway, KM 14" maxlength="150">
+                    </div>
+                    <div class="form-group">
+                        <label for="inspLocationArea" id="inspLocationAreaLabel">
+                            Area / Neighborhood / Landmark <span class="text-muted">(Optional)</span>:
+                        </label>
+                        <input type="text" id="inspLocationArea" class="form-control" placeholder="e.g. Bandra West / Sector 4" maxlength="100">
+                    </div>
+                    <div class="form-group">
+                        <label for="inspLocationCity">
+                            City / Region <span class="text-muted">(Optional)</span>:
+                        </label>
+                        <input type="text" id="inspLocationCity" class="form-control" placeholder="e.g. Mumbai" maxlength="100">
+                    </div>
+                    <div class="form-group">
+                        <label for="inspLocationLat">
+                            Latitude <span class="text-muted">(GPS -90° to +90°, Optional)</span>:
+                        </label>
+                        <input type="number" id="inspLocationLat" class="form-control" placeholder="e.g. 19.0760" step="any" min="-90" max="90">
+                    </div>
+                    <div class="form-group">
+                        <label for="inspLocationLon">
+                            Longitude <span class="text-muted">(GPS -180° to +180°, Optional)</span>:
+                        </label>
+                        <input type="number" id="inspLocationLon" class="form-control" placeholder="e.g. 72.8777" step="any" min="-180" max="180">
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="inspLocationNotes">
+                            Location Notes / Specific Landmarks <span class="text-muted">(Optional)</span>:
+                        </label>
+                        <input type="text" id="inspLocationNotes" class="form-control" placeholder="e.g. Opposite pillar 42, outside north entrance, 2nd floor corridor" maxlength="250">
+                    </div>
+                </div>
+
+                <!-- Confirmed Location Summary Bar (Confirmed / Editable Preview) -->
+                <div class="confirmed-location-bar" id="confirmedLocationBar">
+                    <div class="confirmed-location-meta">
+                        <span class="confirmed-status-indicator" id="confirmedLocationIndicator">⚪</span>
+                        <div class="confirmed-location-details">
+                            <span class="confirmed-label">Selected Report Location:</span>
+                            <strong id="confirmedLocationDisplay" class="confirmed-val">No location specified (Inspection will proceed without geotagging)</strong>
+                        </div>
+                    </div>
+                    <div class="confirmed-location-actions">
+                        <button type="button" class="btn btn-sm btn-outline-success" id="btnConfirmLocation">
+                            ✓ Confirm Location
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -2230,6 +2336,6 @@
     </footer>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="/static/js/app.js?v=20261026c"></script>
+    <script src="/static/js/app.js?v=20261026_p2"></script>
 </body>
 </html>
