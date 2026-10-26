@@ -772,9 +772,16 @@ def create_app(
         wf_status = request.args.get("workflow_status")
         urgency = request.args.get("urgency") or request.args.get("deadline")
         category = request.args.get("category")
+        domain = request.args.get("domain") or request.args.get("inspection_type")
         city = request.args.get("city")
         area = request.args.get("area")
         search_query = request.args.get("q") or request.args.get("search")
+        sort_by = request.args.get("sort_by") or request.args.get("sort")
+
+        include_unassigned = False
+        if curr_user and curr_user["role"] == ROLE_ADMIN:
+            if request.args.get("include_unassigned") in ("1", "true", "yes") or assign_status in ("all", "any", "unassigned"):
+                include_unassigned = True
 
         try:
             limit = min(500, max(1, int(request.args.get("limit", 100))))
@@ -789,18 +796,35 @@ def create_app(
             workflow_status=wf_status,
             urgency=urgency,
             category=category,
+            domain=domain,
             city=city,
             area=area,
             search_query=search_query,
+            sort_by=sort_by,
+            include_unassigned=include_unassigned,
             limit=limit,
             offset=offset,
             db_path=db_path,
         )
 
+        # Compute telemetry counts for queue view
+        total_count = len(tasks)
+        assigned_cnt = sum(1 for t in tasks if t.get("assignment_status") == "assigned")
+        in_prog_cnt = sum(1 for t in tasks if t.get("assignment_status") == "in_progress")
+        overdue_cnt = sum(1 for t in tasks if t.get("maintenance_urgency") == "overdue")
+        completed_cnt = sum(1 for t in tasks if t.get("assignment_status") == "completed" or t.get("status") == "Resolved")
+
         return jsonify({
             "status": "success",
-            "count": len(tasks),
+            "count": total_count,
             "tasks": tasks,
+            "counts": {
+                "total": total_count,
+                "assigned": assigned_cnt,
+                "in_progress": in_prog_cnt,
+                "overdue": overdue_cnt,
+                "completed": completed_cnt,
+            },
             "user_id": target_user_id,
             "disclaimer": (
                 "Notice: Work queue assignments, status tracking, and notes reflect administrative "
@@ -1491,6 +1515,25 @@ def create_app(
                     "message": "Access denied: Citizens may only view their own inspection records.",
                 }), 403
 
+            # Phase 5: Privacy Guardrail - Mask internal staff data and dispatch notes for citizens
+            record["assignments"] = []
+            record["assignment_instructions"] = ""
+            record["assigned_to_user_id"] = None
+            record["assigned_to_username"] = "Operations Team" if record.get("assigned_to_username") else None
+            record["assigned_by_user_id"] = None
+            record["assigned_by_username"] = None
+
+            if "activity_log" in record:
+                sanitized_log = []
+                for entry in record.get("activity_log", []):
+                    item = dict(entry)
+                    item["user_id"] = None
+                    item["username"] = "Operations Team"
+                    if item.get("action_type") in ("assigned", "reassigned", "assignment_cancelled"):
+                        item["notes"] = "Remediation crew dispatched for inspection and maintenance scheduling."
+                    sanitized_log.append(item)
+                record["activity_log"] = sanitized_log
+
         disclaimer_text = (
             "VisionGuard AI defect detections represent 2D camera bounding boxes only. "
             "Confidence scores indicate visual recognition likelihood, not defect severity or structural safety. "
@@ -1510,7 +1553,7 @@ def create_app(
     def api_update_inspection_status(inspection_id: int):
         """
         Updates the status of an inspection record.
-        Allowed initial states: Open, Under Review, Repair in Progress, Resolved.
+        Allowed initial states: Open, Under Review, Assigned, Repair in Progress, Resolved, Reopened.
         Also accepts optional location metadata updates.
         """
         db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
@@ -1547,6 +1590,30 @@ def create_app(
                 "status": "error",
                 "error_code": "INVALID_STATUS",
                 "message": f"Status '{new_status}' is invalid. Allowed: {ALLOWED_STATUSES}",
+            }), 400
+
+        # Phase 5 Server-side Lifecycle Validations
+        notes_val = (payload.get("notes") or "").strip()
+        if new_status == "Resolved" and not notes_val:
+            return jsonify({
+                "status": "error",
+                "error_code": "MISSING_RESOLUTION_NOTES",
+                "message": "A resolution note detailing repair actions and verification evidence is required before marking an inspection as Resolved.",
+            }), 400
+
+        if new_status == "Reopened" and not notes_val:
+            return jsonify({
+                "status": "error",
+                "error_code": "MISSING_REOPEN_NOTES",
+                "message": "Notes explaining the reason for reopening are required before marking an inspection as Reopened.",
+            }), 400
+
+        old_st = existing_record.get("status")
+        if old_st == "Resolved" and new_status not in ["Resolved", "Reopened", "Under Review"]:
+            return jsonify({
+                "status": "error",
+                "error_code": "INVALID_STATUS_TRANSITION",
+                "message": f"Cannot transition directly from 'Resolved' to '{new_status}'. The inspection must be marked as 'Reopened' first.",
             }), 400
 
         # Validate coordinates if provided
@@ -1625,6 +1692,12 @@ def create_app(
                 "status_disclaimer": disclaimer_text,
                 "inspection": updated,
             }), 200
+        except ValueError as ve:
+            return jsonify({
+                "status": "error",
+                "error_code": "INVALID_STATUS_TRANSITION",
+                "message": str(ve),
+            }), 400
         except Exception as e:
             logger.exception(f"Failed to update inspection #{inspection_id} status: {e}")
             return jsonify({
@@ -1660,12 +1733,34 @@ def create_app(
 
         payload = request.get_json(silent=True) or {}
 
-        if "status" in payload and payload["status"] not in ALLOWED_STATUSES:
-            return jsonify({
-                "status": "error",
-                "error_code": "INVALID_STATUS",
-                "message": f"Status '{payload['status']}' is invalid. Allowed: {ALLOWED_STATUSES}",
-            }), 400
+        if "status" in payload:
+            status_val = payload["status"]
+            if status_val not in ALLOWED_STATUSES:
+                return jsonify({
+                    "status": "error",
+                    "error_code": "INVALID_STATUS",
+                    "message": f"Status '{status_val}' is invalid. Allowed: {ALLOWED_STATUSES}",
+                }), 400
+            notes_val = (payload.get("notes") or payload.get("location_notes") or "").strip()
+            if status_val == "Resolved" and not notes_val:
+                return jsonify({
+                    "status": "error",
+                    "error_code": "MISSING_RESOLUTION_NOTES",
+                    "message": "A resolution note detailing repair actions and verification evidence is required before marking an inspection as Resolved.",
+                }), 400
+            if status_val == "Reopened" and not notes_val:
+                return jsonify({
+                    "status": "error",
+                    "error_code": "MISSING_REOPEN_NOTES",
+                    "message": "Notes explaining the reason for reopening are required before marking an inspection as Reopened.",
+                }), 400
+            old_st = existing_record.get("status")
+            if old_st == "Resolved" and status_val not in ["Resolved", "Reopened", "Under Review"]:
+                return jsonify({
+                    "status": "error",
+                    "error_code": "INVALID_STATUS_TRANSITION",
+                    "message": f"Cannot transition directly from 'Resolved' to '{status_val}'. The inspection must be marked as 'Reopened' first.",
+                }), 400
 
         if "latitude" in payload or "longitude" in payload:
             is_valid_coords, parsed_lat, parsed_lon, coord_err = validate_coordinates(
@@ -1733,6 +1828,12 @@ def create_app(
                 "message": f"Inspection #{inspection_id} updated successfully.",
                 "inspection": updated,
             }), 200
+        except ValueError as ve:
+            return jsonify({
+                "status": "error",
+                "error_code": "INVALID_UPDATE",
+                "message": str(ve),
+            }), 400
         except Exception as e:
             logger.exception(f"Failed to update inspection #{inspection_id}: {e}")
             return jsonify({
@@ -1825,6 +1926,19 @@ def create_app(
                 }), 403
 
         activities = get_inspection_activity(inspection_id, db_path=db_path)
+
+        # Phase 5: Privacy Guardrail - Mask internal staff data for citizens
+        if curr_user and curr_user["role"] == ROLE_CITIZEN:
+            sanitized_activities = []
+            for act in activities:
+                sa = dict(act)
+                sa["user_id"] = None
+                sa["username"] = "Operations Team"
+                if sa.get("action_type") in ("assigned", "reassigned", "assignment_cancelled"):
+                    sa["notes"] = "Remediation crew dispatched for inspection and maintenance scheduling."
+                sanitized_activities.append(sa)
+            activities = sanitized_activities
+
         return jsonify({
             "status": "success",
             "inspection_id": inspection_id,
