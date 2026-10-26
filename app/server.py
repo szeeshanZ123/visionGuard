@@ -40,6 +40,7 @@ from database.db import (
     get_inspections,
     get_dashboard_analytics,
     get_inspection_by_id,
+    get_citizen_dashboard_summary,
     update_inspection_status,
     update_inspection,
     delete_inspection,
@@ -1250,16 +1251,22 @@ def create_app(
         # Filter by creator (e.g. for citizen "My Reports")
         my_reports = request.args.get("my_reports") or request.args.get("created_by_me")
         created_by_filter = None
-        if my_reports and my_reports.lower() in ["1", "true", "yes"] and curr_user:
+        if curr_user and curr_user.get("role") == ROLE_CITIZEN:
+            # Citizens strictly see only their own inspections in My Reports and list queries
             created_by_filter = curr_user["id"]
-        elif curr_user and curr_user.get("role") == ROLE_CITIZEN and request.args.get("all_civic") not in ["1", "true", "yes"]:
-            # By default, citizens viewing their inspection records list see their own submitted reports
+        elif my_reports and my_reports.lower() in ["1", "true", "yes"] and curr_user:
             created_by_filter = curr_user["id"]
         elif request.args.get("created_by_user_id"):
             try:
                 created_by_filter = int(request.args.get("created_by_user_id"))
             except (ValueError, TypeError):
                 created_by_filter = None
+
+        complaint_status_filter = request.args.get("complaint_status")
+        sort_by = request.args.get("sort_by") or request.args.get("sort") or "newest"
+        date_filter = request.args.get("date")
+        start_date = request.args.get("start_date") or (date_filter.strip() if date_filter and date_filter.strip() else None)
+        end_date = request.args.get("end_date") or (date_filter.strip() if date_filter and date_filter.strip() else None)
 
         try:
             limit = min(500, max(1, int(request.args.get("limit", 100))))
@@ -1278,17 +1285,25 @@ def create_app(
             search_query=search_query,
             has_coords=has_coords,
             deadline_filter=deadline_filter if deadline_filter and deadline_filter.lower() != "all" else None,
+            start_date=start_date,
+            end_date=end_date,
             assigned_to_user_id=parsed_assigned_user_id,
             assignment_status=assignment_status_filter,
             created_by_user_id=created_by_filter,
             domain=domain_filter if domain_filter and domain_filter.lower() != "all" else None,
+            complaint_status=complaint_status_filter,
+            sort_by=sort_by,
             db_path=db_path
         )
-        return jsonify({
+        resp_data = {
             "status": "success",
             "count": len(inspections),
             "inspections": inspections,
-        }), 200
+        }
+        if curr_user and curr_user.get("role") == ROLE_CITIZEN:
+            resp_data["citizen_summary"] = get_citizen_dashboard_summary(curr_user["id"], db_path=db_path)
+
+        return jsonify(resp_data), 200
 
     def validate_coordinates(latitude, longitude):
         """
@@ -1469,7 +1484,7 @@ def create_app(
 
         if curr_user and curr_user["role"] == ROLE_CITIZEN:
             created_by = record.get("created_by_user_id")
-            if created_by is not None and int(created_by) != int(curr_user["id"]):
+            if created_by is None or int(created_by) != int(curr_user["id"]):
                 return jsonify({
                     "status": "error",
                     "error_code": "FORBIDDEN_REPORT_ACCESS",
@@ -2136,7 +2151,22 @@ def create_app(
             return jsonify({"status": "error", "message": str(ve)}), 404
         except Exception as e:
             logger.exception(f"Failed to export PDF complaint draft: {e}")
-            return jsonify({"status": "error", "message": f"PDF export failed: {str(e)}"}), 500
+    @app.route("/api/citizen/summary", methods=["GET"])
+    @roles_required(ROLE_CITIZEN)
+    def api_get_citizen_summary():
+        """
+        Returns authentic summary metrics (total, open, under_review, resolved, submitted_complaints)
+        for the authenticated citizen.
+        """
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        curr_user = get_current_user_record()
+        if not curr_user:
+            return jsonify({"status": "error", "message": "Authentication required."}), 401
+        summary = get_citizen_dashboard_summary(curr_user["id"], db_path=db_path)
+        return jsonify({
+            "status": "success",
+            "summary": summary
+        }), 200
 
     return app
 
