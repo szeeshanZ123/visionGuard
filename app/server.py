@@ -52,6 +52,7 @@ from database.auth import (
     ROLE_ADMIN,
     ROLE_INSPECTOR,
     ROLE_MAINTENANCE,
+    ROLE_CITIZEN,
     ALLOWED_ROLES,
     ROLE_DISPLAY_NAMES,
     create_user,
@@ -81,6 +82,12 @@ from database.assignments import (
     check_user_can_maintain_inspection,
     ASSIGNMENT_STATUS_DISPLAY,
     ALLOWED_ASSIGNMENT_STATUSES,
+)
+from database.complaints import (
+    get_or_create_complaint_draft,
+    update_complaint_draft,
+    export_complaint_draft_pdf,
+    COMPLAINT_DISCLAIMER_TEXT,
 )
 from ai.preprocessing.image_ops import (
     validate_image_stream,
@@ -260,9 +267,10 @@ def create_app(
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return None
 
-        # Exempt paths that initiate authentication or initial admin setup
+        # Exempt paths that initiate authentication, registration, or initial admin setup
         exempt_paths = [
             "/api/auth/login",
+            "/api/auth/register",
             "/api/auth/setup-admin",
         ]
         if request.path in exempt_paths:
@@ -377,6 +385,61 @@ def create_app(
             "user": user,
             "csrf_token": csrf_tok,
         }), 200
+
+    @app.route("/api/auth/register", methods=["POST"])
+    def api_auth_register():
+        """
+        Public citizen registration endpoint.
+        Registers a citizen account (role=ROLE_CITIZEN) using secure scrypt password hashing
+        and auto-authenticates the user within the active session.
+        """
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        payload = request.get_json(silent=True) or {}
+        username = payload.get("username")
+        password = payload.get("password")
+        email = payload.get("email")
+
+        if not username or not password:
+            return jsonify({
+                "status": "error",
+                "error_code": "MISSING_CREDENTIALS",
+                "message": "Username and password are required.",
+            }), 400
+
+        try:
+            user = create_user(
+                username=username,
+                password=password,
+                role=ROLE_CITIZEN,
+                email=email,
+                is_active=1,
+                db_path=db_path
+            )
+            session["user_id"] = user["id"]
+            session["username"] = user["username"]
+            session["role"] = user["role"]
+            session.permanent = True
+            csrf_tok = get_or_create_csrf_token()
+
+            return jsonify({
+                "status": "success",
+                "message": f"Welcome to VisionGuard AI, {user['username']}. Your citizen account has been created.",
+                "user": user,
+                "csrf_token": csrf_tok,
+            }), 201
+        except ValueError as ve:
+            return jsonify({
+                "status": "error",
+                "error_code": "REGISTRATION_FAILED",
+                "message": str(ve),
+            }), 400
+        except Exception as e:
+            logger.exception(f"Error registering citizen account: {e}")
+            return jsonify({
+                "status": "error",
+                "error_code": "INTERNAL_SERVER_ERROR",
+                "message": f"Registration failed: {str(e)}",
+            }), 500
 
     @app.route("/api/auth/logout", methods=["POST"])
     def api_auth_logout():
@@ -929,7 +992,7 @@ def create_app(
             }), status_code
 
     @app.route("/api/inspect", methods=["POST"])
-    @roles_required(ROLE_ADMIN, ROLE_INSPECTOR)
+    @roles_required(ROLE_ADMIN, ROLE_INSPECTOR, ROLE_CITIZEN)
     def api_inspect():
         """
         Primary defect inspection endpoint.
@@ -1142,11 +1205,11 @@ def create_app(
         }), 200
 
     @app.route("/api/inspections", methods=["GET"])
-    @roles_required(ROLE_ADMIN, ROLE_INSPECTOR, ROLE_MAINTENANCE)
+    @roles_required(ROLE_ADMIN, ROLE_INSPECTOR, ROLE_MAINTENANCE, ROLE_CITIZEN)
     def api_get_inspections():
         """
         Lists saved inspection records with optional filtering.
-        Query params: status, category, q (search query), limit, offset.
+        Query params: status, category, q (search query), limit, offset, my_reports, all_civic.
         """
         db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
         status_filter = request.args.get("status")
@@ -1184,6 +1247,20 @@ def create_app(
             except (ValueError, TypeError):
                 parsed_assigned_user_id = None
 
+        # Filter by creator (e.g. for citizen "My Reports")
+        my_reports = request.args.get("my_reports") or request.args.get("created_by_me")
+        created_by_filter = None
+        if my_reports and my_reports.lower() in ["1", "true", "yes"] and curr_user:
+            created_by_filter = curr_user["id"]
+        elif curr_user and curr_user.get("role") == ROLE_CITIZEN and request.args.get("all_civic") not in ["1", "true", "yes"]:
+            # By default, citizens viewing their inspection records list see their own submitted reports
+            created_by_filter = curr_user["id"]
+        elif request.args.get("created_by_user_id"):
+            try:
+                created_by_filter = int(request.args.get("created_by_user_id"))
+            except (ValueError, TypeError):
+                created_by_filter = None
+
         try:
             limit = min(500, max(1, int(request.args.get("limit", 100))))
             offset = max(0, int(request.args.get("offset", 0)))
@@ -1203,6 +1280,7 @@ def create_app(
             deadline_filter=deadline_filter if deadline_filter and deadline_filter.lower() != "all" else None,
             assigned_to_user_id=parsed_assigned_user_id,
             assignment_status=assignment_status_filter,
+            created_by_user_id=created_by_filter,
             domain=domain_filter if domain_filter and domain_filter.lower() != "all" else None,
             db_path=db_path
         )
@@ -1242,7 +1320,7 @@ def create_app(
         return True, parsed_lat, parsed_lon, None
 
     @app.route("/api/inspections", methods=["POST"])
-    @roles_required(ROLE_ADMIN, ROLE_INSPECTOR)
+    @roles_required(ROLE_ADMIN, ROLE_INSPECTOR, ROLE_CITIZEN)
     def api_save_inspection():
         """
         Saves a completed road or home inspection into the database.
@@ -1365,7 +1443,7 @@ def create_app(
             }), 500
 
     @app.route("/api/inspections/<int:inspection_id>", methods=["GET"])
-    @roles_required(ROLE_ADMIN, ROLE_INSPECTOR, ROLE_MAINTENANCE)
+    @roles_required(ROLE_ADMIN, ROLE_INSPECTOR, ROLE_MAINTENANCE, ROLE_CITIZEN)
     def api_get_inspection_detail(inspection_id: int):
         """
         Retrieves full details of a specific inspection by ID.
@@ -1659,7 +1737,7 @@ def create_app(
         }), 200
 
     @app.route("/api/inspections/<int:inspection_id>/image/<img_type>", methods=["GET"])
-    @roles_required(ROLE_ADMIN, ROLE_INSPECTOR, ROLE_MAINTENANCE)
+    @roles_required(ROLE_ADMIN, ROLE_INSPECTOR, ROLE_MAINTENANCE, ROLE_CITIZEN)
     def api_get_inspection_image(inspection_id: int, img_type: str):
         """
         Serves the original or annotated image file for a saved inspection.
@@ -1688,7 +1766,7 @@ def create_app(
         return send_file(abs_target)
 
     @app.route("/api/inspections/<int:inspection_id>/activity", methods=["GET"])
-    @roles_required(ROLE_ADMIN, ROLE_INSPECTOR, ROLE_MAINTENANCE)
+    @roles_required(ROLE_ADMIN, ROLE_INSPECTOR, ROLE_MAINTENANCE, ROLE_CITIZEN)
     def api_get_inspection_activity_route(inspection_id: int):
         """
         Retrieves chronological maintenance activity history for an inspection record.
@@ -1836,6 +1914,142 @@ def create_app(
                 "error_code": "PDF_EXPORT_FAILED",
                 "message": f"PDF export failed: {str(e)}",
             }), 500
+
+    # -------------------------------------------------------------------------
+    # Civic Complaint Assistance Routes
+    # -------------------------------------------------------------------------
+    @app.route("/api/inspections/<int:inspection_id>/complaint-draft", methods=["GET"])
+    @roles_required(ROLE_ADMIN, ROLE_INSPECTOR, ROLE_MAINTENANCE, ROLE_CITIZEN)
+    def api_get_complaint_draft(inspection_id: int):
+        """
+        Retrieves the editable civic complaint draft for an inspection.
+        Generates default draft from inspection telemetry if not already created.
+        """
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        curr_user = get_current_user_record()
+        u_id = curr_user["id"] if curr_user else None
+        u_name = curr_user["username"] if curr_user else None
+
+        try:
+            draft = get_or_create_complaint_draft(
+                inspection_id=inspection_id,
+                user_id=u_id,
+                username=u_name,
+                db_path=db_path
+            )
+            return jsonify({
+                "status": "success",
+                "draft": draft,
+                "disclaimer": COMPLAINT_DISCLAIMER_TEXT,
+            }), 200
+        except ValueError as ve:
+            return jsonify({
+                "status": "error",
+                "error_code": "INSPECTION_NOT_FOUND",
+                "message": str(ve),
+            }), 404
+        except Exception as e:
+            logger.exception(f"Failed to retrieve complaint draft for inspection #{inspection_id}: {e}")
+            return jsonify({
+                "status": "error",
+                "error_code": "COMPLAINT_DRAFT_FAILED",
+                "message": f"Could not load complaint draft: {str(e)}",
+            }), 500
+
+    @app.route("/api/inspections/<int:inspection_id>/complaint-draft", methods=["PUT", "PATCH"])
+    @roles_required(ROLE_ADMIN, ROLE_INSPECTOR, ROLE_CITIZEN)
+    def api_update_complaint_draft(inspection_id: int):
+        """
+        Updates an editable civic complaint draft.
+        Enforces that status can only be 'draft' or 'exported' — never 'submitted'.
+        """
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        payload = request.get_json(silent=True) or {}
+        curr_user = get_current_user_record()
+        u_id = curr_user["id"] if curr_user else None
+        u_name = curr_user["username"] if curr_user else None
+
+        try:
+            updated = update_complaint_draft(
+                inspection_id=inspection_id,
+                updates=payload,
+                user_id=u_id,
+                username=u_name,
+                db_path=db_path
+            )
+            return jsonify({
+                "status": "success",
+                "message": "Complaint draft saved successfully.",
+                "draft": updated,
+            }), 200
+        except ValueError as ve:
+            return jsonify({
+                "status": "error",
+                "error_code": "VALIDATION_FAILED",
+                "message": str(ve),
+            }), 400
+        except Exception as e:
+            logger.exception(f"Failed to update complaint draft for inspection #{inspection_id}: {e}")
+            return jsonify({
+                "status": "error",
+                "error_code": "UPDATE_FAILED",
+                "message": f"Failed to save complaint draft: {str(e)}",
+            }), 500
+
+    @app.route("/api/inspections/<int:inspection_id>/complaint-draft/export/txt", methods=["GET"])
+    @roles_required(ROLE_ADMIN, ROLE_INSPECTOR, ROLE_MAINTENANCE, ROLE_CITIZEN)
+    def api_export_complaint_draft_txt(inspection_id: int):
+        """
+        Exports the complaint draft as a plain text document.
+        """
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        try:
+            draft = get_or_create_complaint_draft(inspection_id=inspection_id, db_path=db_path)
+            # Mark status as exported
+            update_complaint_draft(inspection_id, {"status": "exported"}, db_path=db_path)
+
+            filename = f"visionguard_complaint_draft_insp_{inspection_id}.txt"
+            content = (
+                f"SUBJECT: {draft.get('subject')}\n"
+                f"TO: {draft.get('recipient_agency')}\n"
+                f"{'='*72}\n\n"
+                f"{draft.get('complaint_body')}\n"
+            )
+            byte_stream = io.BytesIO(content.encode("utf-8"))
+            return send_file(
+                byte_stream,
+                mimetype="text/plain",
+                as_attachment=True,
+                download_name=filename,
+            )
+        except ValueError as ve:
+            return jsonify({"status": "error", "message": str(ve)}), 404
+        except Exception as e:
+            logger.exception(f"Failed to export TXT complaint draft: {e}")
+            return jsonify({"status": "error", "message": f"Export failed: {str(e)}"}), 500
+
+    @app.route("/api/inspections/<int:inspection_id>/complaint-draft/export/pdf", methods=["GET"])
+    @roles_required(ROLE_ADMIN, ROLE_INSPECTOR, ROLE_MAINTENANCE, ROLE_CITIZEN)
+    def api_export_complaint_draft_pdf(inspection_id: int):
+        """
+        Exports the complaint draft as a printable PDF with legal draft disclaimer.
+        """
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        try:
+            pdf_bytes = export_complaint_draft_pdf(inspection_id=inspection_id, db_path=db_path)
+            filename = f"visionguard_complaint_draft_insp_{inspection_id}.pdf"
+            byte_stream = io.BytesIO(pdf_bytes)
+            return send_file(
+                byte_stream,
+                mimetype="application/pdf",
+                as_attachment=True,
+                download_name=filename,
+            )
+        except ValueError as ve:
+            return jsonify({"status": "error", "message": str(ve)}), 404
+        except Exception as e:
+            logger.exception(f"Failed to export PDF complaint draft: {e}")
+            return jsonify({"status": "error", "message": f"PDF export failed: {str(e)}"}), 500
 
     return app
 

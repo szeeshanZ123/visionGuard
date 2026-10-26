@@ -24,12 +24,14 @@ from database.db import get_db_connection, init_db, DEFAULT_DB_PATH
 ROLE_ADMIN = "admin"
 ROLE_INSPECTOR = "inspector"
 ROLE_MAINTENANCE = "maintenance"
+ROLE_CITIZEN = "citizen"
 
-ALLOWED_ROLES = [ROLE_ADMIN, ROLE_INSPECTOR, ROLE_MAINTENANCE]
+ALLOWED_ROLES = [ROLE_ADMIN, ROLE_INSPECTOR, ROLE_MAINTENANCE, ROLE_CITIZEN]
 ROLE_DISPLAY_NAMES = {
     ROLE_ADMIN: "Administrator",
     ROLE_INSPECTOR: "Inspector",
     ROLE_MAINTENANCE: "Maintenance Staff",
+    ROLE_CITIZEN: "Citizen",
 }
 
 USERNAME_REGEX = re.compile(r"^[a-zA-Z0-9_.-]{3,40}$")

@@ -166,6 +166,25 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
     );
     """)
 
+    # Table for civic complaint assistance drafts
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS complaint_drafts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        inspection_id INTEGER NOT NULL UNIQUE,
+        complaint_type TEXT NOT NULL DEFAULT 'road_distress',
+        recipient_agency TEXT NOT NULL,
+        subject TEXT NOT NULL,
+        complaint_body TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'draft',
+        created_by_user_id INTEGER,
+        created_by_username TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (inspection_id) REFERENCES defect_inspections(id) ON DELETE CASCADE
+    );
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_complaint_drafts_insp ON complaint_drafts(inspection_id);")
+
     # Table for system audit logs / metadata
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS system_metadata (
@@ -570,6 +589,7 @@ def get_inspections(
     area: Optional[str] = None,
     assigned_to_user_id: Optional[int] = None,
     assignment_status: Optional[str] = None,
+    created_by_user_id: Optional[int] = None,
     ref_date: Optional[datetime.date] = None,
     domain: Optional[str] = None,
     inspection_type: Optional[str] = None,
@@ -669,6 +689,10 @@ def get_inspections(
             conditions.append("assignment_status = ?")
             params.append(ast)
 
+    if created_by_user_id is not None:
+        conditions.append("created_by_user_id = ?")
+        params.append(created_by_user_id)
+
     where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
 
     query = f"""
@@ -712,12 +736,20 @@ def get_dashboard_analytics(
     cursor.execute("SELECT COUNT(*) as count FROM defect_inspections WHERE status = 'Resolved';")
     resolved_records = cursor.fetchone()["count"]
 
-    # Defect categories breakdown
+    # Defect categories breakdown (Road domain)
     category_counts = {
         "Longitudinal Crack": 0,
         "Transverse Crack": 0,
         "Alligator Crack": 0,
         "Pothole": 0,
+    }
+
+    # Building defect categories breakdown (Home domain)
+    building_category_counts = {
+        "Wall Crack": 0,
+        "Dampness": 0,
+        "Peeling Paint": 0,
+        "Spalling": 0,
     }
 
     cursor.execute("SELECT detections_json, defect_type FROM defect_inspections WHERE defect_count > 0;")
@@ -742,6 +774,14 @@ def get_dashboard_analytics(
                             category_counts["Alligator Crack"] += 1
                         elif "pothole" in cat or "d40" in cls_name:
                             category_counts["Pothole"] += 1
+                        elif "wall" in cat or "wall_crack" in cls_name:
+                            building_category_counts["Wall Crack"] += 1
+                        elif "damp" in cat or "water" in cat or "damp" in cls_name:
+                            building_category_counts["Dampness"] += 1
+                        elif "peel" in cat or "paint" in cat or "plaster" in cat or "peel" in cls_name:
+                            building_category_counts["Peeling Paint"] += 1
+                        elif "spall" in cat or "surface" in cat or "spall" in cls_name:
+                            building_category_counts["Spalling"] += 1
             except Exception:
                 parsed = False
 
@@ -755,6 +795,14 @@ def get_dashboard_analytics(
                 category_counts["Alligator Crack"] += 1
             if "pothole" in dt:
                 category_counts["Pothole"] += 1
+            if "wall" in dt:
+                building_category_counts["Wall Crack"] += 1
+            if "damp" in dt or "water" in dt:
+                building_category_counts["Dampness"] += 1
+            if "peel" in dt or "paint" in dt or "plaster" in dt:
+                building_category_counts["Peeling Paint"] += 1
+            if "spall" in dt:
+                building_category_counts["Spalling"] += 1
 
     # Maintenance Deadlines Metrics (Phase 4.4)
     today_str = (ref_date or datetime.date.today()).isoformat()
@@ -811,6 +859,7 @@ def get_dashboard_analytics(
         "in_progress_records": in_progress_records,
         "resolved_records": resolved_records,
         "defect_categories": category_counts,
+        "building_defect_categories": building_category_counts,
         "recent_inspections": recent_inspections,
         "maintenance_summary": {
             "overdue_count": overdue_count,
@@ -1054,6 +1103,7 @@ def delete_inspection(inspection_id: int, db_path: str = DEFAULT_DB_PATH) -> boo
     init_db(db_path)
     conn = get_db_connection(db_path)
     cursor = conn.cursor()
+    cursor.execute("DELETE FROM complaint_drafts WHERE inspection_id = ?;", (inspection_id,))
     cursor.execute("DELETE FROM defect_inspections WHERE id = ?;", (inspection_id,))
     deleted = cursor.rowcount > 0
     conn.commit()
