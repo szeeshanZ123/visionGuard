@@ -15,7 +15,7 @@ from typing import Dict, Any, List, Optional, Tuple
 
 
 DEFAULT_DB_PATH = os.path.join("data", "visionguard.db")
-ALLOWED_STATUSES = ["Open", "In Progress", "Under Review", "Repair in Progress", "Resolved"]
+ALLOWED_STATUSES = ["Open", "In Progress", "Under Review", "Assigned", "Repair in Progress", "Resolved", "Reopened"]
 DEFAULT_STATUS = "Open"
 
 
@@ -645,7 +645,7 @@ def get_inspections(
             conditions.append("di.status = ?")
             params.append(st)
         elif st.lower() in ["in progress group", "in-progress", "active"]:
-            conditions.append("di.status IN ('In Progress', 'Repair in Progress', 'Under Review')")
+            conditions.append("di.status IN ('In Progress', 'Repair in Progress', 'Under Review', 'Assigned', 'Reopened')")
 
     if category and category.strip():
         cat = category.strip()
@@ -1024,7 +1024,7 @@ def get_citizen_dashboard_summary(
     cursor.execute("SELECT COUNT(*) as count FROM defect_inspections WHERE created_by_user_id = ? AND status = 'Open';", (user_id,))
     open_count = cursor.fetchone()["count"]
 
-    cursor.execute("SELECT COUNT(*) as count FROM defect_inspections WHERE created_by_user_id = ? AND status IN ('Under Review', 'In Progress', 'Repair in Progress');", (user_id,))
+    cursor.execute("SELECT COUNT(*) as count FROM defect_inspections WHERE created_by_user_id = ? AND status IN ('Under Review', 'In Progress', 'Repair in Progress', 'Assigned', 'Reopened');", (user_id,))
     under_review_count = cursor.fetchone()["count"]
 
     cursor.execute("SELECT COUNT(*) as count FROM defect_inspections WHERE created_by_user_id = ? AND status = 'Resolved';", (user_id,))
@@ -1081,6 +1081,23 @@ def update_inspection_status(
     old_target_date = row["target_repair_date"]
     updated_notes = notes if notes is not None else row["notes"]
 
+    # Phase 5 Server-side Lifecycle & Evidence Validations
+    if new_status == "Resolved":
+        clean_notes = (notes or "").strip()
+        if not clean_notes:
+            conn.close()
+            raise ValueError("A resolution note detailing repair actions and verification evidence is required before marking an inspection as Resolved.")
+
+    if new_status == "Reopened":
+        clean_notes = (notes or "").strip()
+        if not clean_notes:
+            conn.close()
+            raise ValueError("Notes explaining the reason for reopening are required before marking an inspection as Reopened.")
+
+    if old_status == "Resolved" and new_status not in ["Resolved", "Reopened", "Under Review"]:
+        conn.close()
+        raise ValueError(f"Cannot transition directly from 'Resolved' to '{new_status}'. The inspection must be marked as 'Reopened' first.")
+
     new_target_date = old_target_date
     if target_repair_date is not None:
         is_valid_date, parsed_date, date_err = validate_target_repair_date(target_repair_date)
@@ -1097,11 +1114,23 @@ def update_inspection_status(
 
     # Log activity
     if new_status != old_status:
+        if new_status == "Resolved":
+            action_type = "resolved"
+        elif new_status == "Reopened":
+            action_type = "reopened"
+        else:
+            action_type = "status_change"
         cursor.execute("""
         INSERT INTO maintenance_activity_log (
             inspection_id, action_type, previous_status, new_status, notes, user_id, username
-        ) VALUES (?, 'status_change', ?, ?, ?, ?, ?);
-        """, (inspection_id, old_status, new_status, (notes or "").strip(), user_id, username))
+        ) VALUES (?, ?, ?, ?, ?, ?, ?);
+        """, (inspection_id, action_type, old_status, new_status, (notes or "").strip(), user_id, username))
+    elif notes and notes.strip() != (row["notes"] or "").strip():
+        cursor.execute("""
+        INSERT INTO maintenance_activity_log (
+            inspection_id, action_type, previous_status, new_status, notes, user_id, username
+        ) VALUES (?, 'repair_notes_added', ?, ?, ?, ?, ?);
+        """, (inspection_id, old_status, old_status, (notes or "").strip(), user_id, username))
 
     if new_target_date != old_target_date:
         cursor.execute("""
@@ -1182,6 +1211,25 @@ def update_inspection(
 
     notes = data.get("notes") if "notes" in data else (data.get("location_notes") if "location_notes" in data else current.get("notes"))
 
+    old_status = current.get("status")
+
+    # Phase 5 Server-side Lifecycle & Evidence Validations
+    if new_status == "Resolved":
+        clean_notes = (notes or "").strip()
+        if not clean_notes:
+            conn.close()
+            raise ValueError("A resolution note detailing repair actions and verification evidence is required before marking an inspection as Resolved.")
+
+    if new_status == "Reopened":
+        clean_notes = (notes or "").strip()
+        if not clean_notes:
+            conn.close()
+            raise ValueError("Notes explaining the reason for reopening are required before marking an inspection as Reopened.")
+
+    if old_status == "Resolved" and new_status not in ["Resolved", "Reopened", "Under Review"]:
+        conn.close()
+        raise ValueError(f"Cannot transition directly from 'Resolved' to '{new_status}'. The inspection must be marked as 'Reopened' first.")
+
     cursor.execute("""
     UPDATE defect_inspections
     SET status = ?, road_name = ?, area = ?, city = ?, latitude = ?, longitude = ?,
@@ -1204,13 +1252,24 @@ def update_inspection(
     u_id = user_id or data.get("user_id")
     u_name = username or data.get("username")
 
-    old_status = current.get("status")
     if new_status != old_status:
+        if new_status == "Resolved":
+            action_type = "resolved"
+        elif new_status == "Reopened":
+            action_type = "reopened"
+        else:
+            action_type = "status_change"
         cursor.execute("""
         INSERT INTO maintenance_activity_log (
             inspection_id, action_type, previous_status, new_status, notes, user_id, username
-        ) VALUES (?, 'status_change', ?, ?, ?, ?, ?);
-        """, (inspection_id, old_status, new_status, (notes or "").strip(), u_id, u_name))
+        ) VALUES (?, ?, ?, ?, ?, ?, ?);
+        """, (inspection_id, action_type, old_status, new_status, (notes or "").strip(), u_id, u_name))
+    elif notes and (notes or "").strip() != (current.get("notes") or "").strip():
+        cursor.execute("""
+        INSERT INTO maintenance_activity_log (
+            inspection_id, action_type, previous_status, new_status, notes, user_id, username
+        ) VALUES (?, 'repair_notes_added', ?, ?, ?, ?, ?);
+        """, (inspection_id, old_status, old_status, (notes or "").strip(), u_id, u_name))
 
     if new_target_date != old_target_date:
         cursor.execute("""
