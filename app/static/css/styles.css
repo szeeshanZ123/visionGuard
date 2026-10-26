@@ -1398,6 +1398,26 @@ body {
     box-shadow: 0 0 10px rgba(16, 185, 129, 0.65);
 }
 
+.pin-wall {
+    background: #f97316;
+    box-shadow: 0 0 10px rgba(249, 115, 22, 0.65);
+}
+
+.pin-damp {
+    background: #06b6d4;
+    box-shadow: 0 0 10px rgba(6, 182, 212, 0.65);
+}
+
+.pin-peel {
+    background: #eab308;
+    box-shadow: 0 0 10px rgba(234, 179, 8, 0.65);
+}
+
+.pin-spall {
+    background: #ec4899;
+    box-shadow: 0 0 10px rgba(236, 72, 153, 0.65);
+}
+
 /* Leaflet Dark Theme Adjustments */
 .leaflet-popup-content-wrapper {
     background: #0f172a !important;
@@ -2449,4 +2469,420 @@ body {
     margin: 0.75rem 0;
     flex-wrap: wrap;
 }
+
+/* ==========================================================================
+   Phase 1: Citizen-Facing Mode & Authentication Aesthetics
+   ========================================================================== */
+
+/* Citizen Role Badge */
+.badge-role-citizen {
+    background: rgba(16, 185, 129, 0.15);
+    color: #6ee7b7;
+    border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+/* Auth Modal Tabs */
+.auth-tabs-nav button.active {
+    background: var(--primary);
+    color: #ffffff;
+    border-color: var(--primary);
+}
+
+/* Welcome Landing Section */
+.welcome-landing-section {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    margin-bottom: 2.5rem;
+}
+
+.welcome-hero-card {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: var(--radius-lg);
+    padding: 3.5rem 2rem;
+    text-align: center;
+    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7);
+    position: relative;
+    overflow: hidden;
+}
+
+.welcome-hero-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle at center, rgba(59, 130, 246, 0.08) 0%, transparent 60%);
+    pointer-events: none;
+}
+
+.welcome-hero-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.9rem;
+    border-radius: 9999px;
+    background: rgba(59, 130, 246, 0.12);
+    border: 1px solid rgba(59, 130, 246, 0.35);
+    color: #93c5fd;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    margin-bottom: 1.25rem;
+}
+
+.welcome-hero-title {
+    font-size: clamp(1.8rem, 3.5vw, 2.75rem);
+    font-weight: 800;
+    color: #ffffff;
+    line-height: 1.2;
+    margin: 0 auto 1.25rem auto;
+    max-width: 820px;
+    letter-spacing: -0.02em;
+}
+
+.welcome-hero-desc {
+    font-size: clamp(0.95rem, 1.8vw, 1.12rem);
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin: 0 auto 2.25rem auto;
+    max-width: 760px;
+}
+
+.welcome-hero-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.welcome-hero-actions .btn-lg {
+    padding: 0.85rem 1.75rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: var(--radius-md);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.25s ease;
+}
+
+.welcome-hero-actions .btn-lg:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.5);
+}
+
+/* Landing Domains Grid */
+.landing-domains-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.5rem;
+}
+
+.landing-domain-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-shadow: var(--shadow-md);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.landing-domain-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 32px -8px rgba(0, 0, 0, 0.6);
+}
+
+.landing-domain-road:hover {
+    border-color: rgba(245, 158, 11, 0.5);
+}
+
+.landing-domain-home:hover {
+    border-color: rgba(168, 85, 247, 0.5);
+}
+
+.landing-domain-card .domain-card-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.landing-domain-card .domain-icon {
+    font-size: 2.25rem;
+    line-height: 1;
+}
+
+.landing-domain-card h3 {
+    margin: 0 0 0.25rem 0;
+    font-size: 1.2rem;
+    color: #ffffff;
+}
+
+.landing-domain-card .domain-card-desc {
+    color: var(--text-secondary);
+    font-size: 0.92rem;
+    line-height: 1.5;
+    margin-bottom: 1.25rem;
+}
+
+.domain-feature-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1.75rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.domain-feature-list li {
+    font-size: 0.88rem;
+    color: var(--text-primary);
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.domain-feature-list li span {
+    color: var(--success);
+    font-weight: bold;
+}
+
+.badge-road {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.badge-home {
+    background: rgba(168, 85, 247, 0.15);
+    color: #d8b4fe;
+    border: 1px solid rgba(168, 85, 247, 0.35);
+}
+
+/* How It Works Section */
+.how-it-works-card {
+    padding: 2rem;
+    border-radius: var(--radius-lg);
+}
+
+.how-it-works-steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+.step-card {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-md);
+    padding: 1.75rem;
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.step-card:hover {
+    border-color: rgba(59, 130, 246, 0.4);
+    background: rgba(15, 23, 42, 0.85);
+}
+
+.step-num {
+    position: absolute;
+    top: 1rem;
+    right: 1.25rem;
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.12);
+}
+
+.step-icon {
+    font-size: 2rem;
+    margin-bottom: 0.75rem;
+}
+
+.step-card h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.05rem;
+    color: #ffffff;
+}
+
+.step-card p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.86rem;
+    line-height: 1.45;
+}
+
+/* Citizen Dashboard Section */
+.citizen-dashboard-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-bottom: 2.5rem;
+}
+
+.citizen-welcome-banner {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    box-shadow: var(--shadow-md);
+}
+
+.citizen-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    color: #6ee7b7;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.6rem;
+}
+
+.citizen-banner-content h2 {
+    margin: 0 0 0.35rem 0;
+    font-size: 1.6rem;
+    color: #ffffff;
+}
+
+.citizen-banner-content p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.92rem;
+    max-width: 600px;
+}
+
+.citizen-banner-quick-actions {
+    display: flex;
+    gap: 0.6rem;
+}
+
+/* Citizen Action Cards (Two Big Report Cards) */
+.citizen-action-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.5rem;
+}
+
+.citizen-report-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+    text-align: center;
+    box-shadow: var(--shadow-md);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.citizen-report-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.7);
+}
+
+.citizen-report-road:hover {
+    border-color: rgba(245, 158, 11, 0.6);
+    box-shadow: 0 16px 36px -10px rgba(245, 158, 11, 0.2);
+}
+
+.citizen-report-home:hover {
+    border-color: rgba(168, 85, 247, 0.6);
+    box-shadow: 0 16px 36px -10px rgba(168, 85, 247, 0.2);
+}
+
+.report-card-badge {
+    margin-bottom: 1rem;
+}
+
+.report-card-badge span {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 0.25rem 0.65rem;
+    border-radius: 9999px;
+}
+
+.citizen-report-road .report-card-badge span {
+    background: rgba(245, 158, 11, 0.12);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.citizen-report-home .report-card-badge span {
+    background: rgba(168, 85, 247, 0.12);
+    color: #d8b4fe;
+    border: 1px solid rgba(168, 85, 247, 0.35);
+}
+
+.report-card-icon {
+    font-size: 3.5rem;
+    line-height: 1;
+    margin-bottom: 1rem;
+    transition: transform 0.2s ease;
+}
+
+.citizen-report-card:hover .report-card-icon {
+    transform: scale(1.1);
+}
+
+.citizen-report-card h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.3rem;
+    color: #ffffff;
+}
+
+.citizen-report-card p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin: 0 0 1.5rem 0;
+    max-width: 380px;
+    flex-grow: 1;
+}
+
+.citizen-start-report-btn {
+    width: 100%;
+    max-width: 280px;
+    padding: 0.75rem 1.25rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.citizen-report-road .citizen-start-report-btn {
+    background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+    border-color: #d97706;
+}
+
+.citizen-report-road .citizen-start-report-btn:hover {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.citizen-report-home .citizen-start-report-btn {
+    background: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%);
+    border-color: #9333ea;
+}
+
+.citizen-report-home .citizen-start-report-btn:hover {
+    background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%);
+}
+
 

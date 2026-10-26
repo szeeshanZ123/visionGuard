@@ -51,13 +51,13 @@
             </div>
             <nav class="nav-tabs" id="navTabs">
                 <button type="button" class="nav-tab-btn active" id="tabDashboardBtn">
-                    <span>📊</span> Dashboard
+                    <span>📊</span> <span id="tabDashboardLabel">Dashboard</span>
                 </button>
                 <button type="button" class="nav-tab-btn" id="tabNewInspectionBtn">
-                    <span>🔬</span> New Inspection
+                    <span>🔬</span> <span id="tabNewInspectionLabel">New Inspection</span>
                 </button>
                 <button type="button" class="nav-tab-btn" id="tabRecordsBtn">
-                    <span>📋</span> Inspection Records <span class="badge badge-secondary" id="recordsCountBadgeHeader">0</span>
+                    <span>📋</span> <span id="tabRecordsLabel">Inspection Records</span> <span class="badge badge-secondary" id="recordsCountBadgeHeader">0</span>
                 </button>
                 <button type="button" class="nav-tab-btn" id="tabMapBtn">
                     <span>🗺️</span> Defect Map <span class="badge badge-secondary" id="mapCountBadgeHeader">0</span>
@@ -133,8 +133,210 @@
             </div>
         </div>
 
+        <!-- Citizen Welcome / Landing Section (Visible to Visitors / Unauthenticated) -->
+        <section class="welcome-landing-section" id="welcomeLandingSection">
+            <div class="welcome-hero-card">
+                <div class="welcome-hero-badge">
+                    <span>🛡️ AI CIVIC SAFETY & DEFECT INTELLIGENCE</span>
+                </div>
+                <h1 class="welcome-hero-title">Report Infrastructure Hazards & Home Defects in Seconds</h1>
+                <p class="welcome-hero-desc">
+                    VisionGuard AI empowers citizens to capture, detect, and document street potholes, road fissures, and building cracks using genuine YOLOv8 computer vision. Generate verified photographic evidence and formal civic complaint drafts instantly.
+                </p>
+                <div class="welcome-hero-actions">
+                    <button type="button" class="btn btn-lg btn-primary" id="landingReportBtn">
+                        <span>📸</span> Report a Problem Now
+                    </button>
+                    <button type="button" class="btn btn-lg btn-outline-primary guest-login-btn" id="landingRegisterBtn" data-auth-mode="register">
+                        <span>📝</span> Create Citizen Account
+                    </button>
+                    <button type="button" class="btn btn-lg btn-outline-secondary" id="landingExploreMapBtn">
+                        <span>🗺️</span> View Defect Map
+                    </button>
+                </div>
+            </div>
+
+            <!-- Two Reporting Domains: Road vs Home -->
+            <div class="landing-domains-grid">
+                <div class="landing-domain-card landing-domain-road">
+                    <div class="domain-card-header">
+                        <span class="domain-icon">🛣️</span>
+                        <div>
+                            <h3>Road Problem Reporting</h3>
+                            <span class="badge badge-road">Streets & Pavements</span>
+                        </div>
+                    </div>
+                    <p class="domain-card-desc">
+                        Report dangerous potholes, longitudinal cracks, transverse fissures, and alligator cracking on highways, neighborhood streets, and pedestrian pavements.
+                    </p>
+                    <ul class="domain-feature-list">
+                        <li><span>✓</span> Detects Potholes (D40) and Structural Rutting</li>
+                        <li><span>✓</span> Classifies Longitudinal (D00) and Transverse (D10) Cracks</li>
+                        <li><span>✓</span> Geotags GPS coordinates for municipal dispatch</li>
+                    </ul>
+                    <button type="button" class="btn btn-outline-warning w-100 landing-action-btn" data-domain="road" id="landingRoadCardBtn">
+                        Report Road Hazard →
+                    </button>
+                </div>
+
+                <div class="landing-domain-card landing-domain-home">
+                    <div class="domain-card-header">
+                        <span class="domain-icon">🏠</span>
+                        <div>
+                            <h3>Home & Building Problem</h3>
+                            <span class="badge badge-home">Residential & Commercial</span>
+                        </div>
+                    </div>
+                    <p class="domain-card-desc">
+                        Document structural wall cracks, damp water ingress stains, peeling wall paint and plaster, or surface spalling inside your apartment, house, or building common areas.
+                    </p>
+                    <ul class="domain-feature-list">
+                        <li><span>✓</span> Detects Wall & Ceiling Cracks (Structural & Non-Structural)</li>
+                        <li><span>✓</span> Identifies Damp & Water Damage Ingress Patterns</li>
+                        <li><span>✓</span> Recognizes Peeling Paint, Plaster Failure & Spalling</li>
+                    </ul>
+                    <button type="button" class="btn btn-outline-info w-100 landing-action-btn" data-domain="home" id="landingHomeCardBtn">
+                        Report Home Defect →
+                    </button>
+                </div>
+            </div>
+
+            <!-- 3-Step "How It Works" Guide -->
+            <div class="card how-it-works-card">
+                <div class="card-header-simple">
+                    <h3 style="margin: 0; font-size: 1.15rem;">🚀 How VisionGuard AI Works for Citizens</h3>
+                    <p style="margin: 0.25rem 0 0 0; color: var(--text-secondary); font-size: 0.88rem;">Three simple steps to move from hazard observation to documented municipal action.</p>
+                </div>
+                <div class="how-it-works-steps">
+                    <div class="step-card">
+                        <div class="step-num">1</div>
+                        <div class="step-icon">📸</div>
+                        <h4>Capture or Upload</h4>
+                        <p>Take a clear photo with your phone or camera of the street pothole or building crack.</p>
+                    </div>
+                    <div class="step-card">
+                        <div class="step-num">2</div>
+                        <div class="step-icon">🤖</div>
+                        <h4>Authentic AI Vision</h4>
+                        <p>Genuine YOLOv8 models analyze pixel patterns, identify defect classes, and outline bounding boxes.</p>
+                    </div>
+                    <div class="step-card">
+                        <div class="step-num">3</div>
+                        <div class="step-icon">📝</div>
+                        <h4>Civic Complaint Notice</h4>
+                        <p>Generate and download a formal grievance draft with photographic evidence for local authorities.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Citizen Dashboard Section (Visible to Authenticated Citizens) -->
+        <section class="citizen-dashboard-container" id="citizenDashboardSection" style="display: none;">
+            <div class="citizen-welcome-banner">
+                <div class="citizen-banner-content">
+                    <div class="citizen-badge">
+                        <span>🛡️ CITIZEN SAFETY HUB</span>
+                    </div>
+                    <h2 id="citizenGreeting">Welcome back, Citizen!</h2>
+                    <p>Report physical defects in your neighborhood, track the status of your reported problems, and export civic complaint letters.</p>
+                </div>
+                <div class="citizen-banner-quick-actions">
+                    <button type="button" class="btn btn-sm btn-secondary" id="refreshCitizenDashBtn">🔄 Refresh</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="citizenExploreMapBtn">🗺️ Defect Map</button>
+                </div>
+            </div>
+
+            <!-- Two Big Action Cards to Report a Problem -->
+            <div class="citizen-action-cards-grid">
+                <div class="citizen-report-card citizen-report-road" id="citizenReportRoadCard">
+                    <div class="report-card-badge"><span>ROAD & INFRASTRUCTURE</span></div>
+                    <div class="report-card-icon">🛣️</div>
+                    <h3>Report a Road Problem</h3>
+                    <p>Report potholes, asphalt cracking, damaged road curbs, or pavement hazards on public streets.</p>
+                    <button type="button" class="btn btn-primary btn-block citizen-start-report-btn" data-domain="road" id="citizenStartRoadReportBtn">
+                        ➕ New Road Report
+                    </button>
+                </div>
+
+                <div class="citizen-report-card citizen-report-home" id="citizenReportHomeCard">
+                    <div class="report-card-badge"><span>RESIDENTIAL & BUILDING</span></div>
+                    <div class="report-card-icon">🏠</div>
+                    <h3>Report a Home Problem</h3>
+                    <p>Report structural wall cracks, damp/water stains, peeling paint/plaster, or concrete spalling in residential buildings.</p>
+                    <button type="button" class="btn btn-primary btn-block citizen-start-report-btn" data-domain="home" id="citizenStartHomeReportBtn">
+                        ➕ New Home Report
+                    </button>
+                </div>
+            </div>
+
+            <!-- Citizen Personal Stats Row -->
+            <div class="metrics-row citizen-metrics-row">
+                <div class="metric-card">
+                    <span class="metric-label">My Total Reports</span>
+                    <strong class="metric-value" id="citizenTotalReports">0</strong>
+                    <span class="metric-caption">Submitted by your account</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Open / Under Review</span>
+                    <strong class="metric-value text-warning" id="citizenPendingReports">0</strong>
+                    <span class="metric-caption">Awaiting remediation</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Resolved Reports</span>
+                    <strong class="metric-value text-success" id="citizenResolvedReports">0</strong>
+                    <span class="metric-caption">Marked resolved</span>
+                </div>
+            </div>
+
+            <!-- Citizen's Recent Reports Table Card -->
+            <div class="card mt-3" id="citizenReportsCard">
+                <div class="card-header-row" style="display: flex; justify-content: space-between; align-items: center; padding: 0.85rem 1.25rem; border-bottom: 1px solid var(--border-color);">
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.05rem;">📋 My Submitted Reports (<span id="citizenReportsCountBadge">0</span>)</h3>
+                        <small class="text-muted">Your logged defect inspections and civic draft notices</small>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="citizenViewAllRecordsBtn">View In Records Table</button>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="data-table" id="citizenReportsTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">#</th>
+                                <th style="width: 70px;">Photo</th>
+                                <th>Category / Type</th>
+                                <th>Distress Summary</th>
+                                <th>Location</th>
+                                <th style="width: 140px;">Status</th>
+                                <th style="width: 130px;">Date Filed</th>
+                                <th style="width: 170px; text-align: right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="citizenReportsTableBody">
+                            <tr>
+                                <td colspan="8" class="text-center" style="padding: 2.5rem; color: var(--text-muted);">
+                                    Loading your submitted reports...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Empty state when citizen has no reports -->
+                <div class="empty-state" id="citizenEmptyReports" style="display: none; padding: 3rem 1.5rem; text-align: center;">
+                    <div style="font-size: 3rem; margin-bottom: 0.75rem;">📋</div>
+                    <h4 style="margin: 0 0 0.5rem 0;">No Defect Reports Filed Yet</h4>
+                    <p style="color: var(--text-muted); max-width: 450px; margin: 0 auto 1.25rem auto; font-size: 0.9rem;">
+                        You haven't submitted any road or building problem reports yet. Click one of the buttons above to run genuine AI analysis on a defect photo and save your first report!
+                    </p>
+                </div>
+            </div>
+        </section>
+
         <!-- Dashboard Section Wrapper -->
-        <section class="dashboard-container" id="dashboardSection">
+        <section class="dashboard-container" id="dashboardSection" style="display: none;">
             <div class="dash-header">
                 <div>
                     <h2>📊 Infrastructure Defect Analytics Dashboard</h2>
@@ -294,6 +496,62 @@
                             </div>
                             <div class="category-progress-track">
                                 <div class="category-progress-bar bar-pothole" id="barCatPothole" style="width: 0%;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Wall Crack (Home) -->
+                        <div class="category-bar-item" id="itemCatWall" style="display: none;">
+                            <div class="category-bar-meta">
+                                <span class="category-title">
+                                    <span class="color-dot" style="background: #f97316;"></span>
+                                    Wall Crack <code class="class-code">WALL</code>
+                                </span>
+                                <span class="category-stat" id="statCatWall">0 (0.0%)</span>
+                            </div>
+                            <div class="category-progress-track">
+                                <div class="category-progress-bar" id="barCatWall" style="width: 0%; background: #f97316;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Dampness / Water Damage (Home) -->
+                        <div class="category-bar-item" id="itemCatDamp" style="display: none;">
+                            <div class="category-bar-meta">
+                                <span class="category-title">
+                                    <span class="color-dot" style="background: #06b6d4;"></span>
+                                    Dampness / Water Damage <code class="class-code">DAMP</code>
+                                </span>
+                                <span class="category-stat" id="statCatDamp">0 (0.0%)</span>
+                            </div>
+                            <div class="category-progress-track">
+                                <div class="category-progress-bar" id="barCatDamp" style="width: 0%; background: #06b6d4;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Peeling Paint / Plaster (Home) -->
+                        <div class="category-bar-item" id="itemCatPeel" style="display: none;">
+                            <div class="category-bar-meta">
+                                <span class="category-title">
+                                    <span class="color-dot" style="background: #eab308;"></span>
+                                    Peeling Paint / Plaster <code class="class-code">PEEL</code>
+                                </span>
+                                <span class="category-stat" id="statCatPeel">0 (0.0%)</span>
+                            </div>
+                            <div class="category-progress-track">
+                                <div class="category-progress-bar" id="barCatPeel" style="width: 0%; background: #eab308;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Spalling / Surface Damage (Home) -->
+                        <div class="category-bar-item" id="itemCatSpall" style="display: none;">
+                            <div class="category-bar-meta">
+                                <span class="category-title">
+                                    <span class="color-dot" style="background: #ec4899;"></span>
+                                    Spalling / Surface Damage <code class="class-code">SPALL</code>
+                                </span>
+                                <span class="category-stat" id="statCatSpall">0 (0.0%)</span>
+                            </div>
+                            <div class="category-progress-track">
+                                <div class="category-progress-bar" id="barCatSpall" style="width: 0%; background: #ec4899;"></div>
                             </div>
                         </div>
                     </div>
@@ -701,6 +959,14 @@
                 <div class="records-actions">
                     <div class="filter-controls-row">
                         <div class="filter-group">
+                            <label for="recordsDomainFilter">Target Domain:</label>
+                            <select id="recordsDomainFilter" class="form-control form-control-sm">
+                                <option value="">All Domains</option>
+                                <option value="road">🛣️ Road Surface</option>
+                                <option value="home">🏠 Home & Building</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
                             <label for="recordsStatusFilter">Status:</label>
                             <select id="recordsStatusFilter" class="form-control form-control-sm">
                                 <option value="">All Statuses</option>
@@ -715,10 +981,18 @@
                             <label for="recordsCategoryFilter">Defect Category:</label>
                             <select id="recordsCategoryFilter" class="form-control form-control-sm">
                                 <option value="">All Categories</option>
-                                <option value="Longitudinal">Longitudinal Crack (D00)</option>
-                                <option value="Transverse">Transverse Crack (D10)</option>
-                                <option value="Alligator">Alligator Crack (D20)</option>
-                                <option value="Pothole">Pothole (D40)</option>
+                                <optgroup label="Road Surface Distresses">
+                                    <option value="Longitudinal">Longitudinal Crack (D00)</option>
+                                    <option value="Transverse">Transverse Crack (D10)</option>
+                                    <option value="Alligator">Alligator Crack (D20)</option>
+                                    <option value="Pothole">Pothole (D40)</option>
+                                </optgroup>
+                                <optgroup label="Home & Building Defects">
+                                    <option value="wall_crack">Wall Crack</option>
+                                    <option value="damp">Dampness / Water Damage</option>
+                                    <option value="peeling">Peeling Paint / Plaster</option>
+                                    <option value="spalling">Spalling / Surface Damage</option>
+                                </optgroup>
                                 <option value="Sound">Sound Surface (0 Defects)</option>
                             </select>
                         </div>
@@ -803,9 +1077,16 @@
 
         <!-- Inspection Record Full Details Section -->
         <section class="record-detail-container" id="recordDetailSection" style="display: none;">
-            <div class="detail-top-nav">
-                <button type="button" class="btn btn-secondary btn-sm" id="backToRecordsBtn">← Back to Inspection Records</button>
-                <span class="record-id-title" id="detailRecordIdHeader">Inspection Record #--</span>
+            <div class="detail-top-nav" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <button type="button" class="btn btn-secondary btn-sm" id="backToRecordsBtn">← Back to Inspection Records</button>
+                    <span class="record-id-title" id="detailRecordIdHeader">Inspection Record #--</span>
+                </div>
+                <div class="detail-header-actions" style="display: flex; gap: 0.5rem;">
+                    <button type="button" class="btn btn-outline-warning btn-sm" id="openComplaintDraftBtn">
+                        📝 Civic Complaint Draft
+                    </button>
+                </div>
             </div>
 
             <!-- Status Management Card -->
@@ -1117,13 +1398,29 @@
             <div class="card map-filter-card">
                 <div class="filter-controls-row">
                     <div class="filter-group">
+                        <label for="mapDomainFilter">Target Domain:</label>
+                        <select id="mapDomainFilter" class="form-control form-control-sm">
+                            <option value="all">🌐 All Domains</option>
+                            <option value="road">🛣️ Road Distress</option>
+                            <option value="home">🏠 Home & Building</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
                         <label for="mapCategoryFilter">Defect Category:</label>
                         <select id="mapCategoryFilter" class="form-control form-control-sm">
                             <option value="">All Categories</option>
-                            <option value="Longitudinal">Longitudinal Crack (D00)</option>
-                            <option value="Transverse">Transverse Crack (D10)</option>
-                            <option value="Alligator">Alligator Crack (D20)</option>
-                            <option value="Pothole">Pothole (D40)</option>
+                            <optgroup label="Road Distresses">
+                                <option value="Longitudinal">Longitudinal Crack (D00)</option>
+                                <option value="Transverse">Transverse Crack (D10)</option>
+                                <option value="Alligator">Alligator Crack (D20)</option>
+                                <option value="Pothole">Pothole (D40)</option>
+                            </optgroup>
+                            <optgroup label="Home & Building Defects">
+                                <option value="Wall Crack">Wall Crack</option>
+                                <option value="Dampness">Dampness / Water Damage</option>
+                                <option value="Peeling Paint">Peeling Paint / Plaster</option>
+                                <option value="Spalling">Spalling / Surface Damage</option>
+                            </optgroup>
                             <option value="Sound">Sound Surface (0 Defects)</option>
                         </select>
                     </div>
@@ -1220,6 +1517,34 @@
                             </div>
                         </div>
                         <div class="legend-item">
+                            <span class="legend-pin pin-wall"></span>
+                            <div class="legend-item-text">
+                                <strong>Wall Crack (WALL)</strong>
+                                <span class="legend-caption" id="legendCountWall">0 records</span>
+                            </div>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-pin pin-damp"></span>
+                            <div class="legend-item-text">
+                                <strong>Dampness / Water (DAMP)</strong>
+                                <span class="legend-caption" id="legendCountDamp">0 records</span>
+                            </div>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-pin pin-peel"></span>
+                            <div class="legend-item-text">
+                                <strong>Peeling Paint / Plaster (PEEL)</strong>
+                                <span class="legend-caption" id="legendCountPeel">0 records</span>
+                            </div>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-pin pin-spall"></span>
+                            <div class="legend-item-text">
+                                <strong>Spalling / Damage (SPALL)</strong>
+                                <span class="legend-caption" id="legendCountSpall">0 records</span>
+                            </div>
+                        </div>
+                        <div class="legend-item">
                             <span class="legend-pin pin-sound"></span>
                             <div class="legend-item-text">
                                 <strong>Sound Surface (0 Defects)</strong>
@@ -1281,13 +1606,30 @@
                     </div>
 
                     <div class="form-group">
+                        <label for="reportDomainFilter">Target Inspection Domain:</label>
+                        <select class="form-control" id="reportDomainFilter">
+                            <option value="">All Domains (Road & Home)</option>
+                            <option value="road">🛣️ Road Surface Distress</option>
+                            <option value="home">🏠 Home & Building Defect</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
                         <label for="reportCategoryFilter">Distress Category:</label>
                         <select class="form-control" id="reportCategoryFilter">
-                            <option value="">All Categories (Cracks & Potholes)</option>
-                            <option value="Longitudinal Crack">Longitudinal Crack (D00)</option>
-                            <option value="Transverse Crack">Transverse Crack (D10)</option>
-                            <option value="Alligator Crack">Alligator Crack (D20)</option>
-                            <option value="Pothole">Pothole (D40)</option>
+                            <option value="">All Categories (All Defect Types)</option>
+                            <optgroup label="Road Surface Distresses">
+                                <option value="Longitudinal Crack">Longitudinal Crack (D00)</option>
+                                <option value="Transverse Crack">Transverse Crack (D10)</option>
+                                <option value="Alligator Crack">Alligator Crack (D20)</option>
+                                <option value="Pothole">Pothole (D40)</option>
+                            </optgroup>
+                            <optgroup label="Home & Building Defects">
+                                <option value="Wall Crack">Wall Crack</option>
+                                <option value="Dampness">Dampness / Water Damage</option>
+                                <option value="Peeling Paint">Peeling Paint / Plaster</option>
+                                <option value="Spalling">Spalling / Surface Damage</option>
+                            </optgroup>
                             <option value="Sound">Sound Surface (0 Defects)</option>
                         </select>
                     </div>
@@ -1677,6 +2019,12 @@
 
                 <div class="alert alert-danger" id="authErrorAlert" style="display: none; margin-bottom: 1rem;"></div>
 
+                <!-- Auth Navigation Tabs (Sign In vs Register) -->
+                <div class="auth-tabs-nav" id="authTabsNav" style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 0.5rem;">
+                    <button type="button" class="btn btn-sm btn-outline-primary active" id="authTabLoginBtn" style="flex: 1;">🔐 Sign In</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="authTabRegisterBtn" style="flex: 1;">📝 Create Citizen Account</button>
+                </div>
+
                 <!-- Sign In Form -->
                 <form id="loginForm">
                     <div class="form-group mb-3">
@@ -1690,6 +2038,32 @@
                     <div class="form-actions" style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
                         <button type="button" class="btn btn-secondary" id="cancelAuthBtn">Cancel</button>
                         <button type="submit" class="btn btn-primary" id="loginSubmitBtn">Sign In</button>
+                    </div>
+                </form>
+
+                <!-- Citizen Registration Form -->
+                <form id="registerForm" style="display: none;">
+                    <div class="form-group mb-3">
+                        <label for="registerUsername">Username <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="registerUsername" placeholder="e.g. citizen_jane" autocomplete="username" required minlength="3" maxlength="40">
+                        <small class="text-muted">3-40 alphanumeric characters, dots, underscores, or hyphens.</small>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="registerEmail">Email Address <span class="text-muted">(Optional)</span></label>
+                        <input type="email" class="form-control" id="registerEmail" placeholder="yourname@example.com" autocomplete="email">
+                        <small class="text-muted">Used for follow-up and notification records.</small>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="registerPassword">Password <span class="text-danger">*</span></label>
+                        <input type="password" class="form-control" id="registerPassword" placeholder="Minimum 8 characters" autocomplete="new-password" required minlength="8">
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="registerPasswordConfirm">Confirm Password <span class="text-danger">*</span></label>
+                        <input type="password" class="form-control" id="registerPasswordConfirm" placeholder="Re-enter password" autocomplete="new-password" required minlength="8">
+                    </div>
+                    <div class="form-actions" style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+                        <button type="button" class="btn btn-secondary" id="cancelRegisterBtn">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="registerSubmitBtn">Create Citizen Account & Sign In</button>
                     </div>
                 </form>
 
@@ -1796,12 +2170,66 @@
         </div>
     </div>
 
+    <!-- Civic Complaint Draft Modal -->
+    <div class="modal-overlay" id="complaintDraftModal" style="display: none;">
+        <div class="modal-dialog" style="max-width: 700px;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 0.85rem 1.25rem; border-bottom: 1px solid var(--border-color);">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="font-size: 1.3rem;">📝</span>
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.1rem;">Civic Complaint Draft Assistance</h3>
+                        <small class="text-muted" id="complaintDraftSubtitle">Formal grievance notice for inspection #--</small>
+                    </div>
+                </div>
+                <button type="button" class="modal-close-btn" id="closeComplaintDraftModalBtn">✕</button>
+            </div>
+            <div class="modal-body" style="padding: 1.25rem;">
+                <div class="alert alert-warning" style="margin-bottom: 1rem; font-size: 0.82rem; line-height: 1.4;">
+                    <div class="alert-icon">⚠️</div>
+                    <div class="alert-content">
+                        <strong>Unsubmitted Draft Notice:</strong>
+                        <p style="margin: 0.2rem 0 0 0;">This document is an editable complaint draft compiled for citizen or administrative assistance. <strong>VisionGuard AI does NOT submit filings to municipal or state authorities.</strong> You must review, copy or export, and submit this notice through your local authority's official grievance portal.</p>
+                    </div>
+                </div>
+
+                <div id="complaintFeedback" class="alert alert-danger" style="display: none; margin-bottom: 1rem;"></div>
+
+                <form id="complaintDraftForm">
+                    <input type="hidden" id="complaintDraftInspId">
+                    <div class="form-group mb-3">
+                        <label for="complaintAgencyInput"><strong>Recipient Agency / Municipal Authority:</strong></label>
+                        <input type="text" class="form-control" id="complaintAgencyInput" maxlength="200" required>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="complaintSubjectInput"><strong>Subject Line:</strong></label>
+                        <input type="text" class="form-control" id="complaintSubjectInput" maxlength="300" required>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="complaintBodyTextarea"><strong>Complaint Body (Fully Editable):</strong></label>
+                        <textarea class="form-control" id="complaintBodyTextarea" rows="12" style="font-family: monospace; font-size: 0.88rem; line-height: 1.45;" required></textarea>
+                    </div>
+                    <div class="complaint-actions-row" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border-color);">
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <button type="button" class="btn btn-secondary btn-sm" id="copyComplaintDraftBtn">📋 Copy Draft</button>
+                            <button type="button" class="btn btn-secondary btn-sm" id="exportComplaintTxtBtn">📄 Export .txt</button>
+                            <button type="button" class="btn btn-primary btn-sm" id="exportComplaintPdfBtn">📑 Export .pdf</button>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button type="button" class="btn btn-secondary btn-sm" id="cancelComplaintDraftBtn">Close</button>
+                            <button type="submit" class="btn btn-primary btn-sm" id="saveComplaintDraftBtn">💾 Save Draft</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Footer -->
     <footer class="app-footer">
         <p>© VisionGuard AI • Built with Python, Flask, OpenCV & YOLOv8 • Strict adherence to genuine AI models (No mock predictions).</p>
     </footer>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="/static/js/app.js?v=20261023"></script>
+    <script src="/static/js/app.js?v=20261026c"></script>
 </body>
 </html>
