@@ -125,11 +125,12 @@ def assign_inspection_task(
 
     # Determine assignment status based on current inspection workflow
     initial_assignment_status = ASSIGNMENT_STATUS_ASSIGNED
-    if insp_status in ["In Progress", "Repair in Progress", "Under Review"]:
+    if insp_status in ["In Progress", "Repair in Progress", "Under Review", "Reopened"]:
         initial_assignment_status = ASSIGNMENT_STATUS_IN_PROGRESS
     elif insp_status == "Resolved":
         initial_assignment_status = ASSIGNMENT_STATUS_COMPLETED
 
+    new_insp_status = "Assigned" if insp_status == "Open" else insp_status
     is_reassignment = (curr_assigned_to_id is not None and curr_assigned_to_id != assigned_to_user_id)
 
     # If reassigning, mark previous active assignment as cancelled/reassigned
@@ -164,7 +165,8 @@ def assign_inspection_task(
     # Update defect_inspections
     cursor.execute("""
         UPDATE defect_inspections
-        SET assigned_to_user_id = ?,
+        SET status = ?,
+            assigned_to_user_id = ?,
             assigned_to_username = ?,
             assigned_by_user_id = ?,
             assigned_by_username = ?,
@@ -174,6 +176,7 @@ def assign_inspection_task(
             assignment_updated_at = CURRENT_TIMESTAMP
         WHERE id = ?;
     """, (
+        new_insp_status,
         assignee["id"],
         assignee["username"],
         assigned_by_user_id,
@@ -198,12 +201,13 @@ def assign_inspection_task(
 
     cursor.execute("""
         INSERT INTO maintenance_activity_log (
-            inspection_id, action_type, new_status, notes, user_id, username
-        ) VALUES (?, ?, ?, ?, ?, ?);
+            inspection_id, action_type, previous_status, new_status, notes, user_id, username
+        ) VALUES (?, ?, ?, ?, ?, ?, ?);
     """, (
         inspection_id,
         action_type,
         insp_status,
+        new_insp_status,
         notes_text,
         assigned_by_user_id,
         assigner_username,
@@ -261,26 +265,40 @@ def cancel_inspection_assignment(
         WHERE inspection_id = ? AND status IN ('assigned', 'in_progress');
     """, (clean_reason, inspection_id))
 
+    new_insp_status = "Open" if insp_status == "Assigned" else insp_status
+
+    # Cancel open assignments in maintenance_assignments
+    cursor.execute("""
+        UPDATE maintenance_assignments
+        SET status = 'cancelled',
+            updated_at = CURRENT_TIMESTAMP,
+            cancelled_at = CURRENT_TIMESTAMP,
+            cancellation_reason = ?
+        WHERE inspection_id = ? AND status IN ('assigned', 'in_progress');
+    """, (clean_reason, inspection_id))
+
     # Reset assignment on defect_inspections
     cursor.execute("""
         UPDATE defect_inspections
-        SET assigned_to_user_id = NULL,
+        SET status = ?,
+            assigned_to_user_id = NULL,
             assigned_to_username = NULL,
             assignment_status = 'cancelled',
             assignment_instructions = NULL,
             assignment_updated_at = CURRENT_TIMESTAMP
         WHERE id = ?;
-    """, (inspection_id,))
+    """, (new_insp_status, inspection_id))
     conn.commit()
 
     # Log in activity history
     cursor.execute("""
         INSERT INTO maintenance_activity_log (
-            inspection_id, action_type, new_status, notes, user_id, username
-        ) VALUES (?, 'assignment_cancelled', ?, ?, ?, ?);
+            inspection_id, action_type, previous_status, new_status, notes, user_id, username
+        ) VALUES (?, 'assignment_cancelled', ?, ?, ?, ?, ?);
     """, (
         inspection_id,
         insp_status,
+        new_insp_status,
         f"Assignment for {prev_assignee_name} cancelled. Reason: {clean_reason}",
         cancelled_by_user_id,
         canceller_username,
@@ -305,9 +323,9 @@ def sync_assignment_status_with_workflow(
 ) -> None:
     """
     Synchronizes the active assignment status when an inspection status updates:
-    - 'Repair in Progress' / 'Under Review' -> 'in_progress'
+    - 'Repair in Progress' / 'Under Review' / 'Reopened' -> 'in_progress'
     - 'Resolved' -> 'completed' (sets completed_at)
-    - 'Open' -> 'assigned'
+    - 'Open' / 'Assigned' -> 'assigned'
     """
     init_db(db_path)
     conn = get_db_connection(db_path)
@@ -323,13 +341,13 @@ def sync_assignment_status_with_workflow(
     target_assign_status = curr_assign_status
     completed_clause = ""
 
-    if new_workflow_status in ["In Progress", "Repair in Progress", "Under Review"]:
+    if new_workflow_status in ["In Progress", "Repair in Progress", "Under Review", "Reopened"]:
         if curr_assign_status in [ASSIGNMENT_STATUS_ASSIGNED, ASSIGNMENT_STATUS_COMPLETED]:
             target_assign_status = ASSIGNMENT_STATUS_IN_PROGRESS
     elif new_workflow_status == "Resolved":
         target_assign_status = ASSIGNMENT_STATUS_COMPLETED
         completed_clause = ", completed_at = CURRENT_TIMESTAMP"
-    elif new_workflow_status == "Open":
+    elif new_workflow_status in ["Open", "Assigned"]:
         if curr_assign_status == ASSIGNMENT_STATUS_COMPLETED:
             target_assign_status = ASSIGNMENT_STATUS_ASSIGNED
 
@@ -359,16 +377,19 @@ def get_maintenance_work_queue(
     workflow_status: Optional[str] = None,
     urgency: Optional[str] = None,
     category: Optional[str] = None,
+    domain: Optional[str] = None,
     city: Optional[str] = None,
     area: Optional[str] = None,
     search_query: Optional[str] = None,
+    sort_by: Optional[str] = None,
+    include_unassigned: bool = False,
     limit: int = 100,
     offset: int = 0,
     ref_date: Optional[datetime.date] = None,
     db_path: str = DEFAULT_DB_PATH
 ) -> List[Dict[str, Any]]:
     """
-    Retrieves assigned tasks for the Maintenance Work Queue with filtering.
+    Retrieves assigned and actionable tasks for the Maintenance Work Queue with filtering.
     If user_id is provided, restricts results to tasks assigned to that maintenance staff member.
     """
     init_db(db_path)
@@ -382,11 +403,17 @@ def get_maintenance_work_queue(
     if user_id is not None:
         conditions.append("assigned_to_user_id = ?")
         params.append(user_id)
+    elif assignment_status and assignment_status.strip().lower() == "unassigned":
+        conditions.append("(assigned_to_user_id IS NULL OR assignment_status = 'unassigned')")
+    elif assignment_status and assignment_status.strip().lower() in ("all", "any"):
+        pass
+    elif include_unassigned:
+        pass
     else:
         # Otherwise require that it has been assigned
         conditions.append("assigned_to_user_id IS NOT NULL")
 
-    if assignment_status and assignment_status.strip() and assignment_status.lower() != "all":
+    if assignment_status and assignment_status.strip() and assignment_status.lower() not in ("all", "any", "unassigned"):
         st = assignment_status.strip().lower()
         if st in ALLOWED_ASSIGNMENT_STATUSES:
             conditions.append("assignment_status = ?")
@@ -395,6 +422,10 @@ def get_maintenance_work_queue(
     if workflow_status and workflow_status.strip() and workflow_status.lower() != "all":
         conditions.append("status = ?")
         params.append(workflow_status.strip())
+
+    if domain and domain.strip() and domain.lower() != "all":
+        conditions.append("LOWER(COALESCE(inspection_type, 'road')) = ?")
+        params.append(domain.strip().lower())
 
     if category and category.strip() and category.lower() != "all":
         cat = category.strip()
@@ -411,23 +442,47 @@ def get_maintenance_work_queue(
         params.append(area.strip().lower())
 
     if search_query and search_query.strip():
+        raw_q = search_query.strip().lstrip("#")
         q_term = f"%{search_query.strip()}%"
-        conditions.append("(road_name LIKE ? OR area LIKE ? OR city LIKE ? OR location_notes LIKE ? OR assignment_instructions LIKE ?)")
-        params.extend([q_term, q_term, q_term, q_term, q_term])
+        if raw_q.isdigit():
+            conditions.append("(id = ? OR road_name LIKE ? OR area LIKE ? OR city LIKE ? OR location_notes LIKE ? OR assignment_instructions LIKE ? OR defect_type LIKE ? OR assigned_to_username LIKE ?)")
+            params.extend([int(raw_q), q_term, q_term, q_term, q_term, q_term, q_term, q_term])
+        else:
+            conditions.append("(road_name LIKE ? OR area LIKE ? OR city LIKE ? OR location_notes LIKE ? OR assignment_instructions LIKE ? OR defect_type LIKE ? OR assigned_to_username LIKE ?)")
+            params.extend([q_term, q_term, q_term, q_term, q_term, q_term, q_term])
 
     where_clause = "WHERE " + " AND ".join(conditions) if conditions else ""
+
+    sort_clean = (sort_by or "").strip().lower()
+    if sort_clean in ("newest", "latest"):
+        order_clause = "ORDER BY uploaded_at DESC, id DESC"
+    elif sort_clean in ("oldest", "earliest"):
+        order_clause = "ORDER BY uploaded_at ASC, id ASC"
+    elif sort_clean in ("priority", "urgency", "severity"):
+        order_clause = """ORDER BY
+            CASE
+                WHEN target_repair_date IS NOT NULL AND date(target_repair_date) < date('now') THEN 1
+                WHEN target_repair_date IS NOT NULL AND date(target_repair_date) = date('now') THEN 2
+                WHEN defect_count > 0 THEN 3
+                ELSE 4
+            END,
+            uploaded_at DESC, id DESC"""
+    elif sort_clean in ("deadline", "target_date"):
+        order_clause = "ORDER BY CASE WHEN target_repair_date IS NULL THEN 1 ELSE 0 END, target_repair_date ASC, uploaded_at DESC"
+    else:
+        order_clause = """ORDER BY
+            CASE
+                WHEN assignment_status = 'assigned' THEN 1
+                WHEN assignment_status = 'in_progress' THEN 2
+                WHEN assignment_status = 'completed' THEN 3
+                ELSE 4
+            END,
+            uploaded_at DESC, id DESC"""
 
     query = f"""
     SELECT * FROM defect_inspections
     {where_clause}
-    ORDER BY
-        CASE
-            WHEN assignment_status = 'assigned' THEN 1
-            WHEN assignment_status = 'in_progress' THEN 2
-            WHEN assignment_status = 'completed' THEN 3
-            ELSE 4
-        END,
-        uploaded_at DESC, id DESC
+    {order_clause}
     LIMIT ? OFFSET ?;
     """
     params.extend([limit, offset])
