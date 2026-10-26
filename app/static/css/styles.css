@@ -3197,3 +3197,47 @@ body {
     color: #4ade80;
     margin-bottom: 0.4rem;
 }
+
+/* --------------------------------------------------------------------------
+ * Phase 4: Citizen Report Tracking & History
+ * -------------------------------------------------------------------------- */
+.citizen-filters-toolbar {
+    background: rgba(15, 23, 42, 0.4);
+    border-bottom: 1px solid var(--border-color);
+    padding: 0.75rem 1.25rem;
+}
+
+.citizen-filters-toolbar .form-control {
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: var(--radius-sm, 6px);
+}
+
+.citizen-filters-toolbar .form-control:focus {
+    border-color: var(--primary-color, #3b82f6);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+}
+
+#citizenReportsTable tbody tr {
+    transition: background-color 0.15s ease;
+}
+
+#citizenReportsTable tbody tr:hover {
+    background: rgba(59, 130, 246, 0.08);
+}
+
+.complaint-detail-card {
+    background: var(--surface-bg, #0f172a);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md, 8px);
+}
+
+.complaint-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+}
+

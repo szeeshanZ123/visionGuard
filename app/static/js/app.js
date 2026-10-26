@@ -1909,7 +1909,13 @@ document.addEventListener("DOMContentLoaded", () => {
     if (tabReportsBtn) tabReportsBtn.addEventListener("click", () => switchView("reports"));
     if (tabQueueBtn) tabQueueBtn.addEventListener("click", () => switchView("queue"));
     if (tabUsersBtn) tabUsersBtn.addEventListener("click", () => switchView("users"));
-    if (backToRecordsBtn) backToRecordsBtn.addEventListener("click", () => switchView("records"));
+    if (backToRecordsBtn) backToRecordsBtn.addEventListener("click", () => {
+        if (currentUser && currentUser.role === "citizen") {
+            switchView("dashboard");
+        } else {
+            switchView("records");
+        }
+    });
     if (dashStartInspectionBtn) dashStartInspectionBtn.addEventListener("click", () => switchView("new"));
     if (dashEmptyNewInspectionBtn) dashEmptyNewInspectionBtn.addEventListener("click", () => switchView("new"));
     if (dashViewAllRecordsBtn) dashViewAllRecordsBtn.addEventListener("click", () => switchView("records"));
@@ -2968,10 +2974,76 @@ document.addEventListener("DOMContentLoaded", () => {
                     detailDetectionsTableBody.appendChild(tr);
                 });
             }
+
+            // Phase 4: Citizen Read-Only Status & Municipal Disclaimer Handling
+            const detailStatusFormRow = document.getElementById("detailStatusFormRow");
+            const detailCitizenReadOnlyNotice = document.getElementById("detailCitizenReadOnlyNotice");
+            const detailCitizenInspectionStatusBadge = document.getElementById("detailCitizenInspectionStatusBadge");
+            const detailAssignmentCard = document.getElementById("detailAssignmentCard");
+
+            if (currentUser && currentUser.role === "citizen") {
+                if (detailStatusFormRow) detailStatusFormRow.style.display = "none";
+                if (detailCitizenReadOnlyNotice) detailCitizenReadOnlyNotice.style.display = "block";
+                if (detailCitizenInspectionStatusBadge) {
+                    detailCitizenInspectionStatusBadge.textContent = rec.status || "Open";
+                    detailCitizenInspectionStatusBadge.className = `badge ${getStatusBadgeClass(rec.status)}`;
+                }
+                if (detailAssignmentCard) detailAssignmentCard.style.display = "none";
+                if (backToRecordsBtn) backToRecordsBtn.textContent = "← Back to My Reports";
+            } else {
+                if (detailStatusFormRow) detailStatusFormRow.style.display = "flex";
+                if (detailCitizenReadOnlyNotice) detailCitizenReadOnlyNotice.style.display = "none";
+                if (detailAssignmentCard) detailAssignmentCard.style.display = "block";
+                if (backToRecordsBtn) backToRecordsBtn.textContent = "← Back to Inspection Records";
+            }
+
+            // Phase 4: Populate Civic Complaint Draft & Municipal Filing Card
+            const detailComplaintStatusBadge = document.getElementById("detailComplaintStatusBadge");
+            const detailComplaintStatusDisplay = document.getElementById("detailComplaintStatusDisplay");
+            const detailComplaintChannelDisplay = document.getElementById("detailComplaintChannelDisplay");
+            const detailComplaintRefDisplay = document.getElementById("detailComplaintRefDisplay");
+            const detailComplaintSubmittedAtDisplay = document.getElementById("detailComplaintSubmittedAtDisplay");
+            const detailComplaintSubjectDisplay = document.getElementById("detailComplaintSubjectDisplay");
+            const detailOpenComplaintDraftBtn = document.getElementById("detailOpenComplaintDraftBtn");
+
+            const cd = rec.complaint_draft;
+            const cdStatus = (rec.complaint_status || (cd && cd.status) || "none").toLowerCase();
+
+            if (detailComplaintStatusBadge) {
+                detailComplaintStatusBadge.textContent = formatComplaintStatus(cdStatus);
+                detailComplaintStatusBadge.className = `badge ${getComplaintBadgeClass(cdStatus)}`;
+            }
+            if (detailComplaintStatusDisplay) {
+                detailComplaintStatusDisplay.textContent = formatComplaintStatus(cdStatus);
+            }
+            if (detailComplaintChannelDisplay) {
+                detailComplaintChannelDisplay.textContent = (cd && cd.submission_channel) || rec.submission_channel || "Not recorded";
+            }
+            if (detailComplaintRefDisplay) {
+                detailComplaintRefDisplay.textContent = (cd && cd.submission_reference) || rec.submission_reference || "None";
+            }
+            if (detailComplaintSubmittedAtDisplay) {
+                const subAt = (cd && cd.submitted_at) || rec.submitted_at;
+                detailComplaintSubmittedAtDisplay.textContent = subAt ? formatDateTime(subAt) : "Not submitted";
+            }
+            if (detailComplaintSubjectDisplay) {
+                if (cd && (cd.recipient_agency || cd.subject)) {
+                    detailComplaintSubjectDisplay.innerHTML = `<strong>Recipient Authority:</strong> ${escapeHtml(cd.recipient_agency || "Not Specified")}<br><strong>Subject:</strong> ${escapeHtml(cd.subject || "Civic Grievance Notice")}`;
+                } else {
+                    detailComplaintSubjectDisplay.textContent = "No formal complaint draft created yet. Click 'View / Edit Complaint Draft' to prepare an official municipal grievance letter.";
+                }
+            }
+            if (detailOpenComplaintDraftBtn) {
+                detailOpenComplaintDraftBtn.onclick = () => openComplaintDraftModal(rec.id);
+            }
         } catch (err) {
             console.error("Open detail error:", err);
             alert(`Failed to load inspection detail:\n${err.message}`);
-            switchView("records");
+            if (currentUser && currentUser.role === "citizen") {
+                switchView("dashboard");
+            } else {
+                switchView("records");
+            }
         }
     }
 
@@ -3344,67 +3416,145 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    function getComplaintBadgeClass(status) {
+        const st = (status || "").toLowerCase();
+        if (st === "submitted") return "badge-status-resolved";
+        if (st === "ready_to_submit") return "badge-status-active";
+        if (st === "draft" || st === "exported") return "badge-warning";
+        return "badge-secondary";
+    }
+
+    function formatComplaintStatus(status) {
+        const st = (status || "").toLowerCase();
+        if (st === "submitted") return "✅ Submitted";
+        if (st === "ready_to_submit") return "🚀 Ready to Submit";
+        if (st === "exported") return "📑 Exported";
+        if (st === "draft") return "📝 Draft";
+        return "⚪ No Draft";
+    }
+
+    let citizenSearchDebounceTimer = null;
+
     async function loadCitizenDashboard() {
         const tableBody = document.getElementById("citizenReportsTableBody");
         const emptyState = document.getElementById("citizenEmptyReports");
+        const noFilteredState = document.getElementById("citizenNoFilteredReports");
         const reportsTable = document.getElementById("citizenReportsTable");
         const totalReportsElem = document.getElementById("citizenTotalReports");
+        const openReportsElem = document.getElementById("citizenOpenReports");
+        const underReviewReportsElem = document.getElementById("citizenUnderReviewReports");
         const pendingReportsElem = document.getElementById("citizenPendingReports");
         const resolvedReportsElem = document.getElementById("citizenResolvedReports");
+        const submittedComplaintsElem = document.getElementById("citizenSubmittedComplaints");
         const countBadge = document.getElementById("citizenReportsCountBadge");
+
+        const searchInput = document.getElementById("citizenSearchInput");
+        const categoryFilter = document.getElementById("citizenCategoryFilter");
+        const statusFilter = document.getElementById("citizenStatusFilter");
+        const complaintStatusFilter = document.getElementById("citizenComplaintStatusFilter");
+        const dateFilter = document.getElementById("citizenDateFilter");
+        const sortFilter = document.getElementById("citizenSortFilter");
 
         if (!currentUser || currentUser.role !== "citizen") return;
 
         if (tableBody) {
-            tableBody.innerHTML = `<tr><td colspan="8" class="text-center" style="padding: 2rem; color: var(--text-muted);">Loading your submitted reports...</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="9" class="text-center" style="padding: 2rem; color: var(--text-muted);">Loading your submitted reports...</td></tr>`;
         }
 
+        const searchVal = searchInput ? searchInput.value.trim() : "";
+        const catVal = categoryFilter ? categoryFilter.value : "all";
+        const stVal = statusFilter ? statusFilter.value : "all";
+        const cstVal = complaintStatusFilter ? complaintStatusFilter.value : "all";
+        const dateVal = dateFilter ? dateFilter.value.trim() : "";
+        const sortVal = sortFilter ? sortFilter.value : "newest";
+
+        const hasActiveFilters = Boolean(searchVal || (catVal && catVal !== "all") || (stVal && stVal !== "all") || (cstVal && cstVal !== "all") || dateVal);
+
+        const params = new URLSearchParams();
+        params.set("my_reports", "1");
+        params.set("limit", "100");
+        if (searchVal) params.set("q", searchVal);
+        if (catVal && catVal !== "all") params.set("domain", catVal);
+        if (stVal && stVal !== "all") params.set("status", stVal);
+        if (cstVal && cstVal !== "all") params.set("complaint_status", cstVal);
+        if (dateVal) params.set("date", dateVal);
+        params.set("sort_by", sortVal);
+
         try {
-            const res = await fetch("/api/inspections?my_reports=1&limit=100");
+            const res = await fetch(`/api/inspections?${params.toString()}`);
             const data = await res.json();
             if (!res.ok || data.status !== "success") {
                 throw new Error(data.message || "Failed to load reports.");
             }
 
             const reports = data.inspections || [];
-            const total = reports.length;
-            let pending = 0;
-            let resolved = 0;
 
-            reports.forEach(r => {
-                const st = (r.status || "").toLowerCase();
-                if (st === "resolved" || st === "closed") {
-                    resolved++;
-                } else {
-                    pending++;
-                }
-            });
+            // Update 5 Metric Summary Cards from backend citizen_summary when available
+            if (data.citizen_summary) {
+                const s = data.citizen_summary;
+                if (totalReportsElem) totalReportsElem.textContent = String(s.total ?? 0);
+                if (openReportsElem) openReportsElem.textContent = String(s.open ?? 0);
+                if (underReviewReportsElem) underReviewReportsElem.textContent = String(s.under_review ?? 0);
+                if (pendingReportsElem) pendingReportsElem.textContent = String((s.open ?? 0) + (s.under_review ?? 0));
+                if (resolvedReportsElem) resolvedReportsElem.textContent = String(s.resolved ?? 0);
+                if (submittedComplaintsElem) submittedComplaintsElem.textContent = String(s.submitted_complaints ?? 0);
+            } else {
+                let openCnt = 0;
+                let underReviewCnt = 0;
+                let resolvedCnt = 0;
+                let submittedComplaintsCnt = 0;
+                reports.forEach(r => {
+                    const st = (r.status || "").toLowerCase();
+                    if (st === "resolved") resolvedCnt++;
+                    else if (st === "under review") underReviewCnt++;
+                    else openCnt++;
 
-            if (totalReportsElem) totalReportsElem.textContent = String(total);
-            if (pendingReportsElem) pendingReportsElem.textContent = String(pending);
-            if (resolvedReportsElem) resolvedReportsElem.textContent = String(resolved);
-            if (countBadge) countBadge.textContent = String(total);
+                    if ((r.complaint_status || "").toLowerCase() === "submitted") {
+                        submittedComplaintsCnt++;
+                    }
+                });
+                if (totalReportsElem) totalReportsElem.textContent = String(reports.length);
+                if (openReportsElem) openReportsElem.textContent = String(openCnt);
+                if (underReviewReportsElem) underReviewReportsElem.textContent = String(underReviewCnt);
+                if (pendingReportsElem) pendingReportsElem.textContent = String(openCnt + underReviewCnt);
+                if (resolvedReportsElem) resolvedReportsElem.textContent = String(resolvedCnt);
+                if (submittedComplaintsElem) submittedComplaintsElem.textContent = String(submittedComplaintsCnt);
+            }
 
-            if (total === 0) {
-                if (emptyState) emptyState.style.display = "block";
+            if (countBadge) countBadge.textContent = String(reports.length);
+
+            // Empty state handling
+            if (reports.length === 0) {
                 if (reportsTable) reportsTable.style.display = "none";
+                if (hasActiveFilters) {
+                    if (emptyState) emptyState.style.display = "none";
+                    if (noFilteredState) noFilteredState.style.display = "block";
+                } else {
+                    if (emptyState) emptyState.style.display = "block";
+                    if (noFilteredState) noFilteredState.style.display = "none";
+                }
                 return;
             }
 
             if (emptyState) emptyState.style.display = "none";
+            if (noFilteredState) noFilteredState.style.display = "none";
             if (reportsTable) reportsTable.style.display = "table";
 
             if (tableBody) {
                 tableBody.innerHTML = "";
                 reports.forEach(r => {
                     const tr = document.createElement("tr");
-                    const domain = (r.domain || (r.defect_type && (r.defect_type.includes("Crack") || r.defect_type.includes("Damp") || r.defect_type.includes("Paint") || r.defect_type.includes("Spalling")) ? "home" : "road")).toLowerCase();
+                    tr.style.cursor = "pointer";
+                    tr.title = "Click to inspect full findings, evidence, and complaint status";
+
+                    const domain = (r.domain || r.inspection_type || (r.defect_type && (r.defect_type.includes("Crack") || r.defect_type.includes("Damp") || r.defect_type.includes("Paint") || r.defect_type.includes("Spalling")) ? "home" : "road")).toLowerCase();
                     const domainBadge = domain === "home"
                         ? `<span class="badge badge-home">🏠 Home</span>`
                         : `<span class="badge badge-road">🛣️ Road</span>`;
                     
                     const locSummary = [r.road_name, r.area, r.city].filter(Boolean).join(", ") || (r.latitude ? `${Number(r.latitude).toFixed(4)}, ${Number(r.longitude).toFixed(4)}` : "—");
                     const defectsSummary = r.defect_count > 0 ? `${r.defect_count} defect(s): ${escapeHtml(r.defect_type || "distress")}` : "0 defects detected";
+                    const complaintBadge = `<span class="badge ${getComplaintBadgeClass(r.complaint_status)}">${formatComplaintStatus(r.complaint_status)}</span>`;
 
                     tr.innerHTML = `
                         <td><strong>#${r.id}</strong></td>
@@ -3412,27 +3562,38 @@ document.addEventListener("DOMContentLoaded", () => {
                             <img src="/api/inspections/${r.id}/image/annotated" alt="Thumbnail" class="table-thumb" style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border-color);" onerror="this.src='/static/img/placeholder.png'; this.onerror=null;">
                         </td>
                         <td>${domainBadge}</td>
-                        <td><div style="font-weight: 500;">${defectsSummary}</div></td>
+                        <td><div style="font-weight: 500;">${escapeHtml(defectsSummary)}</div></td>
                         <td><small>${escapeHtml(locSummary)}</small></td>
                         <td><span class="badge ${getStatusBadgeClass(r.status)}">${escapeHtml(r.status || "Open")}</span></td>
+                        <td>${complaintBadge}</td>
                         <td style="font-size: 0.8rem; color: var(--text-secondary);">${formatDateTime(r.uploaded_at)}</td>
                         <td style="text-align: right; white-space: nowrap;">
                             <button type="button" class="btn btn-xs btn-outline-primary citizen-view-rec-btn" data-id="${r.id}" style="padding: 2px 8px; font-size: 0.78rem; margin-right: 4px;">🔍 View</button>
                             <button type="button" class="btn btn-xs btn-outline-secondary citizen-open-draft-btn" data-id="${r.id}" style="padding: 2px 8px; font-size: 0.78rem;">📝 Draft</button>
                         </td>
                     `;
+
+                    // Row click navigates to report details (unless clicking an action button)
+                    tr.addEventListener("click", (e) => {
+                        if (!e.target.closest("button") && !e.target.closest("a")) {
+                            openRecordDetail(r.id);
+                        }
+                    });
+
                     tableBody.appendChild(tr);
                 });
 
                 tableBody.querySelectorAll(".citizen-view-rec-btn").forEach(btn => {
-                    btn.addEventListener("click", () => {
+                    btn.addEventListener("click", (e) => {
+                        e.stopPropagation();
                         const id = btn.getAttribute("data-id");
                         if (id) openRecordDetail(id);
                     });
                 });
 
                 tableBody.querySelectorAll(".citizen-open-draft-btn").forEach(btn => {
-                    btn.addEventListener("click", () => {
+                    btn.addEventListener("click", (e) => {
+                        e.stopPropagation();
                         const id = btn.getAttribute("data-id");
                         if (id) openComplaintDraftModal(id);
                     });
@@ -3441,9 +3602,26 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (err) {
             console.error("Citizen dashboard load error:", err);
             if (tableBody) {
-                tableBody.innerHTML = `<tr><td colspan="8" class="text-center text-danger" style="padding: 2rem;">Error loading reports: ${escapeHtml(err.message)}</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger" style="padding: 2rem;">Error loading reports: ${escapeHtml(err.message)}</td></tr>`;
             }
         }
+    }
+
+    function resetCitizenFilters() {
+        const searchInput = document.getElementById("citizenSearchInput");
+        const categoryFilter = document.getElementById("citizenCategoryFilter");
+        const statusFilter = document.getElementById("citizenStatusFilter");
+        const complaintStatusFilter = document.getElementById("citizenComplaintStatusFilter");
+        const dateFilter = document.getElementById("citizenDateFilter");
+        const sortFilter = document.getElementById("citizenSortFilter");
+
+        if (searchInput) searchInput.value = "";
+        if (categoryFilter) categoryFilter.value = "all";
+        if (statusFilter) statusFilter.value = "all";
+        if (complaintStatusFilter) complaintStatusFilter.value = "all";
+        if (dateFilter) dateFilter.value = "";
+        if (sortFilter) sortFilter.value = "newest";
+        loadCitizenDashboard();
     }
 
     async function checkAuthStatus() {
@@ -3919,6 +4097,46 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (refreshCitizenDashBtn) {
         refreshCitizenDashBtn.addEventListener("click", loadCitizenDashboard);
+    }
+
+    const citizenSearchInput = document.getElementById("citizenSearchInput");
+    const citizenCategoryFilter = document.getElementById("citizenCategoryFilter");
+    const citizenStatusFilter = document.getElementById("citizenStatusFilter");
+    const citizenComplaintStatusFilter = document.getElementById("citizenComplaintStatusFilter");
+    const citizenDateFilter = document.getElementById("citizenDateFilter");
+    const citizenSortFilter = document.getElementById("citizenSortFilter");
+    const citizenResetFiltersBtn = document.getElementById("citizenResetFiltersBtn");
+    const citizenClearFiltersInlineBtn = document.getElementById("citizenClearFiltersInlineBtn");
+
+    if (citizenSearchInput) {
+        citizenSearchInput.addEventListener("input", () => {
+            clearTimeout(citizenSearchDebounceTimer);
+            citizenSearchDebounceTimer = setTimeout(() => {
+                loadCitizenDashboard();
+            }, 300);
+        });
+    }
+
+    if (citizenCategoryFilter) {
+        citizenCategoryFilter.addEventListener("change", loadCitizenDashboard);
+    }
+    if (citizenStatusFilter) {
+        citizenStatusFilter.addEventListener("change", loadCitizenDashboard);
+    }
+    if (citizenComplaintStatusFilter) {
+        citizenComplaintStatusFilter.addEventListener("change", loadCitizenDashboard);
+    }
+    if (citizenDateFilter) {
+        citizenDateFilter.addEventListener("change", loadCitizenDashboard);
+    }
+    if (citizenSortFilter) {
+        citizenSortFilter.addEventListener("change", loadCitizenDashboard);
+    }
+    if (citizenResetFiltersBtn) {
+        citizenResetFiltersBtn.addEventListener("click", resetCitizenFilters);
+    }
+    if (citizenClearFiltersInlineBtn) {
+        citizenClearFiltersInlineBtn.addEventListener("click", resetCitizenFilters);
     }
 
     // User Management Functions (Admin Only)
