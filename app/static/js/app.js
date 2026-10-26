@@ -54,6 +54,50 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let isHandlingSessionExpiry = false;
 
+    function setAuthModalMode(mode) {
+        const titleElem = document.getElementById("authModalTitle");
+        const setupNotice = document.getElementById("setupRequiredNotice");
+        const authTabsNav = document.getElementById("authTabsNav");
+        const authTabLoginBtn = document.getElementById("authTabLoginBtn");
+        const authTabRegisterBtn = document.getElementById("authTabRegisterBtn");
+        const loginFrm = document.getElementById("loginForm");
+        const registerFrm = document.getElementById("registerForm");
+        const setupFrm = document.getElementById("setupAdminForm");
+        const loginUser = document.getElementById("loginUsername");
+        const registerUser = document.getElementById("registerUsername");
+        const setupUser = document.getElementById("setupAdminUsername");
+
+        if (mode === "setup") {
+            if (titleElem) titleElem.textContent = "🚀 First-Time Administrator Setup";
+            if (authTabsNav) authTabsNav.style.display = "none";
+            if (setupNotice) setupNotice.style.display = "flex";
+            if (setupFrm) setupFrm.style.display = "block";
+            if (loginFrm) loginFrm.style.display = "none";
+            if (registerFrm) registerFrm.style.display = "none";
+            if (setupUser) setupUser.focus();
+        } else if (mode === "register") {
+            if (titleElem) titleElem.textContent = "📝 Create Citizen Account";
+            if (authTabsNav) authTabsNav.style.display = "flex";
+            if (authTabLoginBtn) authTabLoginBtn.classList.remove("active");
+            if (authTabRegisterBtn) authTabRegisterBtn.classList.add("active");
+            if (setupNotice) setupNotice.style.display = "none";
+            if (setupFrm) setupFrm.style.display = "none";
+            if (loginFrm) loginFrm.style.display = "none";
+            if (registerFrm) registerFrm.style.display = "block";
+            if (registerUser) registerUser.focus();
+        } else {
+            if (titleElem) titleElem.textContent = "🔐 Sign In to VisionGuard AI";
+            if (authTabsNav) authTabsNav.style.display = "flex";
+            if (authTabLoginBtn) authTabLoginBtn.classList.add("active");
+            if (authTabRegisterBtn) authTabRegisterBtn.classList.remove("active");
+            if (setupNotice) setupNotice.style.display = "none";
+            if (setupFrm) setupFrm.style.display = "none";
+            if (loginFrm) loginFrm.style.display = "block";
+            if (registerFrm) registerFrm.style.display = "none";
+            if (loginUser) loginUser.focus();
+        }
+    }
+
     async function openAuthModal(preferredMode) {
         const modal = document.getElementById("authModal");
         if (!modal) return;
@@ -62,12 +106,12 @@ document.addEventListener("DOMContentLoaded", () => {
         modal.style.display = "flex";
 
         const errorAlert = document.getElementById("authErrorAlert");
-        const titleElem = document.getElementById("authModalTitle");
-        const setupNotice = document.getElementById("setupRequiredNotice");
-        const loginFrm = document.getElementById("loginForm");
-        const setupFrm = document.getElementById("setupAdminForm");
         const loginUser = document.getElementById("loginUsername");
         const loginPass = document.getElementById("loginPassword");
+        const registerUser = document.getElementById("registerUsername");
+        const registerEmail = document.getElementById("registerEmail");
+        const registerPass = document.getElementById("registerPassword");
+        const registerPassConfirm = document.getElementById("registerPasswordConfirm");
         const setupUser = document.getElementById("setupAdminUsername");
         const setupEmail = document.getElementById("setupAdminEmail");
         const setupPass = document.getElementById("setupAdminPassword");
@@ -78,24 +122,22 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         if (loginUser) loginUser.value = "";
         if (loginPass) loginPass.value = "";
+        if (registerUser) registerUser.value = "";
+        if (registerEmail) registerEmail.value = "";
+        if (registerPass) registerPass.value = "";
+        if (registerPassConfirm) registerPassConfirm.value = "";
         if (setupUser) setupUser.value = "";
         if (setupEmail) setupEmail.value = "";
         if (setupPass) setupPass.value = "";
 
         // Synchronous initial mode selection based on known state
-        const initialShowSetup = preferredMode === "setup" || (Boolean(window.__lastRequiresSetup) && preferredMode !== "login");
+        const initialShowSetup = preferredMode === "setup" || (Boolean(window.__lastRequiresSetup) && preferredMode !== "login" && preferredMode !== "register");
         if (initialShowSetup) {
-            if (titleElem) titleElem.textContent = "🚀 First-Time Administrator Setup";
-            if (setupNotice) setupNotice.style.display = "flex";
-            if (setupFrm) setupFrm.style.display = "block";
-            if (loginFrm) loginFrm.style.display = "none";
-            if (setupUser) setupUser.focus();
+            setAuthModalMode("setup");
+        } else if (preferredMode === "register") {
+            setAuthModalMode("register");
         } else {
-            if (titleElem) titleElem.textContent = "🔐 Sign In to VisionGuard AI";
-            if (setupNotice) setupNotice.style.display = "none";
-            if (setupFrm) setupFrm.style.display = "none";
-            if (loginFrm) loginFrm.style.display = "block";
-            if (loginUser) loginUser.focus();
+            setAuthModalMode("login");
         }
 
         // Fresh check against backend
@@ -108,19 +150,13 @@ document.addEventListener("DOMContentLoaded", () => {
             window.__lastRequiresSetup = requiresSetup;
         } catch (_) {}
 
-        const showSetup = preferredMode === "setup" || (requiresSetup && preferredMode !== "login");
+        const showSetup = preferredMode === "setup" || (requiresSetup && preferredMode !== "login" && preferredMode !== "register");
         if (showSetup) {
-            if (titleElem) titleElem.textContent = "🚀 First-Time Administrator Setup";
-            if (setupNotice) setupNotice.style.display = "flex";
-            if (setupFrm) setupFrm.style.display = "block";
-            if (loginFrm) loginFrm.style.display = "none";
-            if (setupUser) setupUser.focus();
+            setAuthModalMode("setup");
+        } else if (preferredMode === "register") {
+            setAuthModalMode("register");
         } else {
-            if (titleElem) titleElem.textContent = "🔐 Sign In to VisionGuard AI";
-            if (setupNotice) setupNotice.style.display = "none";
-            if (setupFrm) setupFrm.style.display = "none";
-            if (loginFrm) loginFrm.style.display = "block";
-            if (loginUser) loginUser.focus();
+            setAuthModalMode("login");
         }
     }
 
@@ -1073,6 +1109,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Defect Map DOM Elements (Phase 4.2 & 4.4)
     const mapTelemetryBadge = document.getElementById("mapTelemetryBadge");
     const refreshMapBtn = document.getElementById("refreshMapBtn");
+    const mapDomainFilter = document.getElementById("mapDomainFilter");
     const mapCategoryFilter = document.getElementById("mapCategoryFilter");
     const mapStatusFilter = document.getElementById("mapStatusFilter");
     const mapDeadlineFilter = document.getElementById("mapDeadlineFilter");
@@ -1088,6 +1125,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const legendCountD10 = document.getElementById("legendCountD10");
     const legendCountD20 = document.getElementById("legendCountD20");
     const legendCountD40 = document.getElementById("legendCountD40");
+    const legendCountWall = document.getElementById("legendCountWall");
+    const legendCountDamp = document.getElementById("legendCountDamp");
+    const legendCountPeel = document.getElementById("legendCountPeel");
+    const legendCountSpall = document.getElementById("legendCountSpall");
     const legendCountSound = document.getElementById("legendCountSound");
 
     // Phase 4.5: Reports & Data Exports DOM Elements
@@ -1196,6 +1237,46 @@ document.addEventListener("DOMContentLoaded", () => {
                 pinClass: "pin-d10",
                 label: "Transverse Crack (D10)",
                 color: "#a855f7"
+            };
+        } else if (defType.includes("wall_crack") || defType.includes("wall crack") || defType.includes("wall")) {
+            return {
+                category: "Wall Crack",
+                code: "WALL",
+                pinClass: "pin-wall",
+                label: "Wall Crack",
+                color: "#f97316"
+            };
+        } else if (defType.includes("damp") || defType.includes("water")) {
+            return {
+                category: "Dampness",
+                code: "DAMP",
+                pinClass: "pin-damp",
+                label: "Dampness / Water Damage",
+                color: "#06b6d4"
+            };
+        } else if (defType.includes("peel") || defType.includes("paint") || defType.includes("plaster")) {
+            return {
+                category: "Peeling Paint",
+                code: "PEEL",
+                pinClass: "pin-peel",
+                label: "Peeling Paint / Plaster",
+                color: "#eab308"
+            };
+        } else if (defType.includes("spall")) {
+            return {
+                category: "Spalling",
+                code: "SPALL",
+                pinClass: "pin-spall",
+                label: "Spalling / Surface Damage",
+                color: "#ec4899"
+            };
+        } else if (rec.inspection_type === "home") {
+            return {
+                category: "Wall Crack",
+                code: "WALL",
+                pinClass: "pin-wall",
+                label: "Building Defect",
+                color: "#f97316"
             };
         } else {
             return {
@@ -1407,6 +1488,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // View Navigation
     function switchView(viewName) {
+        const welcomeLandingSection = document.getElementById("welcomeLandingSection");
+        const citizenDashboardSection = document.getElementById("citizenDashboardSection");
+
         if (viewName === "dashboard") {
             if (tabDashboardBtn) tabDashboardBtn.classList.add("active");
             if (tabNewInspectionBtn) tabNewInspectionBtn.classList.remove("active");
@@ -1415,7 +1499,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (tabReportsBtn) tabReportsBtn.classList.remove("active");
             if (tabQueueBtn) tabQueueBtn.classList.remove("active");
             if (tabUsersBtn) tabUsersBtn.classList.remove("active");
-            if (dashboardSection) dashboardSection.style.display = "flex";
+
             if (newInspectionSection) newInspectionSection.style.display = "none";
             if (recordsSection) recordsSection.style.display = "none";
             if (recordDetailSection) recordDetailSection.style.display = "none";
@@ -1423,7 +1507,22 @@ document.addEventListener("DOMContentLoaded", () => {
             if (reportsSection) reportsSection.style.display = "none";
             if (queueSection) queueSection.style.display = "none";
             if (usersSection) usersSection.style.display = "none";
-            loadDashboardStats();
+
+            if (currentUser && currentUser.role === "citizen") {
+                if (welcomeLandingSection) welcomeLandingSection.style.display = "none";
+                if (dashboardSection) dashboardSection.style.display = "none";
+                if (citizenDashboardSection) citizenDashboardSection.style.display = "block";
+                loadCitizenDashboard();
+            } else if (!currentUser) {
+                if (welcomeLandingSection) welcomeLandingSection.style.display = "block";
+                if (dashboardSection) dashboardSection.style.display = "none";
+                if (citizenDashboardSection) citizenDashboardSection.style.display = "none";
+            } else {
+                if (welcomeLandingSection) welcomeLandingSection.style.display = "none";
+                if (citizenDashboardSection) citizenDashboardSection.style.display = "none";
+                if (dashboardSection) dashboardSection.style.display = "flex";
+                loadDashboardStats();
+            }
             window.scrollTo({ top: 0, behavior: "smooth" });
         } else if (viewName === "new") {
             if (tabDashboardBtn) tabDashboardBtn.classList.remove("active");
@@ -1433,6 +1532,8 @@ document.addEventListener("DOMContentLoaded", () => {
             if (tabReportsBtn) tabReportsBtn.classList.remove("active");
             if (tabQueueBtn) tabQueueBtn.classList.remove("active");
             if (tabUsersBtn) tabUsersBtn.classList.remove("active");
+            if (welcomeLandingSection) welcomeLandingSection.style.display = "none";
+            if (citizenDashboardSection) citizenDashboardSection.style.display = "none";
             if (dashboardSection) dashboardSection.style.display = "none";
             if (newInspectionSection) newInspectionSection.style.display = "block";
             if (recordsSection) recordsSection.style.display = "none";
@@ -1449,6 +1550,8 @@ document.addEventListener("DOMContentLoaded", () => {
             if (tabReportsBtn) tabReportsBtn.classList.remove("active");
             if (tabQueueBtn) tabQueueBtn.classList.remove("active");
             if (tabUsersBtn) tabUsersBtn.classList.remove("active");
+            if (welcomeLandingSection) welcomeLandingSection.style.display = "none";
+            if (citizenDashboardSection) citizenDashboardSection.style.display = "none";
             if (dashboardSection) dashboardSection.style.display = "none";
             if (newInspectionSection) newInspectionSection.style.display = "none";
             if (recordsSection) recordsSection.style.display = "flex";
@@ -1466,6 +1569,8 @@ document.addEventListener("DOMContentLoaded", () => {
             if (tabReportsBtn) tabReportsBtn.classList.remove("active");
             if (tabQueueBtn) tabQueueBtn.classList.remove("active");
             if (tabUsersBtn) tabUsersBtn.classList.remove("active");
+            if (welcomeLandingSection) welcomeLandingSection.style.display = "none";
+            if (citizenDashboardSection) citizenDashboardSection.style.display = "none";
             if (dashboardSection) dashboardSection.style.display = "none";
             if (newInspectionSection) newInspectionSection.style.display = "none";
             if (recordsSection) recordsSection.style.display = "none";
@@ -1485,6 +1590,8 @@ document.addEventListener("DOMContentLoaded", () => {
             if (tabReportsBtn) tabReportsBtn.classList.add("active");
             if (tabQueueBtn) tabQueueBtn.classList.remove("active");
             if (tabUsersBtn) tabUsersBtn.classList.remove("active");
+            if (welcomeLandingSection) welcomeLandingSection.style.display = "none";
+            if (citizenDashboardSection) citizenDashboardSection.style.display = "none";
             if (dashboardSection) dashboardSection.style.display = "none";
             if (newInspectionSection) newInspectionSection.style.display = "none";
             if (recordsSection) recordsSection.style.display = "none";
@@ -1503,6 +1610,8 @@ document.addEventListener("DOMContentLoaded", () => {
             if (tabReportsBtn) tabReportsBtn.classList.remove("active");
             if (tabQueueBtn) tabQueueBtn.classList.add("active");
             if (tabUsersBtn) tabUsersBtn.classList.remove("active");
+            if (welcomeLandingSection) welcomeLandingSection.style.display = "none";
+            if (citizenDashboardSection) citizenDashboardSection.style.display = "none";
             if (dashboardSection) dashboardSection.style.display = "none";
             if (newInspectionSection) newInspectionSection.style.display = "none";
             if (recordsSection) recordsSection.style.display = "none";
@@ -1521,6 +1630,8 @@ document.addEventListener("DOMContentLoaded", () => {
             if (tabReportsBtn) tabReportsBtn.classList.remove("active");
             if (tabQueueBtn) tabQueueBtn.classList.remove("active");
             if (tabUsersBtn) tabUsersBtn.classList.add("active");
+            if (welcomeLandingSection) welcomeLandingSection.style.display = "none";
+            if (citizenDashboardSection) citizenDashboardSection.style.display = "none";
             if (dashboardSection) dashboardSection.style.display = "none";
             if (newInspectionSection) newInspectionSection.style.display = "none";
             if (recordsSection) recordsSection.style.display = "none";
@@ -1539,6 +1650,8 @@ document.addEventListener("DOMContentLoaded", () => {
             if (tabReportsBtn) tabReportsBtn.classList.remove("active");
             if (tabQueueBtn) tabQueueBtn.classList.remove("active");
             if (tabUsersBtn) tabUsersBtn.classList.remove("active");
+            if (welcomeLandingSection) welcomeLandingSection.style.display = "none";
+            if (citizenDashboardSection) citizenDashboardSection.style.display = "none";
             if (dashboardSection) dashboardSection.style.display = "none";
             if (newInspectionSection) newInspectionSection.style.display = "none";
             if (recordsSection) recordsSection.style.display = "none";
@@ -1547,6 +1660,12 @@ document.addEventListener("DOMContentLoaded", () => {
             if (reportsSection) reportsSection.style.display = "none";
             if (queueSection) queueSection.style.display = "none";
             if (usersSection) usersSection.style.display = "none";
+
+            if (currentUser && currentUser.role === "citizen") {
+                if (detailAssignmentCard) detailAssignmentCard.style.display = "none";
+                const statusFormRow = document.querySelector(".status-form-row");
+                if (statusFormRow) statusFormRow.style.display = "none";
+            }
             window.scrollTo({ top: 0, behavior: "smooth" });
         }
 
@@ -1663,8 +1782,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Check if record matches category, status, deadline, and keyword filters
-    function filterMapRecord(rec, catFilter, statusFilter, deadlineFilter, kwFilter) {
+    function filterMapRecord(rec, domainFilter, catFilter, statusFilter, deadlineFilter, kwFilter) {
         if (!isValidCoordinate(rec.latitude, rec.longitude)) return false;
+
+        if (domainFilter && domainFilter !== "all") {
+            if (domainFilter === "road" && rec.inspection_type === "home") return false;
+            if (domainFilter === "home" && rec.inspection_type !== "home") return false;
+        }
 
         if (statusFilter && rec.status !== statusFilter) {
             return false;
@@ -1689,9 +1813,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (cfg.category !== "Alligator") return false;
             } else if (catFilter === "Pothole") {
                 if (cfg.category !== "Pothole") return false;
+            } else if (catFilter === "Wall Crack") {
+                if (cfg.category !== "Wall Crack") return false;
+            } else if (catFilter === "Dampness") {
+                if (cfg.category !== "Dampness") return false;
+            } else if (catFilter === "Peeling Paint") {
+                if (cfg.category !== "Peeling Paint") return false;
+            } else if (catFilter === "Spalling") {
+                if (cfg.category !== "Spalling") return false;
             } else {
                 const dt = (rec.defect_type || "").toLowerCase();
-                if (!dt.includes(catFilter.toLowerCase())) return false;
+                if (!dt.includes(catFilter.toLowerCase()) && cfg.category !== catFilter) return false;
             }
         }
 
@@ -1712,13 +1844,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Update legend counters based on all valid geotagged records
     function updateMapLegendCounts(geotaggedRecords) {
-        let d00 = 0, d10 = 0, d20 = 0, d40 = 0, sound = 0;
+        let d00 = 0, d10 = 0, d20 = 0, d40 = 0, wall = 0, damp = 0, peel = 0, spall = 0, sound = 0;
         geotaggedRecords.forEach(rec => {
             const cfg = getMarkerConfig(rec);
             if (cfg.category === "Sound") sound++;
             else if (cfg.category === "Pothole") d40++;
             else if (cfg.category === "Alligator") d20++;
             else if (cfg.category === "Transverse") d10++;
+            else if (cfg.category === "Wall Crack") wall++;
+            else if (cfg.category === "Dampness") damp++;
+            else if (cfg.category === "Peeling Paint") peel++;
+            else if (cfg.category === "Spalling") spall++;
             else d00++;
         });
 
@@ -1726,6 +1862,10 @@ document.addEventListener("DOMContentLoaded", () => {
         if (legendCountD10) legendCountD10.textContent = `${d10} record${d10 === 1 ? "" : "s"}`;
         if (legendCountD20) legendCountD20.textContent = `${d20} record${d20 === 1 ? "" : "s"}`;
         if (legendCountD40) legendCountD40.textContent = `${d40} record${d40 === 1 ? "" : "s"}`;
+        if (legendCountWall) legendCountWall.textContent = `${wall} record${wall === 1 ? "" : "s"}`;
+        if (legendCountDamp) legendCountDamp.textContent = `${damp} record${damp === 1 ? "" : "s"}`;
+        if (legendCountPeel) legendCountPeel.textContent = `${peel} record${peel === 1 ? "" : "s"}`;
+        if (legendCountSpall) legendCountSpall.textContent = `${spall} record${spall === 1 ? "" : "s"}`;
         if (legendCountSound) legendCountSound.textContent = `${sound} record${sound === 1 ? "" : "s"}`;
     }
 
@@ -1736,6 +1876,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Clear existing markers to prevent duplicates
         markersLayerGroup.clearLayers();
 
+        const domainFilter = mapDomainFilter ? mapDomainFilter.value : "all";
         const catFilter = mapCategoryFilter ? mapCategoryFilter.value : "";
         const statusFilter = mapStatusFilter ? mapStatusFilter.value : "";
         const deadlineFilter = mapDeadlineFilter ? mapDeadlineFilter.value : "";
@@ -1758,7 +1899,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (mapEmptyState) mapEmptyState.style.display = "none";
         if (mapLayoutWrapper) mapLayoutWrapper.style.display = "grid";
 
-        const filtered = validGeotagged.filter(rec => filterMapRecord(rec, catFilter, statusFilter, deadlineFilter, kwFilter));
+        const filtered = validGeotagged.filter(rec => filterMapRecord(rec, domainFilter, catFilter, statusFilter, deadlineFilter, kwFilter));
         const markerList = [];
 
         filtered.forEach(rec => {
@@ -1803,12 +1944,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Map Filter Event Listeners
+    if (mapDomainFilter) mapDomainFilter.addEventListener("change", renderMapMarkers);
     if (mapCategoryFilter) mapCategoryFilter.addEventListener("change", renderMapMarkers);
     if (mapStatusFilter) mapStatusFilter.addEventListener("change", renderMapMarkers);
     if (mapDeadlineFilter) mapDeadlineFilter.addEventListener("change", renderMapMarkers);
     if (mapSearchInput) mapSearchInput.addEventListener("input", debounce(renderMapMarkers, 250));
     if (resetMapFiltersBtn) {
         resetMapFiltersBtn.addEventListener("click", () => {
+            if (mapDomainFilter) mapDomainFilter.value = "all";
             if (mapCategoryFilter) mapCategoryFilter.value = "";
             if (mapStatusFilter) mapStatusFilter.value = "";
             if (mapDeadlineFilter) mapDeadlineFilter.value = "";
@@ -1851,6 +1994,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // Save Inspection Action (with duplicate protection)
     if (saveInspectionBtn) {
         saveInspectionBtn.addEventListener("click", async () => {
+            if (!currentUser) {
+                openAuthModal();
+                return;
+            }
             if (!lastInspectionResult || isSaving) return;
 
             isSaving = true;
@@ -1927,10 +2074,13 @@ document.addEventListener("DOMContentLoaded", () => {
                     saveCardStatusBadge.className = "badge badge-info";
 
                     saveFeedback.innerHTML = `
-                        <span style="color: var(--text-secondary); display: inline-flex; align-items: center; gap: 0.4rem;">
+                        <span style="color: var(--text-secondary); display: inline-flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
                             <span>ℹ️</span> ${data.message || "This inspection is already saved."}
                             <button type="button" class="btn btn-secondary btn-sm" id="viewSavedRecordBtn" style="margin-left: 0.5rem; padding: 0.25rem 0.65rem; font-size: 0.8rem;">
                                 View in Records History →
+                            </button>
+                            <button type="button" class="btn btn-outline-warning btn-sm" id="draftComplaintFromSaveBtn" style="margin-left: 0.25rem; padding: 0.25rem 0.65rem; font-size: 0.8rem;">
+                                📝 Draft Complaint Notice
                             </button>
                         </span>
                     `;
@@ -1941,6 +2091,12 @@ document.addEventListener("DOMContentLoaded", () => {
                         viewBtn.addEventListener("click", () => {
                             switchView("records");
                             openRecordDetail(savedRecord.id);
+                        });
+                    }
+                    const draftBtn = document.getElementById("draftComplaintFromSaveBtn");
+                    if (draftBtn) {
+                        draftBtn.addEventListener("click", () => {
+                            openComplaintDraftModal(savedRecord.id);
                         });
                     }
 
@@ -1958,10 +2114,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 saveCardStatusBadge.className = "badge badge-success";
 
                 saveFeedback.innerHTML = `
-                    <span style="color: var(--success); display: inline-flex; align-items: center; gap: 0.4rem;">
+                    <span style="color: var(--success); display: inline-flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
                         <span>✓</span> Successfully persisted to database.
                         <button type="button" class="btn btn-secondary btn-sm" id="viewSavedRecordBtn" style="margin-left: 0.5rem; padding: 0.25rem 0.65rem; font-size: 0.8rem;">
                             View in Records History →
+                        </button>
+                        <button type="button" class="btn btn-outline-warning btn-sm" id="draftComplaintFromSaveBtn" style="margin-left: 0.25rem; padding: 0.25rem 0.65rem; font-size: 0.8rem;">
+                            📝 Draft Complaint Notice
                         </button>
                     </span>
                 `;
@@ -1972,6 +2131,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     viewBtn.addEventListener("click", () => {
                         switchView("records");
                         openRecordDetail(savedRecord.id);
+                    });
+                }
+                const draftBtn = document.getElementById("draftComplaintFromSaveBtn");
+                if (draftBtn) {
+                    draftBtn.addEventListener("click", () => {
+                        openComplaintDraftModal(savedRecord.id);
                     });
                 }
 
@@ -2105,6 +2270,53 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 if (statCatPothole) statCatPothole.textContent = `${potCount} (${potPct}%)`;
                 if (barCatPothole) barCatPothole.style.width = `${potPct}%`;
+
+                // Home / Building Defect Categories Breakdown
+                const homeCats = stats.building_defect_categories || {};
+                const wallCount = homeCats["Wall Crack"] || 0;
+                const dampCount = homeCats["Dampness"] || 0;
+                const peelCount = homeCats["Peeling Paint"] || 0;
+                const spallCount = homeCats["Spalling"] || 0;
+                const totalHomeDefects = wallCount + dampCount + peelCount + spallCount;
+
+                const itemCatWall = document.getElementById("itemCatWall");
+                const itemCatDamp = document.getElementById("itemCatDamp");
+                const itemCatPeel = document.getElementById("itemCatPeel");
+                const itemCatSpall = document.getElementById("itemCatSpall");
+                const statCatWall = document.getElementById("statCatWall");
+                const barCatWall = document.getElementById("barCatWall");
+                const statCatDamp = document.getElementById("statCatDamp");
+                const barCatDamp = document.getElementById("barCatDamp");
+                const statCatPeel = document.getElementById("statCatPeel");
+                const barCatPeel = document.getElementById("barCatPeel");
+                const statCatSpall = document.getElementById("statCatSpall");
+                const barCatSpall = document.getElementById("barCatSpall");
+
+                if (totalHomeDefects > 0) {
+                    if (itemCatWall) itemCatWall.style.display = "block";
+                    if (itemCatDamp) itemCatDamp.style.display = "block";
+                    if (itemCatPeel) itemCatPeel.style.display = "block";
+                    if (itemCatSpall) itemCatSpall.style.display = "block";
+
+                    const wallPct = totalDefects > 0 ? ((wallCount / totalDefects) * 100).toFixed(1) : "0.0";
+                    const dampPct = totalDefects > 0 ? ((dampCount / totalDefects) * 100).toFixed(1) : "0.0";
+                    const peelPct = totalDefects > 0 ? ((peelCount / totalDefects) * 100).toFixed(1) : "0.0";
+                    const spallPct = totalDefects > 0 ? ((spallCount / totalDefects) * 100).toFixed(1) : "0.0";
+
+                    if (statCatWall) statCatWall.textContent = `${wallCount} (${wallPct}%)`;
+                    if (barCatWall) barCatWall.style.width = `${wallPct}%`;
+                    if (statCatDamp) statCatDamp.textContent = `${dampCount} (${dampPct}%)`;
+                    if (barCatDamp) barCatDamp.style.width = `${dampPct}%`;
+                    if (statCatPeel) statCatPeel.textContent = `${peelCount} (${peelPct}%)`;
+                    if (barCatPeel) barCatPeel.style.width = `${peelPct}%`;
+                    if (statCatSpall) statCatSpall.textContent = `${spallCount} (${spallPct}%)`;
+                    if (barCatSpall) barCatSpall.style.width = `${spallPct}%`;
+                } else {
+                    if (itemCatWall) itemCatWall.style.display = "none";
+                    if (itemCatDamp) itemCatDamp.style.display = "none";
+                    if (itemCatPeel) itemCatPeel.style.display = "none";
+                    if (itemCatSpall) itemCatSpall.style.display = "none";
+                }
             }
 
             // Workflow status distribution
@@ -2202,6 +2414,8 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
+        const recordsDomainFilter = document.getElementById("recordsDomainFilter");
+        const filterDomain = recordsDomainFilter ? recordsDomainFilter.value : "";
         const filterStatus = recordsStatusFilter ? recordsStatusFilter.value : "";
         const filterCategory = recordsCategoryFilter ? recordsCategoryFilter.value : "";
         const filterDeadline = recordsDeadlineFilter ? recordsDeadlineFilter.value : "";
@@ -2211,6 +2425,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         try {
             const params = new URLSearchParams();
+            if (filterDomain) params.append("domain", filterDomain);
             if (filterStatus) params.append("status", filterStatus);
             if (filterCategory) params.append("category", filterCategory);
             if (filterDeadline) params.append("deadline", filterDeadline);
@@ -2235,12 +2450,16 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    const recordsDomainFilterEl = document.getElementById("recordsDomainFilter");
+    if (recordsDomainFilterEl) recordsDomainFilterEl.addEventListener("change", loadRecords);
     if (recordsStatusFilter) recordsStatusFilter.addEventListener("change", loadRecords);
     if (recordsCategoryFilter) recordsCategoryFilter.addEventListener("change", loadRecords);
     if (recordsDeadlineFilter) recordsDeadlineFilter.addEventListener("change", loadRecords);
     if (recordsSearchInput) recordsSearchInput.addEventListener("input", debounce(loadRecords, 300));
     if (resetRecordsFiltersBtn) {
         resetRecordsFiltersBtn.addEventListener("click", () => {
+            const domFilter = document.getElementById("recordsDomainFilter");
+            if (domFilter) domFilter.value = "";
             if (recordsStatusFilter) recordsStatusFilter.value = "";
             if (recordsCategoryFilter) recordsCategoryFilter.value = "";
             if (recordsDeadlineFilter) recordsDeadlineFilter.value = "";
@@ -2288,9 +2507,15 @@ document.addEventListener("DOMContentLoaded", () => {
             const statusClass = getStatusBadgeClass(rec.status);
 
             const deadlineDisplay = getDeadlineBadge(rec);
+            const domainBadge = (rec.inspection_type === "home") 
+                ? '<span class="badge" style="background: rgba(168, 85, 247, 0.2); color: #c084fc; font-size: 0.72rem; padding: 2px 6px; display: inline-block; margin-top: 2px;">🏠 Home</span>'
+                : '<span class="badge" style="background: rgba(14, 165, 233, 0.2); color: #38bdf8; font-size: 0.72rem; padding: 2px 6px; display: inline-block; margin-top: 2px;">🛣️ Road</span>';
 
             tr.innerHTML = `
-                <td><strong>#${rec.id}</strong></td>
+                <td>
+                    <strong>#${rec.id}</strong><br>
+                    ${domainBadge}
+                </td>
                 <td><span style="font-size: 0.82rem; color: var(--text-secondary);">${formatDateTime(rec.uploaded_at)}</span></td>
                 <td>
                     ${roadDisplay}
@@ -2632,6 +2857,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // -------------------------------------------------------------------------
     function buildReportQueryString() {
         const params = new URLSearchParams();
+        const reportDomainFilter = document.getElementById("reportDomainFilter");
+        if (reportDomainFilter && reportDomainFilter.value) params.set("domain", reportDomainFilter.value);
         if (reportStartDate && reportStartDate.value) params.set("start_date", reportStartDate.value.trim());
         if (reportEndDate && reportEndDate.value) params.set("end_date", reportEndDate.value.trim());
         if (reportCategoryFilter && reportCategoryFilter.value) params.set("category", reportCategoryFilter.value);
@@ -2828,6 +3055,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (generateReportBtn) generateReportBtn.addEventListener("click", loadReportPreview);
     if (resetReportFiltersBtn) {
         resetReportFiltersBtn.addEventListener("click", () => {
+            const domFilter = document.getElementById("reportDomainFilter");
+            if (domFilter) domFilter.value = "";
             if (reportStartDate) reportStartDate.value = "";
             if (reportEndDate) reportEndDate.value = "";
             if (reportCategoryFilter) reportCategoryFilter.value = "";
@@ -2866,7 +3095,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // -------------------------------------------------------------------------
-    // Phase 4.6: Authentication & User Management Logic
+    // Phase 4.6 & Citizen Mode: Authentication & User Management Logic
     // -------------------------------------------------------------------------
 
     function getRoleBadgeClass(role) {
@@ -2874,6 +3103,7 @@ document.addEventListener("DOMContentLoaded", () => {
             case "admin": return "badge-role-admin";
             case "inspector": return "badge-role-inspector";
             case "maintenance": return "badge-role-maintenance";
+            case "citizen": return "badge-role-citizen";
             default: return "badge-secondary";
         }
     }
@@ -2883,7 +3113,110 @@ document.addEventListener("DOMContentLoaded", () => {
             case "admin": return "Administrator";
             case "inspector": return "Inspector";
             case "maintenance": return "Maintenance Staff";
+            case "citizen": return "Citizen";
             default: return role || "Unknown";
+        }
+    }
+
+    async function loadCitizenDashboard() {
+        const tableBody = document.getElementById("citizenReportsTableBody");
+        const emptyState = document.getElementById("citizenEmptyReports");
+        const reportsTable = document.getElementById("citizenReportsTable");
+        const totalReportsElem = document.getElementById("citizenTotalReports");
+        const pendingReportsElem = document.getElementById("citizenPendingReports");
+        const resolvedReportsElem = document.getElementById("citizenResolvedReports");
+        const countBadge = document.getElementById("citizenReportsCountBadge");
+
+        if (!currentUser || currentUser.role !== "citizen") return;
+
+        if (tableBody) {
+            tableBody.innerHTML = `<tr><td colspan="8" class="text-center" style="padding: 2rem; color: var(--text-muted);">Loading your submitted reports...</td></tr>`;
+        }
+
+        try {
+            const res = await fetch("/api/inspections?my_reports=1&limit=100");
+            const data = await res.json();
+            if (!res.ok || data.status !== "success") {
+                throw new Error(data.message || "Failed to load reports.");
+            }
+
+            const reports = data.inspections || [];
+            const total = reports.length;
+            let pending = 0;
+            let resolved = 0;
+
+            reports.forEach(r => {
+                const st = (r.status || "").toLowerCase();
+                if (st === "resolved" || st === "closed") {
+                    resolved++;
+                } else {
+                    pending++;
+                }
+            });
+
+            if (totalReportsElem) totalReportsElem.textContent = String(total);
+            if (pendingReportsElem) pendingReportsElem.textContent = String(pending);
+            if (resolvedReportsElem) resolvedReportsElem.textContent = String(resolved);
+            if (countBadge) countBadge.textContent = String(total);
+
+            if (total === 0) {
+                if (emptyState) emptyState.style.display = "block";
+                if (reportsTable) reportsTable.style.display = "none";
+                return;
+            }
+
+            if (emptyState) emptyState.style.display = "none";
+            if (reportsTable) reportsTable.style.display = "table";
+
+            if (tableBody) {
+                tableBody.innerHTML = "";
+                reports.forEach(r => {
+                    const tr = document.createElement("tr");
+                    const domain = (r.domain || (r.defect_type && (r.defect_type.includes("Crack") || r.defect_type.includes("Damp") || r.defect_type.includes("Paint") || r.defect_type.includes("Spalling")) ? "home" : "road")).toLowerCase();
+                    const domainBadge = domain === "home"
+                        ? `<span class="badge badge-home">🏠 Home</span>`
+                        : `<span class="badge badge-road">🛣️ Road</span>`;
+                    
+                    const locSummary = [r.road_name, r.area, r.city].filter(Boolean).join(", ") || (r.latitude ? `${Number(r.latitude).toFixed(4)}, ${Number(r.longitude).toFixed(4)}` : "—");
+                    const defectsSummary = r.defect_count > 0 ? `${r.defect_count} defect(s): ${escapeHtml(r.defect_type || "distress")}` : "0 defects detected";
+
+                    tr.innerHTML = `
+                        <td><strong>#${r.id}</strong></td>
+                        <td>
+                            <img src="/api/inspections/${r.id}/image/annotated" alt="Thumbnail" class="table-thumb" style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border-color);" onerror="this.src='/static/img/placeholder.png'; this.onerror=null;">
+                        </td>
+                        <td>${domainBadge}</td>
+                        <td><div style="font-weight: 500;">${defectsSummary}</div></td>
+                        <td><small>${escapeHtml(locSummary)}</small></td>
+                        <td><span class="badge ${getStatusBadgeClass(r.status)}">${escapeHtml(r.status || "Open")}</span></td>
+                        <td style="font-size: 0.8rem; color: var(--text-secondary);">${formatDateTime(r.uploaded_at)}</td>
+                        <td style="text-align: right; white-space: nowrap;">
+                            <button type="button" class="btn btn-xs btn-outline-primary citizen-view-rec-btn" data-id="${r.id}" style="padding: 2px 8px; font-size: 0.78rem; margin-right: 4px;">🔍 View</button>
+                            <button type="button" class="btn btn-xs btn-outline-secondary citizen-open-draft-btn" data-id="${r.id}" style="padding: 2px 8px; font-size: 0.78rem;">📝 Draft</button>
+                        </td>
+                    `;
+                    tableBody.appendChild(tr);
+                });
+
+                tableBody.querySelectorAll(".citizen-view-rec-btn").forEach(btn => {
+                    btn.addEventListener("click", () => {
+                        const id = btn.getAttribute("data-id");
+                        if (id) openRecordDetail(id);
+                    });
+                });
+
+                tableBody.querySelectorAll(".citizen-open-draft-btn").forEach(btn => {
+                    btn.addEventListener("click", () => {
+                        const id = btn.getAttribute("data-id");
+                        if (id) openComplaintDraftModal(id);
+                    });
+                });
+            }
+        } catch (err) {
+            console.error("Citizen dashboard load error:", err);
+            if (tableBody) {
+                tableBody.innerHTML = `<tr><td colspan="8" class="text-center text-danger" style="padding: 2rem;">Error loading reports: ${escapeHtml(err.message)}</td></tr>`;
+            }
         }
     }
 
@@ -2905,6 +3238,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const isAuth = authData && authData.authenticated && authData.user;
         const requiresSetup = authData && authData.requires_setup;
         const guestBanner = document.getElementById("authGuestBanner");
+        const tabDashboardLabel = document.getElementById("tabDashboardLabel");
+        const tabNewInspectionLabel = document.getElementById("tabNewInspectionLabel");
+        const tabRecordsLabel = document.getElementById("tabRecordsLabel");
 
         if (isAuth) {
             const u = authData.user;
@@ -2915,19 +3251,53 @@ document.addEventListener("DOMContentLoaded", () => {
                 currentUserBadge.innerHTML = `👤 <strong>${escapeHtml(u.username)}</strong> <span class="badge ${getRoleBadgeClass(u.role)}" style="font-size:0.75rem; margin-left:4px;">${escapeHtml(formatRole(u.role))}</span>`;
             }
 
-            // Role-based navigation visibility
-            if (u.role === "admin") {
+            // Role-based navigation visibility & labels
+            if (u.role === "citizen") {
+                if (tabDashboardLabel) tabDashboardLabel.textContent = "My Portal";
+                if (tabNewInspectionLabel) tabNewInspectionLabel.textContent = "Report Defect";
+                if (tabRecordsLabel) tabRecordsLabel.textContent = "My Reports";
+
+                if (tabUsersBtn) tabUsersBtn.style.display = "none";
+                if (tabQueueBtn) tabQueueBtn.style.display = "none";
+                if (tabReportsBtn) tabReportsBtn.style.display = "none";
+                if (tabNewInspectionBtn) tabNewInspectionBtn.style.display = "inline-flex";
+                if (tabRecordsBtn) tabRecordsBtn.style.display = "inline-flex";
+                if (tabMapBtn) tabMapBtn.style.display = "inline-flex";
+
+                const citizenGreeting = document.getElementById("citizenGreeting");
+                if (citizenGreeting) {
+                    citizenGreeting.textContent = `Welcome back, ${escapeHtml(u.username)}!`;
+                }
+
+                // If currently on forbidden admin view, redirect to dashboard
+                const currentHash = (window.location.hash || "").toLowerCase().replace("#", "").trim();
+                if (currentHash === "queue" || currentHash === "reports" || currentHash === "users") {
+                    switchView("dashboard");
+                }
+            } else if (u.role === "admin") {
+                if (tabDashboardLabel) tabDashboardLabel.textContent = "Dashboard";
+                if (tabNewInspectionLabel) tabNewInspectionLabel.textContent = "New Inspection";
+                if (tabRecordsLabel) tabRecordsLabel.textContent = "Records";
+
                 if (tabUsersBtn) tabUsersBtn.style.display = "inline-flex";
                 if (tabNewInspectionBtn) tabNewInspectionBtn.style.display = "inline-flex";
                 if (tabReportsBtn) tabReportsBtn.style.display = "inline-flex";
                 if (tabQueueBtn) tabQueueBtn.style.display = "inline-flex";
                 if (queueSubtitle) queueSubtitle.textContent = "All dispatched infrastructure remediation tasks across the maintenance department.";
             } else if (u.role === "inspector") {
+                if (tabDashboardLabel) tabDashboardLabel.textContent = "Dashboard";
+                if (tabNewInspectionLabel) tabNewInspectionLabel.textContent = "New Inspection";
+                if (tabRecordsLabel) tabRecordsLabel.textContent = "Records";
+
                 if (tabUsersBtn) tabUsersBtn.style.display = "none";
                 if (tabNewInspectionBtn) tabNewInspectionBtn.style.display = "inline-flex";
                 if (tabReportsBtn) tabReportsBtn.style.display = "inline-flex";
                 if (tabQueueBtn) tabQueueBtn.style.display = "none";
             } else if (u.role === "maintenance") {
+                if (tabDashboardLabel) tabDashboardLabel.textContent = "Dashboard";
+                if (tabNewInspectionLabel) tabNewInspectionLabel.textContent = "New Inspection";
+                if (tabRecordsLabel) tabRecordsLabel.textContent = "Records";
+
                 if (tabUsersBtn) tabUsersBtn.style.display = "none";
                 if (tabNewInspectionBtn) tabNewInspectionBtn.style.display = "none";
                 if (tabReportsBtn) tabReportsBtn.style.display = "none";
@@ -2941,6 +3311,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }
         } else {
+            const tabDashboardLabel = document.getElementById("tabDashboardLabel");
+            const tabNewInspectionLabel = document.getElementById("tabNewInspectionLabel");
+            const tabRecordsLabel = document.getElementById("tabRecordsLabel");
+            if (tabDashboardLabel) tabDashboardLabel.textContent = "Dashboard";
+            if (tabNewInspectionLabel) tabNewInspectionLabel.textContent = "New Inspection";
+            if (tabRecordsLabel) tabRecordsLabel.textContent = "Records";
+
             const guestBannerSignInBtn = document.getElementById("guestBannerSignInBtn");
             const guestBannerTitle = document.getElementById("authGuestBannerTitle");
 
@@ -2951,7 +3328,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (requiresSetup) {
                         guestBannerMsg.textContent = "First-time setup required: Create an administrator account to begin using VisionGuard AI.";
                     } else {
-                        guestBannerMsg.textContent = "Sign in to access AI inspection workflows, records database, GIS map, and reporting tools.";
+                        guestBannerMsg.textContent = "Sign in or register a citizen account to access AI inspection workflows, records database, GIS map, and reporting tools.";
                     }
                 }
                 if (guestBannerTitle) {
@@ -2973,13 +3350,14 @@ document.addEventListener("DOMContentLoaded", () => {
             if (authGuestControls) authGuestControls.style.display = "flex";
             if (tabUsersBtn) tabUsersBtn.style.display = "none";
             if (tabQueueBtn) tabQueueBtn.style.display = "none";
+            if (tabReportsBtn) tabReportsBtn.style.display = "none";
 
             if (openAuthModalBtn) {
                 if (requiresSetup) {
                     openAuthModalBtn.innerHTML = "🚀 Setup Admin";
                     openAuthModalBtn.className = "btn btn-sm btn-warning";
                 } else {
-                    openAuthModalBtn.innerHTML = "🔐 Sign In";
+                    openAuthModalBtn.innerHTML = "🔐 Sign In / Register";
                     openAuthModalBtn.className = "btn btn-sm btn-primary";
                 }
             }
@@ -2988,6 +3366,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Global delegated click listener for all auth modal triggers and modal closers
     document.addEventListener("click", (e) => {
+        // Tab switching in Auth Modal (Sign In vs Register)
+        const tabTrigger = e.target.closest("#authTabLoginBtn, #authTabRegisterBtn");
+        if (tabTrigger) {
+            e.preventDefault();
+            const mode = tabTrigger.id === "authTabRegisterBtn" ? "register" : "login";
+            setAuthModalMode(mode);
+            return;
+        }
+
         // Any button that triggers authentication / setup modal
         const authTrigger = e.target.closest("#openAuthModalBtn, #guestBannerSignInBtn, .guest-login-btn, [data-action='open-auth']");
         if (authTrigger) {
@@ -2998,7 +3385,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         // Close triggers (✕ button, Cancel button, or elements with .modal-close-btn inside authModal)
-        const closeTrigger = e.target.closest("#closeAuthModalBtn, #cancelAuthBtn");
+        const closeTrigger = e.target.closest("#closeAuthModalBtn, #cancelAuthBtn, #cancelRegisterBtn");
         if (closeTrigger) {
             e.preventDefault();
             closeAuthModal();
@@ -3051,6 +3438,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 currentUser = data.user;
                 if (authModal) authModal.style.display = "none";
                 await checkAuthStatus();
+
+                if (currentUser && currentUser.role === "citizen") {
+                    switchView("dashboard");
+                    loadCitizenDashboard();
+                    return;
+                }
+
                 loadDashboardStats();
                 loadRecordsHeaderCount();
 
@@ -3077,6 +3471,78 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (submitBtn) {
                     submitBtn.disabled = false;
                     submitBtn.textContent = "Sign In";
+                }
+            }
+        });
+    }
+
+    // Citizen Registration Form Handler
+    const registerForm = document.getElementById("registerForm");
+    if (registerForm) {
+        registerForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const authErrorAlert = document.getElementById("authErrorAlert");
+            if (authErrorAlert) authErrorAlert.style.display = "none";
+
+            const registerUser = document.getElementById("registerUsername");
+            const registerEmail = document.getElementById("registerEmail");
+            const registerPass = document.getElementById("registerPassword");
+            const registerPassConfirm = document.getElementById("registerPasswordConfirm");
+
+            const username = registerUser ? registerUser.value.trim() : "";
+            const email = registerEmail ? registerEmail.value.trim() : "";
+            const password = registerPass ? registerPass.value : "";
+            const passwordConfirm = registerPassConfirm ? registerPassConfirm.value : "";
+
+            if (!username || !password) return;
+            if (password.length < 8) {
+                if (authErrorAlert) {
+                    authErrorAlert.textContent = "Password must be at least 8 characters long.";
+                    authErrorAlert.style.display = "block";
+                }
+                return;
+            }
+            if (password !== passwordConfirm) {
+                if (authErrorAlert) {
+                    authErrorAlert.textContent = "Passwords do not match. Please verify both entries.";
+                    authErrorAlert.style.display = "block";
+                }
+                return;
+            }
+
+            const submitBtn = document.getElementById("registerSubmitBtn");
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = "Creating Account...";
+            }
+
+            try {
+                const res = await fetch("/api/auth/register", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username, email, password })
+                });
+                const data = await res.json();
+
+                if (!res.ok || data.status !== "success") {
+                    throw new Error(data.message || "Registration failed.");
+                }
+
+                if (data.csrf_token) currentCsrfToken = data.csrf_token;
+                currentUser = data.user;
+                closeAuthModal();
+                await checkAuthStatus();
+                switchView("dashboard");
+                loadCitizenDashboard();
+            } catch (err) {
+                if (authErrorAlert) {
+                    authErrorAlert.textContent = err.message || "Registration failed.";
+                    authErrorAlert.style.display = "block";
+                }
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = "Create Citizen Account & Sign In";
                 }
             }
         });
@@ -3146,6 +3612,85 @@ document.addEventListener("DOMContentLoaded", () => {
             renderGuestDashboard();
             switchView("dashboard");
         });
+    }
+
+    // Citizen & Landing Action Buttons
+    const landingReportBtn = document.getElementById("landingReportBtn");
+    const landingExploreMapBtn = document.getElementById("landingExploreMapBtn");
+    const landingRoadCardBtn = document.getElementById("landingRoadCardBtn");
+    const landingHomeCardBtn = document.getElementById("landingHomeCardBtn");
+    const citizenStartRoadReportBtn = document.getElementById("citizenStartRoadReportBtn");
+    const citizenStartHomeReportBtn = document.getElementById("citizenStartHomeReportBtn");
+    const citizenExploreMapBtn = document.getElementById("citizenExploreMapBtn");
+    const citizenViewAllRecordsBtn = document.getElementById("citizenViewAllRecordsBtn");
+    const refreshCitizenDashBtn = document.getElementById("refreshCitizenDashBtn");
+
+    if (landingReportBtn) {
+        landingReportBtn.addEventListener("click", () => {
+            if (!currentUser) {
+                openAuthModal();
+            } else {
+                switchView("new");
+            }
+        });
+    }
+
+    if (landingRoadCardBtn) {
+        landingRoadCardBtn.addEventListener("click", () => {
+            setInspectionDomain("road");
+            if (!currentUser) {
+                openAuthModal();
+            } else {
+                switchView("new");
+            }
+        });
+    }
+
+    if (landingHomeCardBtn) {
+        landingHomeCardBtn.addEventListener("click", () => {
+            setInspectionDomain("home");
+            if (!currentUser) {
+                openAuthModal();
+            } else {
+                switchView("new");
+            }
+        });
+    }
+
+    if (landingExploreMapBtn) {
+        landingExploreMapBtn.addEventListener("click", () => {
+            switchView("map");
+        });
+    }
+
+    if (citizenStartRoadReportBtn) {
+        citizenStartRoadReportBtn.addEventListener("click", () => {
+            setInspectionDomain("road");
+            switchView("new");
+        });
+    }
+
+    if (citizenStartHomeReportBtn) {
+        citizenStartHomeReportBtn.addEventListener("click", () => {
+            setInspectionDomain("home");
+            switchView("new");
+        });
+    }
+
+    if (citizenExploreMapBtn) {
+        citizenExploreMapBtn.addEventListener("click", () => {
+            switchView("map");
+        });
+    }
+
+    if (citizenViewAllRecordsBtn) {
+        citizenViewAllRecordsBtn.addEventListener("click", () => {
+            switchView("records");
+        });
+    }
+
+    if (refreshCitizenDashBtn) {
+        refreshCitizenDashBtn.addEventListener("click", loadCitizenDashboard);
     }
 
     // User Management Functions (Admin Only)
@@ -3715,7 +4260,159 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
     }
-    window.addEventListener("hashchange", checkHashRoute);
+    // -------------------------------------------------------------------------
+    // Civic Complaint Draft Assistance UI Controller
+    // -------------------------------------------------------------------------
+    const openComplaintDraftBtn = document.getElementById("openComplaintDraftBtn");
+    const complaintDraftModal = document.getElementById("complaintDraftModal");
+    const closeComplaintDraftModalBtn = document.getElementById("closeComplaintDraftModalBtn");
+    const cancelComplaintDraftBtn = document.getElementById("cancelComplaintDraftBtn");
+    const complaintDraftForm = document.getElementById("complaintDraftForm");
+    const complaintDraftInspId = document.getElementById("complaintDraftInspId");
+    const complaintDraftSubtitle = document.getElementById("complaintDraftSubtitle");
+    const complaintAgencyInput = document.getElementById("complaintAgencyInput");
+    const complaintSubjectInput = document.getElementById("complaintSubjectInput");
+    const complaintBodyTextarea = document.getElementById("complaintBodyTextarea");
+    const complaintFeedback = document.getElementById("complaintFeedback");
+    const saveComplaintDraftBtn = document.getElementById("saveComplaintDraftBtn");
+    const copyComplaintDraftBtn = document.getElementById("copyComplaintDraftBtn");
+    const exportComplaintTxtBtn = document.getElementById("exportComplaintTxtBtn");
+    const exportComplaintPdfBtn = document.getElementById("exportComplaintPdfBtn");
+
+    async function openComplaintDraftModal(inspectionId) {
+        if (!inspectionId) return;
+        if (complaintFeedback) {
+            complaintFeedback.style.display = "none";
+            complaintFeedback.textContent = "";
+        }
+        if (complaintDraftInspId) complaintDraftInspId.value = inspectionId;
+        if (complaintDraftSubtitle) complaintDraftSubtitle.textContent = `Loading draft for Inspection #${inspectionId}...`;
+        if (complaintDraftModal) complaintDraftModal.style.display = "flex";
+
+        try {
+            const res = await fetch(`/api/inspections/${inspectionId}/complaint-draft`);
+            const data = await res.json();
+            if (!res.ok || data.status !== "success") {
+                throw new Error(data.message || "Failed to load complaint draft.");
+            }
+            const draft = data.draft;
+            if (complaintDraftSubtitle) complaintDraftSubtitle.textContent = `Formal grievance draft for Record #${inspectionId} (${draft.complaint_type || "distress"})`;
+            if (complaintAgencyInput) complaintAgencyInput.value = draft.recipient_agency || "";
+            if (complaintSubjectInput) complaintSubjectInput.value = draft.subject || "";
+            if (complaintBodyTextarea) complaintBodyTextarea.value = draft.complaint_body || "";
+        } catch (err) {
+            console.error("Failed to load complaint draft:", err);
+            if (complaintFeedback) {
+                complaintFeedback.style.display = "block";
+                complaintFeedback.className = "alert alert-danger";
+                complaintFeedback.textContent = `Error loading draft: ${err.message}`;
+            }
+        }
+    }
+
+    function closeComplaintDraftModal() {
+        if (complaintDraftModal) complaintDraftModal.style.display = "none";
+        if (complaintFeedback) {
+            complaintFeedback.style.display = "none";
+            complaintFeedback.textContent = "";
+        }
+    }
+
+    if (openComplaintDraftBtn) {
+        openComplaintDraftBtn.addEventListener("click", () => {
+            if (currentDetailId) {
+                openComplaintDraftModal(currentDetailId);
+            }
+        });
+    }
+
+    if (closeComplaintDraftModalBtn) closeComplaintDraftModalBtn.addEventListener("click", closeComplaintDraftModal);
+    if (cancelComplaintDraftBtn) cancelComplaintDraftBtn.addEventListener("click", closeComplaintDraftModal);
+
+    if (complaintDraftForm) {
+        complaintDraftForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const inspId = complaintDraftInspId ? complaintDraftInspId.value : currentDetailId;
+            if (!inspId) return;
+
+            const agency = complaintAgencyInput ? complaintAgencyInput.value.trim() : "";
+            const subject = complaintSubjectInput ? complaintSubjectInput.value.trim() : "";
+            const body = complaintBodyTextarea ? complaintBodyTextarea.value.trim() : "";
+
+            if (saveComplaintDraftBtn) {
+                saveComplaintDraftBtn.disabled = true;
+                saveComplaintDraftBtn.textContent = "Saving...";
+            }
+
+            try {
+                const res = await fetch(`/api/inspections/${inspId}/complaint-draft`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        recipient_agency: agency,
+                        subject: subject,
+                        complaint_body: body,
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok || data.status !== "success") {
+                    throw new Error(data.message || "Failed to update draft.");
+                }
+                if (complaintFeedback) {
+                    complaintFeedback.style.display = "block";
+                    complaintFeedback.className = "alert alert-success";
+                    complaintFeedback.textContent = "✓ Complaint draft saved successfully.";
+                }
+            } catch (err) {
+                if (complaintFeedback) {
+                    complaintFeedback.style.display = "block";
+                    complaintFeedback.className = "alert alert-danger";
+                    complaintFeedback.textContent = `Error saving draft: ${err.message}`;
+                }
+            } finally {
+                if (saveComplaintDraftBtn) {
+                    saveComplaintDraftBtn.disabled = false;
+                    saveComplaintDraftBtn.textContent = "💾 Save Draft";
+                }
+            }
+        });
+    }
+
+    if (copyComplaintDraftBtn) {
+        copyComplaintDraftBtn.addEventListener("click", async () => {
+            if (!complaintBodyTextarea || !complaintBodyTextarea.value) return;
+            try {
+                await navigator.clipboard.writeText(complaintBodyTextarea.value);
+                const prev = copyComplaintDraftBtn.textContent;
+                copyComplaintDraftBtn.textContent = "✓ Copied!";
+                setTimeout(() => { copyComplaintDraftBtn.textContent = prev; }, 2000);
+            } catch (err) {
+                complaintBodyTextarea.select();
+                document.execCommand("copy");
+                const prev = copyComplaintDraftBtn.textContent;
+                copyComplaintDraftBtn.textContent = "✓ Copied!";
+                setTimeout(() => { copyComplaintDraftBtn.textContent = prev; }, 2000);
+            }
+        });
+    }
+
+    if (exportComplaintTxtBtn) {
+        exportComplaintTxtBtn.addEventListener("click", () => {
+            const inspId = complaintDraftInspId ? complaintDraftInspId.value : currentDetailId;
+            if (inspId) {
+                window.location.href = `/api/inspections/${inspId}/complaint-draft/export/txt`;
+            }
+        });
+    }
+
+    if (exportComplaintPdfBtn) {
+        exportComplaintPdfBtn.addEventListener("click", () => {
+            const inspId = complaintDraftInspId ? complaintDraftInspId.value : currentDetailId;
+            if (inspId) {
+                window.location.href = `/api/inspections/${inspId}/complaint-draft/export/pdf`;
+            }
+        });
+    }
 
     // Orchestrated Application Initialization
     async function initApp() {
@@ -3723,15 +4420,24 @@ document.addEventListener("DOMContentLoaded", () => {
         await checkAuthStatus();
 
         if (currentUser) {
-            loadDashboardStats();
-            loadRecordsHeaderCount();
-            if (window.location.hash) {
-                checkHashRoute();
+            if (currentUser.role === "citizen") {
+                switchView("dashboard");
+                loadCitizenDashboard();
+            } else {
+                loadDashboardStats();
+                loadRecordsHeaderCount();
+                if (window.location.hash) {
+                    checkHashRoute();
+                } else {
+                    switchView("dashboard");
+                }
             }
         } else {
             renderGuestDashboard();
             if (window.location.hash) {
                 checkHashRoute();
+            } else {
+                switchView("dashboard");
             }
         }
     }
