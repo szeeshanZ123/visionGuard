@@ -361,3 +361,187 @@ def test_update_inspection_location_via_patch(test_app_client):
     })
     assert invalid_res.status_code == 400
     assert invalid_res.get_json()["error_code"] == "INVALID_COORDINATES"
+
+
+# -----------------------------------------------------------------------------
+# Phase 2: Citizen GPS & Manual Address Tests
+# -----------------------------------------------------------------------------
+
+def test_citizen_location_privacy_and_access_control(test_app_client):
+    """
+    Verifies that citizen location data remains private:
+    - Citizen A creates an inspection with GPS coordinates and address.
+    - Citizen B is forbidden from accessing Citizen A's inspection details, images, activities, and complaint drafts (HTTP 403).
+    - Citizen A is allowed to view their own inspection details.
+    - Staff (Admin / Inspector) can view Citizen A's inspection to perform remediation.
+    """
+    # 1. Register Citizen A
+    reg_a = test_app_client.post("/api/auth/register", json={
+        "username": "citizen_location_a",
+        "password": "Password123!",
+    })
+    assert reg_a.status_code == 201
+
+    # 2. Citizen A creates inspection with private location
+    save_res = test_app_client.post("/api/inspections", json={
+        "image_name": "citizen_pothole.jpg",
+        "road_name": "Private Lane 4",
+        "area": "Residential Colony",
+        "city": "Bengaluru",
+        "latitude": 12.9352,
+        "longitude": 77.6245,
+        "location_notes": "Deep pothole outside house gate",
+        "status": "Open",
+    })
+    assert save_res.status_code == 201
+    insp_id = save_res.get_json()["inspection"]["id"]
+
+    # Citizen A can view their own inspection
+    detail_res_a = test_app_client.get(f"/api/inspections/{insp_id}")
+    assert detail_res_a.status_code == 200
+    assert detail_res_a.get_json()["inspection"]["road_name"] == "Private Lane 4"
+
+    # Citizen A can view their complaint draft
+    draft_res_a = test_app_client.get(f"/api/inspections/{insp_id}/complaint-draft")
+    assert draft_res_a.status_code == 200
+
+    # 3. Register Citizen B and authenticate
+    test_app_client.post("/api/auth/logout")
+    reg_b = test_app_client.post("/api/auth/register", json={
+        "username": "citizen_location_b",
+        "password": "Password123!",
+    })
+    assert reg_b.status_code == 201
+
+    # Citizen B cannot access Citizen A's inspection details
+    detail_res_b = test_app_client.get(f"/api/inspections/{insp_id}")
+    assert detail_res_b.status_code == 403
+    assert detail_res_b.get_json()["error_code"] == "FORBIDDEN_REPORT_ACCESS"
+
+    # Citizen B cannot access Citizen A's complaint draft
+    draft_res_b = test_app_client.get(f"/api/inspections/{insp_id}/complaint-draft")
+    assert draft_res_b.status_code == 403
+    assert draft_res_b.get_json()["error_code"] == "FORBIDDEN_REPORT_ACCESS"
+
+    # Citizen B cannot access Citizen A's activity log
+    act_res_b = test_app_client.get(f"/api/inspections/{insp_id}/activity")
+    assert act_res_b.status_code == 403
+    assert act_res_b.get_json()["error_code"] == "FORBIDDEN_REPORT_ACCESS"
+
+    # Citizen B cannot access Citizen A's inspection images
+    img_res_b = test_app_client.get(f"/api/inspections/{insp_id}/image/original")
+    assert img_res_b.status_code == 403
+    assert img_res_b.get_json()["error_code"] == "FORBIDDEN_REPORT_ACCESS"
+
+    # 4. Authorized staff (Admin) can view Citizen A's report for municipal dispatch
+    test_app_client.post("/api/auth/logout")
+    # Bootstrap or login as admin
+    test_app_client.post("/api/auth/setup-admin", json={
+        "username": "admin_loc_supervisor",
+        "password": "Password123!",
+    })
+    admin_detail = test_app_client.get(f"/api/inspections/{insp_id}")
+    assert admin_detail.status_code == 200
+    assert admin_detail.get_json()["inspection"]["road_name"] == "Private Lane 4"
+    assert abs(admin_detail.get_json()["inspection"]["latitude"] - 12.9352) < 1e-4
+
+
+def test_location_fallback_never_invents_coordinates_or_addresses(test_app_client):
+    """
+    Verifies Phase 2 Requirement 8:
+    - Never invent coordinates when only manual address is provided.
+    - Never invent address strings when only GPS coordinates are provided.
+    """
+    # 1. Manual address only (no GPS)
+    res_addr_only = test_app_client.post("/api/inspections", json={
+        "image_name": "manual_addr_only.jpg",
+        "road_name": "742 Evergreen Terrace",
+        "area": "Springfield Suburbs",
+        "city": "Springfield",
+        "latitude": None,
+        "longitude": None,
+    })
+    assert res_addr_only.status_code == 201
+    insp_addr = res_addr_only.get_json()["inspection"]
+    assert insp_addr["road_name"] == "742 Evergreen Terrace"
+    assert insp_addr["area"] == "Springfield Suburbs"
+    assert insp_addr["city"] == "Springfield"
+    assert insp_addr["latitude"] is None
+    assert insp_addr["longitude"] is None
+
+    # 2. GPS only (no manual address)
+    res_gps_only = test_app_client.post("/api/inspections", json={
+        "image_name": "gps_only.jpg",
+        "road_name": "",
+        "area": "",
+        "city": "",
+        "latitude": 19.0760,
+        "longitude": 72.8777,
+    })
+    assert res_gps_only.status_code == 201
+    insp_gps = res_gps_only.get_json()["inspection"]
+    assert abs(insp_gps["latitude"] - 19.0760) < 1e-4
+    assert abs(insp_gps["longitude"] - 72.8777) < 1e-4
+    assert insp_gps["road_name"] == ""
+    assert insp_gps["area"] == ""
+    assert insp_gps["city"] == ""
+
+
+def test_inspection_not_blocked_when_location_omitted(test_app_client):
+    """
+    Verifies Phase 2 Requirement 8:
+    Inspections are never blocked when location is denied or omitted.
+    """
+    res = test_app_client.post("/api/inspections", json={
+        "image_name": "no_location_at_all.jpg",
+        "status": "Open",
+    })
+    assert res.status_code == 201
+    insp = res.get_json()["inspection"]
+    assert insp["id"] is not None
+    assert insp["latitude"] is None
+    assert insp["longitude"] is None
+    assert insp["road_name"] == ""
+
+
+def test_home_and_road_domain_location_persistence(test_app_client):
+    """
+    Verifies that location data persists properly for both road and home problem workflows.
+    """
+    # 1. Home defect with residential location
+    res_home = test_app_client.post("/api/inspections", json={
+        "image_name": "living_room_crack.jpg",
+        "inspection_type": "home",
+        "domain": "home",
+        "road_name": "Tower 4, Flat 1201",
+        "area": "Living Room South Wall",
+        "city": "Noida",
+        "latitude": 28.5355,
+        "longitude": 77.3910,
+        "location_notes": "Hairline crack propagating near ceiling joint",
+    })
+    assert res_home.status_code == 201
+    home_insp = res_home.get_json()["inspection"]
+    assert home_insp["inspection_type"] == "home"
+    assert home_insp["road_name"] == "Tower 4, Flat 1201"
+    assert home_insp["area"] == "Living Room South Wall"
+    assert abs(home_insp["latitude"] - 28.5355) < 1e-4
+
+    # 2. Road defect with highway corridor location
+    res_road = test_app_client.post("/api/inspections", json={
+        "image_name": "highway_pothole.jpg",
+        "inspection_type": "road",
+        "domain": "road",
+        "road_name": "NH 44 Expressway",
+        "area": "KM Marker 108",
+        "city": "Nagpur",
+        "latitude": 21.1458,
+        "longitude": 79.0882,
+        "location_notes": "Right shoulder pothole with loose aggregate",
+    })
+    assert res_road.status_code == 201
+    road_insp = res_road.get_json()["inspection"]
+    assert road_insp["inspection_type"] == "road"
+    assert road_insp["road_name"] == "NH 44 Expressway"
+    assert abs(road_insp["latitude"] - 21.1458) < 1e-4
+
