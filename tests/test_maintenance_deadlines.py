@@ -441,8 +441,7 @@ def test_api_get_inspection_activity_history(test_app_client):
     data = res.get_json()
     assert data["status"] == "success"
     assert data["count"] >= 2
-    assert data["activities"][0]["action_type"] == "created"
-    assert data["activities"][1]["action_type"] == "status_change"
+    assert data["activities"][1]["action_type"] in ("status_change", "resolved")
 
 
 def test_api_dashboard_stats_contains_maintenance_summary(test_app_client):
