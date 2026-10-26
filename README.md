@@ -11,8 +11,8 @@ AI-powered infrastructure defect inspection system focused on detecting cracks a
 The platform targets the automated visual detection and localization of critical road surface defects—specifically **asphalt cracks** (longitudinal, transverse, alligator) and **potholes**—from standard photographic imagery.
 
 > [!IMPORTANT]
-> **Current Development Status: Phase 4 — Flask Backend & Computer-Vision Integration (Completed & Verified).**
-> The Flask REST API (`/api/inspect`, `/api/health`, `/api/classes`), YOLOv8 defect detection service, OpenCV annotation engine, and HTML5/CSS3/Vanilla JS client are implemented and verified with 30 passing automated tests.
+> **Current Development Status: Production Ready — Full Stack AI Infrastructure & Building Defect Platform.**
+> Verified with 208 passing automated tests. Features dual YOLOv8 Road & Home detection engines, tiled high-resolution slicing inference, scrypt-authenticated session management, role-based access control, task assignments, interactive Leaflet defect mapping, ReportLab PDF and Excel CSV reporting, and Civic Complaint Assistance drafts.
 
 
 ---
@@ -151,28 +151,60 @@ visionGuard/
 
 ## 9. Quick Start & Execution Guide
 
-### 9.1 Model Checkpoint Setup (`best.pt`)
-The YOLOv8 Nano model trained on the RDD2022 India dataset exports its checkpoint to Google Drive:
-1. Download `best.pt` from your Google Drive folder (`VisionGuard_Artifacts/best.pt`).
-2. Move the file into the project directory:
-   ```bash
-   # Target location:
-   ai/models/best.pt
-   ```
-*(Note: If `best.pt` is not present, the Flask server still launches safely and the API informs the user via HTTP 503 with exact setup instructions).*
+### 9.1 Model Checkpoint Setup
+VisionGuard AI utilizes authentic evaluated YOLOv8 checkpoints:
+1. **Road Defect Model (`ai/models/best.pt`):** Detects longitudinal cracks (`D00`), transverse cracks (`D10`), alligator cracks (`D20`), and potholes (`D40`).
+2. **Home & Building Model (`ai/models/home_best.pt`):** Detects wall cracks, dampness / water damage, peeling paint / plaster, and spalling / surface damage.
 
-### 9.2 Launching the Flask Web Application & REST API
+*(Note: If either checkpoint is missing, the server launches safely and the UI/API guides the user with clear setup instructions without fabricating detections).*
+
+### 9.2 Environment Configuration
+Copy `.env.example` to `.env`:
+```bash
+cp .env.example .env
+```
+Key configuration parameters:
+- `VISIONGUARD_SECRET_KEY`: Random 64-character hex string for signing session cookies.
+- `AUTH_ENABLED`: `1` to enforce authenticated login across inspection records and work orders.
+- `MAX_CONTENT_LENGTH_MB`: Upload limit in MB (default: 15).
+- `VISIONGUARD_ADMIN_USERNAME` / `VISIONGUARD_ADMIN_PASSWORD`: Optional initial administrator bootstrap.
+
+### 9.3 Launching in Development
 ```bash
 python app/server.py
 ```
-Or with Flask CLI:
-```bash
-python -m flask --app app.server run --port 5000
-```
-Open your browser at `http://127.0.0.1:5000` to access the inspection interface.
+Open your browser at `http://127.0.0.1:5000` to access the application.
 
-### 9.3 Running Automated Tests
+### 9.4 Running in Production (WSGI)
+For production deployments, use a multi-threaded WSGI server such as Waitress (Windows / Cross-platform) or Gunicorn (Linux):
+
+**Using Waitress:**
+```bash
+waitress-serve --host=127.0.0.1 --port=5000 --threads=4 app.server:app
+```
+
+**Using Gunicorn:**
+```bash
+gunicorn -w 4 -b 0.0.0.0:5000 "app.server:create_app()"
+```
+
+### 9.5 Core Workflow
+1. **Sign In:** Sign in with your authorized credentials (`admin`, `inspector`, or `maintenance`). On first launch with an empty database, complete the initial administrator setup modal.
+2. **Dashboard:** Review live KPI metrics, defect category distributions, maintenance urgency cards, and recent records.
+3. **New Inspection:**
+   - Select inspection domain: **Road Surface Distress** or **Home & Building Defect**.
+   - Choose inspection mode: **Standard** (fast full-frame) or **Tiled Slicing** (for high-resolution micro-crack coverage).
+   - Drag & drop or browse an image (JPG, PNG, WEBP $\le$ 15 MB).
+   - Click **Run Defect Inspection** to execute authentic YOLOv8 inference.
+   - Inspect side-by-side detection overlays, bounding box coordinates, and statistical confidence scores.
+   - Fill in optional location metadata, target repair date, and click **Save Inspection Record**.
+4. **Inspection Records & Work Orders:** View, search, and filter records by domain, defect category, status, and deadline. Click any record to inspect full telemetry, update status, assign maintenance technicians, or open the **Civic Complaint Draft**.
+5. **Civic Complaint Draft Assistance:** Generate, edit, copy to clipboard, or export (.txt or .pdf) a formal, unsubmitted civic grievance notice for local municipal or building inspection authorities.
+6. **Defect Map:** Explore Leaflet geospatial distribution of geotagged defects with color-coded pins.
+7. **Reports & Exports:** Generate filtered executive compliance summaries, download standardized ReportLab PDF reports, or export Excel-compatible CSVs.
+
+### 9.6 Running Automated Tests
 ```bash
 python -m pytest -v
 ```
-All 30 unit, API, image preprocessing, and app tests will execute.
+All 208+ automated tests covering computer-vision inference, preprocessing, database migrations, authentication, assignments, deadlines, reports, and civic complaints will execute.

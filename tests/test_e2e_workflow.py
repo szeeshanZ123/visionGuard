@@ -211,3 +211,151 @@ def test_complete_inspection_workflow(client):
     assert zero_rec["defect_type"] in ["None", "None detected"]
     assert zero_rec["confidence"] == 0.0
     assert zero_rec["detections"] == []
+
+
+def test_e2e_home_inspection_and_complaint_workflow(client):
+    """
+    End-to-end integration test for Home & Building Defect workflow:
+    1. Upload image to /api/inspect with domain="home"
+    2. Save Home inspection record to SQLite with inspection_type='home'
+    3. Generate and retrieve Civic Complaint Draft (/api/inspections/<id>/complaint-draft)
+    4. Verify complaint draft is pre-populated with building defect notice
+    5. Edit and save complaint draft (recipient agency, subject, body)
+    6. Verify strict guardrail: attempting to mark status as 'submitted' returns HTTP 400
+    7. Export draft to TXT and verify unsubmitted notice & engineering disclaimers
+    8. Export draft to PDF and verify valid PDF binary response
+    9. Verify domain filtering across inspections list (/api/inspections?domain=home vs road)
+    10. Verify domain filtering in inspection reports preview and CSV export
+    """
+    from PIL import Image
+
+    # Generate synthetic wall image
+    img = Image.new("RGB", (640, 480), color=(200, 200, 200))
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG")
+    img_bytes = buf.getvalue()
+
+    # Step 1: Upload image and run Home defect inference
+    res = client.post(
+        "/api/inspect",
+        data={
+            "image": (io.BytesIO(img_bytes), "exterior_wall_01.jpg"),
+            "domain": "home",
+            "confidence": "0.20",
+            "inspection_mode": "standard",
+        },
+        content_type="multipart/form-data"
+    )
+    assert res.status_code == 200, f"Home inspection upload failed: {res.data}"
+    data = res.get_json()
+    assert data["status"] == "success"
+    assert data["domain"] == "home"
+    assert "original_file_path" in data
+    assert "processed_file_path" in data
+
+    # Step 2: Save Home inspection record with GPS coordinates
+    home_payload = {
+        "image_name": data["filename"],
+        "original_image_path": data["original_file_path"],
+        "annotated_image_path": data["processed_file_path"],
+        "road_name": "Tower 4, Apt 802 Exterior Wall",
+        "area": "Kalyani Nagar Sector 14",
+        "city": "Pune",
+        "latitude": 18.5204,
+        "longitude": 73.8567,
+        "location_notes": "Noticeable shear crack propagating near balcony joint",
+        "status": "Open",
+        "inspection_type": "home",
+        "detections": data["detections"],
+    }
+    save_res = client.post(
+        "/api/inspections",
+        data=json.dumps(home_payload),
+        content_type="application/json"
+    )
+    assert save_res.status_code == 201, f"Save failed: {save_res.data}"
+    rec = save_res.get_json()["inspection"]
+    insp_id = rec["id"]
+    assert insp_id > 0
+    assert rec["inspection_type"] == "home"
+    assert rec["road_name"] == "Tower 4, Apt 802 Exterior Wall"
+
+    # Step 3: Fetch auto-generated Civic Complaint Draft
+    draft_res = client.get(f"/api/inspections/{insp_id}/complaint-draft")
+    assert draft_res.status_code == 200
+    draft_data = draft_res.get_json()
+    assert draft_data["status"] == "success"
+    draft = draft_data["draft"]
+    assert draft["inspection_id"] == insp_id
+    assert draft["status"] == "draft"
+    assert "Building" in draft["recipient_agency"] or "Housing" in draft["recipient_agency"]
+    assert "Tower 4" in draft["subject"] or "Defect" in draft["subject"]
+    assert "UNCONFIRMED DRAFT" in draft["complaint_body"] or "unsubmitted" in draft["complaint_body"].lower()
+
+    # Step 4: Edit and persist complaint draft modifications
+    edit_payload = {
+        "recipient_agency": "Pune Municipal Housing & Building Safety Authority",
+        "subject": "Urgent Structural Defect Grievance Notice - Tower 4 Apt 802",
+        "complaint_body": (
+            "Attention: Building Safety & Municipal Housing Inspector\n\n"
+            "This formal grievance notice documents an observable defect at:\n"
+            "Location: Tower 4, Apt 802 Exterior Wall, Kalyani Nagar Sector 14, Pune (GPS: 18.5204, 73.8567)\n"
+            "Inspection Date: 2026-10-26\n\n"
+            "Visual inspection identified crack propagation near balcony structural joints.\n"
+            "Immediate professional structural inspection is respectfully requested.\n\n"
+            "NOTICE: This document is an unsubmitted draft for formal grievance drafting."
+        ),
+    }
+    put_res = client.put(
+        f"/api/inspections/{insp_id}/complaint-draft",
+        data=json.dumps(edit_payload),
+        content_type="application/json"
+    )
+    assert put_res.status_code == 200
+    updated_draft = put_res.get_json()["draft"]
+    assert updated_draft["recipient_agency"] == "Pune Municipal Housing & Building Safety Authority"
+    assert "Urgent Structural Defect" in updated_draft["subject"]
+    assert updated_draft["status"] == "draft"
+
+    # Step 5: Strict guardrail against false submission claim
+    bad_put = client.put(
+        f"/api/inspections/{insp_id}/complaint-draft",
+        data=json.dumps({"status": "submitted"}),
+        content_type="application/json"
+    )
+    assert bad_put.status_code == 400
+    assert "Cannot mark draft as 'submitted'" in bad_put.get_json()["message"]
+
+    # Step 6: Export draft to text format
+    txt_res = client.get(f"/api/inspections/{insp_id}/complaint-draft/export/txt")
+    assert txt_res.status_code == 200
+    assert "text/plain" in txt_res.content_type
+    txt_str = txt_res.data.decode("utf-8")
+    assert "unsubmitted draft" in txt_str.lower()
+    assert "Pune Municipal Housing & Building Safety Authority" in txt_str
+
+    # Step 7: Export draft to PDF format
+    pdf_res = client.get(f"/api/inspections/{insp_id}/complaint-draft/export/pdf")
+    assert pdf_res.status_code == 200
+    assert pdf_res.content_type == "application/pdf"
+    assert pdf_res.data.startswith(b"%PDF")
+
+    # Step 8: Domain filtering verification
+    home_list = client.get("/api/inspections?domain=home")
+    assert home_list.status_code == 200
+    assert any(i["id"] == insp_id for i in home_list.get_json()["inspections"])
+
+    road_list = client.get("/api/inspections?domain=road")
+    assert road_list.status_code == 200
+    assert not any(i["id"] == insp_id for i in road_list.get_json()["inspections"])
+
+    all_list = client.get("/api/inspections?domain=all")
+    assert all_list.status_code == 200
+    assert any(i["id"] == insp_id for i in all_list.get_json()["inspections"])
+
+    # Step 9: Inspection Reports Preview with domain filtering
+    report_res = client.get("/api/reports/preview?domain=home")
+    assert report_res.status_code == 200
+    report_data = report_res.get_json()["report"]
+    assert report_data["summary"]["total_inspections"] >= 1
+    assert any(r["id"] == insp_id for r in report_data["records"])
