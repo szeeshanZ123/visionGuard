@@ -201,7 +201,18 @@ def validate_report_filters(filters: Optional[Dict[str, Any]] = None) -> Tuple[b
     else:
         norm["search_query"] = None
 
-    # 7. Limits & Offsets
+    # 7. Inspection Domain (road vs home)
+    dom = raw.get("domain") or raw.get("inspection_type")
+    if dom and str(dom).strip() and str(dom).strip().lower() != "all":
+        dom_clean = str(dom).strip().lower()
+        if dom_clean in ("road", "home"):
+            norm["domain"] = dom_clean
+        else:
+            return False, {}, f"Invalid domain '{dom}'. Allowed: ['road', 'home', 'all']."
+    else:
+        norm["domain"] = None
+
+    # 8. Limits & Offsets
     try:
         norm["limit"] = min(1000, max(1, int(raw.get("limit", 500))))
     except (ValueError, TypeError):
@@ -315,6 +326,7 @@ def generate_report_data(
         end_date=norm_filters.get("end_date"),
         city=norm_filters.get("city"),
         area=norm_filters.get("area"),
+        domain=norm_filters.get("domain"),
         ref_date=ref_d,
         db_path=db_path
     )
@@ -326,6 +338,10 @@ def generate_report_data(
         "Transverse Crack": 0,
         "Alligator Crack": 0,
         "Pothole": 0,
+        "Wall Crack": 0,
+        "Dampness / Water Damage": 0,
+        "Peeling Paint / Plaster": 0,
+        "Spalling / Surface Damage": 0,
         "Sound Surface": 0,
     }
     status_counts = {
@@ -375,6 +391,14 @@ def generate_report_data(
                         category_counts["Alligator Crack"] += 1
                     elif "pothole" in cat_name or "d40" in cat_name:
                         category_counts["Pothole"] += 1
+                    elif "wall_crack" in cat_name or "wall crack" in cat_name:
+                        category_counts["Wall Crack"] += 1
+                    elif "damp" in cat_name or "water" in cat_name:
+                        category_counts["Dampness / Water Damage"] += 1
+                    elif "peeling" in cat_name or "plaster" in cat_name:
+                        category_counts["Peeling Paint / Plaster"] += 1
+                    elif "spalling" in cat_name:
+                        category_counts["Spalling / Surface Damage"] += 1
             else:
                 dt_str = (s_rec.get("defect_type") or "").lower()
                 if "longitudinal" in dt_str:
@@ -385,6 +409,14 @@ def generate_report_data(
                     category_counts["Alligator Crack"] += 1
                 if "pothole" in dt_str:
                     category_counts["Pothole"] += 1
+                if "wall_crack" in dt_str or "wall crack" in dt_str:
+                    category_counts["Wall Crack"] += 1
+                if "damp" in dt_str or "water" in dt_str:
+                    category_counts["Dampness / Water Damage"] += 1
+                if "peeling" in dt_str or "plaster" in dt_str:
+                    category_counts["Peeling Paint / Plaster"] += 1
+                if "spalling" in dt_str:
+                    category_counts["Spalling / Surface Damage"] += 1
 
         # Status distribution
         st = s_rec["status"]
@@ -705,8 +737,15 @@ def generate_report_pdf(report_data: Dict[str, Any]) -> bytes:
             Paragraph("<b>Distribution %</b>", th_style),
         ]
     ]
-    for cname in ["Longitudinal Crack", "Transverse Crack", "Alligator Crack", "Pothole", "Sound Surface"]:
+    category_order = [
+        "Longitudinal Crack", "Transverse Crack", "Alligator Crack", "Pothole",
+        "Wall Crack", "Dampness / Water Damage", "Peeling Paint / Plaster", "Spalling / Surface Damage",
+        "Sound Surface"
+    ]
+    for cname in category_order:
         c_count = cat_dist.get(cname, 0)
+        if c_count == 0 and cname not in ["Longitudinal Crack", "Transverse Crack", "Alligator Crack", "Pothole", "Sound Surface"]:
+            continue
         c_pct = f"{(c_count / total_def * 100):.1f}%" if total_def > 0 and cname != "Sound Surface" else (
             f"{(c_count / total_insp * 100):.1f}%" if total_insp > 0 and cname == "Sound Surface" else "0.0%"
         )

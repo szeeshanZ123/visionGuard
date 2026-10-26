@@ -12,6 +12,8 @@ ultralytics>=8.1.0
 
 # Data Analysis & Persistence
 pandas>=2.0.0
+reportlab>=4.0.0
+waitress>=3.0.0
 
 # Testing & Evaluation (tests/ & docs/TESTING_STRATEGY.md)
 pytest>=8.0.0
