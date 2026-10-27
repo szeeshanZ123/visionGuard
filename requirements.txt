@@ -1,21 +1,26 @@
 # VisionGuard AI Dependencies
 # Aligned with docs/TECHNOLOGY_STACK.md
 
-# Web Application Interface & Backend
-streamlit>=1.30.0
+# CPU-Only PyTorch Index for Lean Cloud Deployments (Render / Linux)
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+# Web Application Interface & Production WSGI Servers
 flask>=3.0.0
+waitress>=3.0.0
+gunicorn>=23.0.0
+streamlit>=1.30.0
 
 # Computer Vision, Deep Learning & Image Preprocessing
-opencv-python>=4.8.0
-pillow>=10.0.0
+torch>=2.0.0
+torchvision>=0.15.0
 ultralytics>=8.1.0
+opencv-python-headless>=4.8.0
+pillow>=10.0.0
 
-# Data Analysis & Persistence
+# Data Analysis & Report Generation
 pandas>=2.0.0
 reportlab>=4.0.0
-waitress>=3.0.0
 
-# Testing & Evaluation (tests/ & docs/TESTING_STRATEGY.md)
+# Testing & Quality Assurance (tests/ & docs/TESTING_STRATEGY.md)
 pytest>=8.0.0
 
-gunicorn>=23.0.0
