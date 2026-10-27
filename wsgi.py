@@ -28,7 +28,7 @@ application = app
 if __name__ == "__main__":
     try:
         from waitress import serve
-        host = os.environ.get("VISIONGUARD_HOST", "127.0.0.1")
+        host = os.environ.get("VISIONGUARD_HOST", "0.0.0.0" if os.environ.get("PORT") else "127.0.0.1")
         port = int(os.environ.get("VISIONGUARD_PORT", os.environ.get("PORT", "5000")))
         threads = int(os.environ.get("VISIONGUARD_THREADS", "4"))
         
