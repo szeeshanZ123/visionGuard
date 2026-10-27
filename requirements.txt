@@ -18,3 +18,4 @@ waitress>=3.0.0
 # Testing & Evaluation (tests/ & docs/TESTING_STRATEGY.md)
 pytest>=8.0.0
 
+gunicorn>=23.0.0
