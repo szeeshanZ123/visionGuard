@@ -29,6 +29,7 @@ if str(PROJECT_ROOT) not in sys.path:
 import secrets
 from functools import wraps
 import cv2
+from werkzeug.utils import secure_filename
 from flask import Flask, request, jsonify, render_template, send_file, session
 
 from database.db import (
@@ -138,18 +139,55 @@ def create_app(
     if test_config:
         app.config.update(test_config)
 
+    # Environment identification (Phase 7: Production Hardening)
+    vg_env = (
+        (test_config.get("ENV") if test_config else None)
+        or os.environ.get("VISIONGUARD_ENV")
+        or os.environ.get("FLASK_ENV")
+        or "development"
+    ).lower().strip()
+    is_production = vg_env == "production"
+    app.config["ENV"] = vg_env
+    app.config["PRODUCTION"] = is_production
+
+    # In production, debug mode must strictly be disabled
+    if is_production:
+        app.config["DEBUG"] = False
+        app.debug = False
+
     # Secret key configuration for cryptographic session signing
-    secret_key = (
+    explicit_secret = (
         (test_config.get("SECRET_KEY") if test_config else None)
         or os.environ.get("VISIONGUARD_SECRET_KEY")
-        or secrets.token_hex(32)
     )
+
+    if is_production:
+        insecure_keys = {"secret", "changeme", "default", "admin", "12345678", "password", "visionguard", "test"}
+        if not explicit_secret or len(explicit_secret.strip()) < 32 or explicit_secret.strip().lower() in insecure_keys:
+            raise RuntimeError(
+                "Production configuration error: VISIONGUARD_SECRET_KEY environment variable "
+                "must be configured with a secure, random secret key (minimum 32 characters) "
+                "when running in production mode (VISIONGUARD_ENV=production)."
+            )
+        secret_key = explicit_secret.strip()
+    else:
+        if explicit_secret:
+            secret_key = explicit_secret.strip()
+        else:
+            secret_key = secrets.token_hex(32)
+            logger.info("VISIONGUARD_SECRET_KEY not set. Using ephemeral development key. Set VISIONGUARD_SECRET_KEY in production to persist user sessions across server restarts.")
+
     app.secret_key = secret_key
 
-    # Session cookie hardening (Phase 4.6)
-    app.config.setdefault("SESSION_COOKIE_HTTPONLY", True)
-    app.config.setdefault("SESSION_COOKIE_SAMESITE", "Lax")
-    app.config.setdefault("SESSION_COOKIE_SECURE", os.environ.get("VISIONGUARD_COOKIE_SECURE", "0") == "1")
+    # Session cookie hardening (Phase 4.6 & Phase 7)
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
+    default_cookie_secure = is_production and (os.environ.get("VISIONGUARD_COOKIE_SECURE", "1") == "1")
+    if not is_production:
+        default_cookie_secure = os.environ.get("VISIONGUARD_COOKIE_SECURE", "0") == "1"
+    app.config["SESSION_COOKIE_SECURE"] = default_cookie_secure
+
     app.config.setdefault("PERMANENT_SESSION_LIFETIME", datetime.timedelta(hours=8))
     app.config.setdefault("SEND_FILE_MAX_AGE_DEFAULT", 0)
 
@@ -166,12 +204,25 @@ def create_app(
     else:
         app.config["ENFORCE_CSRF_EXPLICIT"] = False
 
+    # Ensure persistent directories exist
+    for dir_path in [
+        os.path.join(PROJECT_ROOT, "data"),
+        os.path.join(PROJECT_ROOT, "data", "uploads"),
+        os.path.join(PROJECT_ROOT, "data", "processed"),
+    ]:
+        os.makedirs(dir_path, exist_ok=True)
+
     # Initialize persistence with configured database path
     db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
     init_db(db_path)
 
     # Safe first-administrator bootstrap from environment variables
-    init_admin_from_env(db_path)
+    admin_user_result = init_admin_from_env(db_path)
+    if is_production and not os.environ.get("VISIONGUARD_ADMIN_PASSWORD"):
+        logger.warning(
+            "SECURITY NOTICE: VISIONGUARD_ADMIN_PASSWORD is not set in production. "
+            "Ensure default development accounts have their passwords updated."
+        )
 
     # Initialize road and home DefectDetectionService instances
     if test_config and "detector" in test_config:
@@ -328,6 +379,17 @@ def create_app(
                 "message": "The requested endpoint was not found.",
             }),
             404,
+        )
+
+    @app.errorhandler(405)
+    def method_not_allowed(error):
+        return (
+            jsonify({
+                "status": "error",
+                "error_code": "METHOD_NOT_ALLOWED",
+                "message": "The requested HTTP method is not allowed on this endpoint.",
+            }),
+            405,
         )
 
     @app.errorhandler(500)
@@ -1041,7 +1103,9 @@ def create_app(
                 400,
             )
 
-        filename = file.filename
+        raw_filename = file.filename
+        safe_name = secure_filename(os.path.basename(raw_filename))
+        filename = safe_name if safe_name else f"upload_{uuid.uuid4().hex[:8]}.jpg"
         raw_bytes = file.read()
         file_stream = io.BytesIO(raw_bytes)
 
@@ -1158,24 +1222,28 @@ def create_app(
             )
 
         # Persist original uploaded image to data/uploads
-        uploads_dir = os.path.join("data", "uploads")
+        uploads_dir = os.path.join(PROJECT_ROOT, "data", "uploads")
         orig_filename = f"orig_{uuid.uuid4().hex[:8]}_{filename}"
-        orig_path = os.path.join(uploads_dir, orig_filename)
+        orig_full_path = os.path.join(uploads_dir, orig_filename)
+        rel_orig_path = os.path.join("data", "uploads", orig_filename)
         try:
             os.makedirs(uploads_dir, exist_ok=True)
-            with open(orig_path, "wb") as f_orig:
+            with open(orig_full_path, "wb") as f_orig:
                 f_orig.write(raw_bytes)
+            orig_path = rel_orig_path
         except Exception as e:
             logger.warning(f"Failed to persist original image: {e}")
             orig_path = None
 
         # Optionally persist annotated image to data/processed
-        processed_dir = os.path.join("data", "processed")
+        processed_dir = os.path.join(PROJECT_ROOT, "data", "processed")
         saved_filename = f"annotated_{uuid.uuid4().hex[:8]}_{filename}"
-        saved_path = os.path.join(processed_dir, saved_filename)
+        saved_full_path = os.path.join(processed_dir, saved_filename)
+        rel_saved_path = os.path.join("data", "processed", saved_filename)
         try:
             os.makedirs(processed_dir, exist_ok=True)
-            cv2.imwrite(saved_path, annotated_bgr)
+            cv2.imwrite(saved_full_path, annotated_bgr)
+            saved_path = rel_saved_path
         except Exception:
             saved_path = None
 
@@ -1440,10 +1508,17 @@ def create_app(
                     "message": date_err,
                 }), 400
             payload["target_repair_date"] = norm_date
-        else:
-            payload["target_repair_date"] = None
+        # Sanitize image paths in payload to ensure they reside in authorized project data directory
+        data_root = os.path.abspath(os.path.join(PROJECT_ROOT, "data"))
+        project_root_abs = os.path.abspath(PROJECT_ROOT)
+        for path_key in ("original_image_path", "annotated_image_path"):
+            val = payload.get(path_key)
+            if val and isinstance(val, str) and val.strip():
+                abs_val = os.path.abspath(val.strip())
+                if not abs_val.startswith(data_root) and not abs_val.startswith(project_root_abs):
+                    payload[path_key] = None
 
-        original_image_path = payload.get("original_image_path", "").strip()
+        original_image_path = (payload.get("original_image_path") or "").strip()
         if original_image_path:
             conn = get_db_connection(db_path)
             cursor = conn.cursor()
@@ -1890,14 +1965,33 @@ def create_app(
         else:
             return jsonify({"status": "error", "message": "Invalid image type. Use 'original' or 'annotated'."}), 400
 
-        if not target_path or not os.path.exists(target_path):
+        if not target_path:
             return jsonify({
                 "status": "error",
                 "error_code": "IMAGE_FILE_NOT_FOUND",
-                "message": f"Image file '{target_path or ''}' does not exist on disk.",
+                "message": "Image record does not specify an image path.",
             }), 404
 
         abs_target = os.path.abspath(target_path)
+        data_root = os.path.abspath(os.path.join(PROJECT_ROOT, "data"))
+        project_root_abs = os.path.abspath(PROJECT_ROOT)
+
+        # Enforce that served file resides within the authorized project data directory
+        if not abs_target.startswith(data_root) and not abs_target.startswith(project_root_abs):
+            logger.warning(f"Prevented access to out-of-bounds file path: {target_path}")
+            return jsonify({
+                "status": "error",
+                "error_code": "FORBIDDEN_FILE_ACCESS",
+                "message": "Access denied: Image path is outside authorized data directory.",
+            }), 403
+
+        if not os.path.exists(abs_target):
+            return jsonify({
+                "status": "error",
+                "error_code": "IMAGE_FILE_NOT_FOUND",
+                "message": "Image file does not exist on disk.",
+            }), 404
+
         return send_file(abs_target)
 
     @app.route("/api/inspections/<int:inspection_id>/activity", methods=["GET"])
@@ -2289,5 +2383,8 @@ def create_app(
 app = create_app()
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=False)
+    host = os.environ.get("VISIONGUARD_HOST", "127.0.0.1")
+    port = int(os.environ.get("VISIONGUARD_PORT", os.environ.get("PORT", "5000")))
+    debug_mode = (not app.config.get("PRODUCTION", False)) and (os.environ.get("VISIONGUARD_DEBUG", "0") == "1")
+    app.run(host=host, port=port, debug=debug_mode)
 
