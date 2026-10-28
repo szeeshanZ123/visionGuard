@@ -4,7 +4,7 @@ services:
     env: python
     plan: free
     buildCommand: pip install --upgrade pip && pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu && pip install --no-cache-dir -r requirements.txt && pip uninstall -y opencv-python || true
-    startCommand: python -m gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 1 --threads 2 --timeout 120
+    startCommand: python -m gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 180
     healthCheckPath: /api/health
     envVars:
       - key: VISIONGUARD_ENV
@@ -27,3 +27,12 @@ services:
         sync: false
       - key: R2_ENDPOINT_URL
         sync: false
+      - key: VISIONGUARD_ADMIN_USERNAME
+        sync: false
+      - key: VISIONGUARD_ADMIN_PASSWORD
+        sync: false
+      - key: VISIONGUARD_ADMIN_EMAIL
+        sync: false
+      - key: VISIONGUARD_SETUP_TOKEN
+        sync: false
+
