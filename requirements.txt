@@ -24,3 +24,8 @@ reportlab>=4.0.0
 # Testing & Quality Assurance (tests/ & docs/TESTING_STRATEGY.md)
 pytest>=8.0.0
 
+# Cloud Database & Persistent Storage Backends (Neon PostgreSQL & Cloudflare R2)
+psycopg2-binary>=2.9.9
+boto3>=1.34.0
+
+

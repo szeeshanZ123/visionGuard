@@ -62,6 +62,7 @@ from database.auth import (
     get_user_by_username,
     list_users,
     count_users,
+    count_admin_users,
     update_user,
     authenticate_user,
     init_admin_from_env,
@@ -110,6 +111,12 @@ from ai.detection.detector import (
     HOME_CLASS_NAMES,
     HOME_CLASS_DISPLAY_NAMES,
     DEFAULT_HOME_MODEL_PATH,
+)
+from storage import (
+    get_storage_backend,
+    StorageBackend,
+    LocalStorageBackend,
+    CloudflareR2StorageBackend,
 )
 
 
@@ -211,6 +218,12 @@ def create_app(
         os.path.join(PROJECT_ROOT, "data", "processed"),
     ]:
         os.makedirs(dir_path, exist_ok=True)
+
+    # Initialize persistent storage backend (Local filesystem or Cloudflare R2)
+    if test_config and "storage_backend" in test_config:
+        app.storage_backend = test_config["storage_backend"]
+    else:
+        app.storage_backend = get_storage_backend(app.config)
 
     # Initialize persistence with configured database path
     db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
@@ -436,11 +449,14 @@ def create_app(
                 "message": err or "Invalid username or password.",
             }), 401
 
+        # Prevent session fixation: clear pre-existing session state and assign fresh CSRF token
+        session.clear()
         session["user_id"] = user["id"]
         session["username"] = user["username"]
         session["role"] = user["role"]
         session.permanent = True
-        csrf_tok = get_or_create_csrf_token()
+        csrf_tok = secrets.token_hex(32)
+        session["csrf_token"] = csrf_tok
 
         return jsonify({
             "status": "success",
@@ -478,11 +494,14 @@ def create_app(
                 is_active=1,
                 db_path=db_path
             )
+            # Prevent session fixation: clear pre-existing session state and assign fresh CSRF token
+            session.clear()
             session["user_id"] = user["id"]
             session["username"] = user["username"]
             session["role"] = user["role"]
             session.permanent = True
-            csrf_tok = get_or_create_csrf_token()
+            csrf_tok = secrets.token_hex(32)
+            session["csrf_token"] = csrf_tok
 
             return jsonify({
                 "status": "success",
@@ -507,17 +526,19 @@ def create_app(
     @app.route("/api/auth/logout", methods=["POST"])
     def api_auth_logout():
         session.clear()
+        new_csrf = get_or_create_csrf_token()
         return jsonify({
             "status": "success",
             "message": "Logged out successfully.",
+            "csrf_token": new_csrf,
         }), 200
 
     @app.route("/api/auth/status", methods=["GET"])
     def api_auth_status():
         db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
         csrf_tok = get_or_create_csrf_token()
-        total_users = count_users(db_path=db_path)
-        requires_setup = (total_users == 0)
+        admin_count = count_admin_users(db_path=db_path)
+        requires_setup = (admin_count == 0)
 
         user = get_current_user_record()
         return jsonify({
@@ -540,7 +561,8 @@ def create_app(
     @app.route("/api/auth/setup-admin", methods=["POST"])
     def api_auth_setup_admin():
         db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
-        if count_users(db_path=db_path) > 0:
+        # Prevent claiming administrator account if an active administrator exists
+        if count_admin_users(db_path=db_path) > 0:
             return jsonify({
                 "status": "error",
                 "error_code": "SETUP_FORBIDDEN",
@@ -561,11 +583,14 @@ def create_app(
                 is_active=1,
                 db_path=db_path
             )
+            # Prevent session fixation: clear pre-existing session state and assign fresh CSRF token
+            session.clear()
             session["user_id"] = admin_user["id"]
             session["username"] = admin_user["username"]
             session["role"] = admin_user["role"]
             session.permanent = True
-            csrf_tok = get_or_create_csrf_token()
+            csrf_tok = secrets.token_hex(32)
+            session["csrf_token"] = csrf_tok
 
             return jsonify({
                 "status": "success",
@@ -935,9 +960,14 @@ def create_app(
         """
         db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
         db_health = check_db_health(db_path)
+        storage_type = "r2" if isinstance(getattr(app, "storage_backend", None), CloudflareR2StorageBackend) else "local"
         return jsonify({
             "status": "healthy",
             "database": db_health,
+            "storage": {
+                "backend": storage_type,
+                "ready": True,
+            },
             "model": {
                 "loaded": app.detector.is_loaded,
                 "status_message": app.detector.status_message,
@@ -1221,30 +1251,23 @@ def create_app(
                 500,
             )
 
-        # Persist original uploaded image to data/uploads
-        uploads_dir = os.path.join(PROJECT_ROOT, "data", "uploads")
+        # Persist original uploaded image via configured storage backend
         orig_filename = f"orig_{uuid.uuid4().hex[:8]}_{filename}"
-        orig_full_path = os.path.join(uploads_dir, orig_filename)
-        rel_orig_path = os.path.join("data", "uploads", orig_filename)
+        orig_key = f"uploads/{orig_filename}"
         try:
-            os.makedirs(uploads_dir, exist_ok=True)
-            with open(orig_full_path, "wb") as f_orig:
-                f_orig.write(raw_bytes)
-            orig_path = rel_orig_path
+            orig_path = app.storage_backend.save(orig_key, raw_bytes, content_type="image/jpeg")
         except Exception as e:
             logger.warning(f"Failed to persist original image: {e}")
             orig_path = None
 
-        # Optionally persist annotated image to data/processed
-        processed_dir = os.path.join(PROJECT_ROOT, "data", "processed")
+        # Optionally persist annotated image via configured storage backend
         saved_filename = f"annotated_{uuid.uuid4().hex[:8]}_{filename}"
-        saved_full_path = os.path.join(processed_dir, saved_filename)
-        rel_saved_path = os.path.join("data", "processed", saved_filename)
+        saved_key = f"processed/{saved_filename}"
         try:
-            os.makedirs(processed_dir, exist_ok=True)
-            cv2.imwrite(saved_full_path, annotated_bgr)
-            saved_path = rel_saved_path
-        except Exception:
+            _, buffer = cv2.imencode(".jpg", annotated_bgr)
+            saved_path = app.storage_backend.save(saved_key, buffer.tobytes(), content_type="image/jpeg")
+        except Exception as e:
+            logger.warning(f"Failed to persist annotated image: {e}")
             saved_path = None
 
         disclaimer = (
@@ -1951,7 +1974,7 @@ def create_app(
         curr_user = get_current_user_record()
         if curr_user and curr_user["role"] == ROLE_CITIZEN:
             created_by = record.get("created_by_user_id")
-            if created_by is not None and int(created_by) != int(curr_user["id"]):
+            if created_by is None or int(created_by) != int(curr_user["id"]):
                 return jsonify({
                     "status": "error",
                     "error_code": "FORBIDDEN_REPORT_ACCESS",
@@ -1972,6 +1995,21 @@ def create_app(
                 "message": "Image record does not specify an image path.",
             }), 404
 
+        # 1. Check if storage backend provides direct presigned URL (e.g. Cloudflare R2)
+        url = app.storage_backend.get_url(target_path, expires_in=3600)
+        if url:
+            from flask import redirect
+            return redirect(url)
+
+        # 2. Try retrieving bytes from configured storage backend
+        img_bytes = app.storage_backend.get_bytes(target_path)
+        if img_bytes is not None:
+            import io
+            ext = os.path.splitext(target_path)[1].lower()
+            mimetype = "image/png" if ext == ".png" else "image/jpeg"
+            return send_file(io.BytesIO(img_bytes), mimetype=mimetype)
+
+        # 3. Fallback to direct disk resolution with directory traversal prevention
         abs_target = os.path.abspath(target_path)
         data_root = os.path.abspath(os.path.join(PROJECT_ROOT, "data"))
         project_root_abs = os.path.abspath(PROJECT_ROOT)
@@ -2012,7 +2050,7 @@ def create_app(
         curr_user = get_current_user_record()
         if curr_user and curr_user["role"] == ROLE_CITIZEN:
             created_by = record.get("created_by_user_id")
-            if created_by is not None and int(created_by) != int(curr_user["id"]):
+            if created_by is None or int(created_by) != int(curr_user["id"]):
                 return jsonify({
                     "status": "error",
                     "error_code": "FORBIDDEN_REPORT_ACCESS",
@@ -2182,7 +2220,14 @@ def create_app(
         curr_user = get_current_user_record()
         if curr_user and curr_user["role"] == ROLE_CITIZEN:
             rec = get_inspection_by_id(inspection_id, db_path=db_path)
-            if rec and rec.get("created_by_user_id") is not None and int(rec["created_by_user_id"]) != int(curr_user["id"]):
+            if not rec:
+                return jsonify({
+                    "status": "error",
+                    "error_code": "INSPECTION_NOT_FOUND",
+                    "message": f"Inspection #{inspection_id} not found.",
+                }), 404
+            created_by = rec.get("created_by_user_id")
+            if created_by is None or int(created_by) != int(curr_user["id"]):
                 return jsonify({
                     "status": "error",
                     "error_code": "FORBIDDEN_REPORT_ACCESS",
@@ -2230,7 +2275,14 @@ def create_app(
         curr_user = get_current_user_record()
         if curr_user and curr_user["role"] == ROLE_CITIZEN:
             rec = get_inspection_by_id(inspection_id, db_path=db_path)
-            if rec and rec.get("created_by_user_id") is not None and int(rec["created_by_user_id"]) != int(curr_user["id"]):
+            if not rec:
+                return jsonify({
+                    "status": "error",
+                    "error_code": "INSPECTION_NOT_FOUND",
+                    "message": f"Inspection #{inspection_id} not found.",
+                }), 404
+            created_by = rec.get("created_by_user_id")
+            if created_by is None or int(created_by) != int(curr_user["id"]):
                 return jsonify({
                     "status": "error",
                     "error_code": "FORBIDDEN_REPORT_ACCESS",
@@ -2277,7 +2329,14 @@ def create_app(
         curr_user = get_current_user_record()
         if curr_user and curr_user["role"] == ROLE_CITIZEN:
             rec = get_inspection_by_id(inspection_id, db_path=db_path)
-            if rec and rec.get("created_by_user_id") is not None and int(rec["created_by_user_id"]) != int(curr_user["id"]):
+            if not rec:
+                return jsonify({
+                    "status": "error",
+                    "error_code": "INSPECTION_NOT_FOUND",
+                    "message": f"Inspection #{inspection_id} not found.",
+                }), 404
+            created_by = rec.get("created_by_user_id")
+            if created_by is None or int(created_by) != int(curr_user["id"]):
                 return jsonify({
                     "status": "error",
                     "error_code": "FORBIDDEN_REPORT_ACCESS",
@@ -2338,7 +2397,14 @@ def create_app(
         curr_user = get_current_user_record()
         if curr_user and curr_user["role"] == ROLE_CITIZEN:
             rec = get_inspection_by_id(inspection_id, db_path=db_path)
-            if rec and rec.get("created_by_user_id") is not None and int(rec["created_by_user_id"]) != int(curr_user["id"]):
+            if not rec:
+                return jsonify({
+                    "status": "error",
+                    "error_code": "INSPECTION_NOT_FOUND",
+                    "message": f"Inspection #{inspection_id} not found.",
+                }), 404
+            created_by = rec.get("created_by_user_id")
+            if created_by is None or int(created_by) != int(curr_user["id"]):
                 return jsonify({
                     "status": "error",
                     "error_code": "FORBIDDEN_REPORT_ACCESS",
