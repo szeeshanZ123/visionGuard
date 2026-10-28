@@ -65,6 +65,7 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
         raw_conn = getattr(conn, "_raw_conn", conn)
         init_postgres_db(raw_conn)
         conn.close()
+        migrate_historical_report_ownership(db_path)
         return
 
     conn = get_db_connection(db_path)
@@ -259,6 +260,86 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
 
     conn.commit()
     conn.close()
+    migrate_historical_report_ownership(db_path)
+
+
+
+def migrate_historical_report_ownership(db_path: str = DEFAULT_DB_PATH) -> int:
+    """
+    Backfills missing or orphaned created_by_user_id on historical defect_inspections
+    and complaint_drafts by matching created_by_username to authentic users in the database.
+    Ensures that stable integer user IDs are preferred and authoritative across environments.
+    Returns the total number of records successfully migrated.
+    """
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+    migrated_count = 0
+    try:
+        is_pg = is_postgres_backend(db_path)
+        if is_pg:
+            cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_name='users';")
+            if not cursor.fetchone():
+                return 0
+        else:
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users';")
+            if not cursor.fetchone():
+                return 0
+
+        # Backfill defect_inspections where created_by_user_id is NULL or orphaned (not in users)
+        cursor.execute("""
+            UPDATE defect_inspections
+            SET created_by_user_id = (
+                SELECT u.id FROM users u
+                WHERE LOWER(u.username) = LOWER(defect_inspections.created_by_username)
+                LIMIT 1
+            )
+            WHERE (created_by_user_id IS NULL OR created_by_user_id NOT IN (SELECT id FROM users))
+              AND created_by_username IS NOT NULL
+              AND TRIM(created_by_username) != ''
+              AND EXISTS (
+                  SELECT 1 FROM users u
+                  WHERE LOWER(u.username) = LOWER(defect_inspections.created_by_username)
+              );
+        """)
+        rc = getattr(cursor, "rowcount", 0)
+        migrated_count += rc if rc and rc > 0 else 0
+
+        # Backfill complaint_drafts if table exists
+        has_cd = False
+        if is_pg:
+            cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_name='complaint_drafts';")
+            has_cd = bool(cursor.fetchone())
+        else:
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='complaint_drafts';")
+            has_cd = bool(cursor.fetchone())
+
+        if has_cd:
+            cursor.execute("""
+                UPDATE complaint_drafts
+                SET created_by_user_id = (
+                    SELECT u.id FROM users u
+                    WHERE LOWER(u.username) = LOWER(complaint_drafts.created_by_username)
+                    LIMIT 1
+                )
+                WHERE (created_by_user_id IS NULL OR created_by_user_id NOT IN (SELECT id FROM users))
+                  AND created_by_username IS NOT NULL
+                  AND TRIM(created_by_username) != ''
+                  AND EXISTS (
+                      SELECT 1 FROM users u
+                      WHERE LOWER(u.username) = LOWER(complaint_drafts.created_by_username)
+                  );
+            """)
+            rc_cd = getattr(cursor, "rowcount", 0)
+            migrated_count += rc_cd if rc_cd and rc_cd > 0 else 0
+
+        conn.commit()
+    except Exception as exc:
+        # Avoid crashing startup if migration encounters non-fatal schema mismatch
+        pass
+    finally:
+        conn.close()
+
+    return migrated_count
 
 
 def validate_target_repair_date(date_str: Any) -> Tuple[bool, Optional[str], Optional[str]]:
@@ -780,7 +861,7 @@ def get_inspections(
             params.append(ast)
 
     if created_by_user_id is not None and created_by_username and str(created_by_username).strip():
-        conditions.append("(di.created_by_user_id = ? OR (di.created_by_username IS NOT NULL AND LOWER(di.created_by_username) = LOWER(?)))")
+        conditions.append("(di.created_by_user_id = ? OR (di.created_by_user_id IS NULL AND di.created_by_username IS NOT NULL AND LOWER(di.created_by_username) = LOWER(?)))")
         params.extend([created_by_user_id, str(created_by_username).strip()])
     elif created_by_user_id is not None:
         conditions.append("di.created_by_user_id = ?")
@@ -1082,9 +1163,9 @@ def get_citizen_dashboard_summary(
 
     if username and str(username).strip():
         norm_u = str(username).strip()
-        owner_filter = "(created_by_user_id = ? OR (created_by_username IS NOT NULL AND LOWER(created_by_username) = LOWER(?)))"
+        owner_filter = "(created_by_user_id = ? OR (created_by_user_id IS NULL AND created_by_username IS NOT NULL AND LOWER(created_by_username) = LOWER(?)))"
         owner_params = (user_id, norm_u)
-        join_owner_filter = "(di.created_by_user_id = ? OR (di.created_by_username IS NOT NULL AND LOWER(di.created_by_username) = LOWER(?)))"
+        join_owner_filter = "(di.created_by_user_id = ? OR (di.created_by_user_id IS NULL AND di.created_by_username IS NOT NULL AND LOWER(di.created_by_username) = LOWER(?)))"
     else:
         owner_filter = "created_by_user_id = ?"
         owner_params = (user_id,)

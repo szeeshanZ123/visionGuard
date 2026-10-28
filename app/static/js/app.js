@@ -413,8 +413,8 @@ document.addEventListener("DOMContentLoaded", () => {
             modelStatusBadge.textContent = isHome ? "Model: Home Checkpoint Missing" : "Model: Road Checkpoint Missing";
             modelStatusBadge.className = "badge badge-warning";
 
-            systemNoticeTitle.textContent = isHome 
-                ? "Home Defect Model Checkpoint Awaiting Configuration" 
+            systemNoticeTitle.textContent = isHome
+                ? "Home Defect Model Checkpoint Awaiting Configuration"
                 : "Road Defect Model Checkpoint Awaiting Configuration";
             systemNoticeMsg.textContent = modelInfo.status_message || (isHome ? "Checkpoint 'home_best.pt' not loaded." : "Checkpoint 'best.pt' not loaded.");
             systemNoticeInstructions.textContent = isHome
@@ -426,6 +426,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function setInspectionDomain(domain) {
+        if (isInspecting) return;
         selectedDomain = domain === "home" ? "home" : "road";
         const isHome = selectedDomain === "home";
 
@@ -440,8 +441,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (uploadPromptIcon) uploadPromptIcon.textContent = isHome ? "🏠" : "🛣️";
         if (uploadPromptHeading) {
-            uploadPromptHeading.textContent = isHome 
-                ? "Drag & Drop home or building image here, or choose an option:" 
+            uploadPromptHeading.textContent = isHome
+                ? "Drag & Drop home or building image here, or choose an option:"
                 : "Drag & Drop road image here, or choose an option:";
         }
         if (uploadPromptSubtext) {
@@ -742,6 +743,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     dropZone.addEventListener("click", () => {
+        if (isInspecting) return;
         if (!currentFile) {
             fileInput.click();
         }
@@ -749,6 +751,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     dropZone.addEventListener("dragover", (e) => {
         e.preventDefault();
+        if (isInspecting) return;
         dropZone.classList.add("drag-over");
     });
 
@@ -759,19 +762,45 @@ document.addEventListener("DOMContentLoaded", () => {
     dropZone.addEventListener("drop", (e) => {
         e.preventDefault();
         dropZone.classList.remove("drag-over");
+        if (isInspecting) return;
         if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
             handleFileSelect(e.dataTransfer.files[0]);
         }
     });
 
     fileInput.addEventListener("change", (e) => {
+        if (isInspecting) return;
         if (e.target.files && e.target.files.length > 0) {
             handleFileSelect(e.target.files[0]);
         }
     });
 
+    if (cameraFileInput) {
+        cameraFileInput.addEventListener("change", (e) => {
+            if (isInspecting) return;
+            if (e.target.files && e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+    }
+
+    if (cameraBtn) {
+        cameraBtn.addEventListener("click", (e) => {
+            if (isInspecting) return;
+            if (cameraFileInput) cameraFileInput.click();
+        });
+    }
+
+    if (browseBtn) {
+        browseBtn.addEventListener("click", (e) => {
+            if (isInspecting) return;
+            if (fileInput) fileInput.click();
+        });
+    }
+
     removeFileBtn.addEventListener("click", (e) => {
         e.stopPropagation();
+        if (isInspecting) return;
         clearSelectedFile();
     });
 
@@ -823,8 +852,78 @@ document.addEventListener("DOMContentLoaded", () => {
         resultsContainer.style.display = "none";
     }
 
+    // Inspection Form Locking & In-Flight Request Telemetry (Bug 1 Fix)
+    let isInspecting = false;
+    let activeInspectionRequestId = 0;
+
+    function setInspectionFormLocked(locked) {
+        isInspecting = Boolean(locked);
+
+        if (inspectBtn) {
+            inspectBtn.disabled = isInspecting || !currentFile;
+            if (isInspecting) {
+                if (inspectSpinner) inspectSpinner.style.display = "inline-block";
+                const btnText = inspectBtn.querySelector(".btn-text");
+                if (btnText) {
+                    btnText.textContent = selectedDomain === "home"
+                        ? "Analyzing Building Imagery..."
+                        : "Analyzing Road Imagery...";
+                }
+            } else {
+                if (inspectSpinner) inspectSpinner.style.display = "none";
+                const btnText = inspectBtn.querySelector(".btn-text");
+                if (btnText) btnText.textContent = "Run Defect Inspection";
+            }
+        }
+
+        // File and capture inputs
+        if (browseBtn) browseBtn.disabled = isInspecting;
+        if (cameraBtn) cameraBtn.disabled = isInspecting;
+        if (fileInput) fileInput.disabled = isInspecting;
+        if (cameraFileInput) cameraFileInput.disabled = isInspecting;
+        if (removeFileBtn) removeFileBtn.disabled = isInspecting;
+
+        // Dropzone interaction locking
+        if (dropZone) {
+            if (isInspecting) {
+                dropZone.classList.add("dropzone-locked");
+                dropZone.setAttribute("aria-disabled", "true");
+            } else {
+                dropZone.classList.remove("dropzone-locked");
+                dropZone.removeAttribute("aria-disabled");
+            }
+        }
+
+        // Settings, thresholds, and modes
+        if (confSlider) confSlider.disabled = isInspecting;
+        document.querySelectorAll('input[name="inspectionMode"]').forEach(radio => {
+            radio.disabled = isInspecting;
+        });
+
+        // Workflow domain switchers
+        if (domainRoadBtn) {
+            domainRoadBtn.disabled = isInspecting;
+            domainRoadBtn.classList.toggle("disabled", isInspecting);
+        }
+        if (domainHomeBtn) {
+            domainHomeBtn.disabled = isInspecting;
+            domainHomeBtn.classList.toggle("disabled", isInspecting);
+        }
+
+        // Location fields
+        const locInputs = [
+            inspLocationRoad, inspLocationArea, inspLocationCity,
+            inspLocationLat, inspLocationLon, inspLocationNotes,
+            btnConfirmLocation
+        ];
+        locInputs.forEach(el => {
+            if (el) el.disabled = isInspecting;
+        });
+    }
+
     // 4. Confidence Threshold Slider Synchronization
     function syncSliderDisplay() {
+        if (isInspecting) return;
         const val = parseFloat(confSlider.value);
         confValDisplay.textContent = isNaN(val) ? "0.25" : val.toFixed(2);
     }
@@ -833,20 +932,17 @@ document.addEventListener("DOMContentLoaded", () => {
     confSlider.addEventListener("input", syncSliderDisplay);
     confSlider.addEventListener("change", syncSliderDisplay);
 
-    // 5. Run Inspection Action
+    // 5. Run Inspection Action (Harden with Form Locking & Stale Request Guard)
     inspectBtn.addEventListener("click", async () => {
+        if (isInspecting) return;
         if (!currentUser) {
             openAuthModal();
             return;
         }
         if (!currentFile) return;
 
-        // UI State: Loading
-        inspectBtn.disabled = true;
-        inspectSpinner.style.display = "inline-block";
-        inspectBtn.querySelector(".btn-text").textContent = selectedDomain === "home" 
-            ? "Analyzing Building Imagery..." 
-            : "Analyzing Road Imagery...";
+        const thisRequestId = ++activeInspectionRequestId;
+        setInspectionFormLocked(true);
 
         const activeThreshold = parseFloat(confSlider.value) || 0.25;
         const modeRadio = document.querySelector('input[name="inspectionMode"]:checked');
@@ -861,68 +957,83 @@ document.addEventListener("DOMContentLoaded", () => {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 90000); // 90s timeout (aligned with backend SLA)
 
-        let res;
         try {
-            res = await fetch("/api/inspect", {
-                method: "POST",
-                body: formData,
-                signal: controller.signal,
-            });
-        } catch (fetchErr) {
-            clearTimeout(timeoutId);
-            console.error("Fetch communication failure:", fetchErr);
-            if (fetchErr.name === "AbortError") {
-                alert("Request timed out: Inference took longer than 90 seconds. Please try again with a smaller image or higher confidence threshold.");
-            } else {
-                alert(`Network connection error: Unable to reach the VisionGuard AI backend at ${window.location.origin}.\n\nDetails: ${fetchErr.message || "Connection refused"}\n\nPlease verify that 'python app/server.py' is running in your terminal.`);
-            }
-            return;
-        } finally {
-            clearTimeout(timeoutId);
-            inspectBtn.disabled = false;
-            inspectSpinner.style.display = "none";
-            inspectBtn.querySelector(".btn-text").textContent = "Run Defect Inspection";
-        }
-
-        // Parse response body safely
-        let data = null;
-        const contentType = res.headers.get("content-type") || "";
-        if (contentType.includes("application/json")) {
+            let res;
             try {
-                data = await res.json();
-            } catch (jsonErr) {
-                console.error("Failed to parse JSON response:", jsonErr);
+                res = await fetch("/api/inspect", {
+                    method: "POST",
+                    body: formData,
+                    signal: controller.signal,
+                });
+            } catch (fetchErr) {
+                clearTimeout(timeoutId);
+                if (thisRequestId !== activeInspectionRequestId) {
+                    console.warn(`[Inspection #${thisRequestId}] Discarding stale abort/error response.`);
+                    return;
+                }
+                console.error("Fetch communication failure:", fetchErr);
+                if (fetchErr.name === "AbortError") {
+                    alert("Request timed out: Inference took longer than 90 seconds. Please try again with a smaller image or higher confidence threshold.");
+                } else {
+                    alert(`Network connection error: Unable to reach the VisionGuard AI backend at ${window.location.origin}.\n\nDetails: ${fetchErr.message || "Connection refused"}\n\nPlease verify that 'python app/server.py' is running in your terminal.`);
+                }
+                return;
+            } finally {
+                clearTimeout(timeoutId);
             }
-        }
 
-        if (!res.ok) {
-            let errorMsg = `Server responded with status HTTP ${res.status}`;
-            if (data && data.message) {
-                errorMsg = data.message;
-            } else if (res.status === 502 || res.status === 503 || res.status === 504) {
-                errorMsg = `VisionGuard AI service is temporarily unavailable (HTTP ${res.status}). The service is starting up, restarting, or currently processing another inspection. Please try again shortly.`;
-            } else {
+            if (thisRequestId !== activeInspectionRequestId) {
+                console.warn(`[Inspection #${thisRequestId}] Discarding stale HTTP response.`);
+                return;
+            }
+
+            // Parse response body safely
+            let data = null;
+            const contentType = res.headers.get("content-type") || "";
+            if (contentType.includes("application/json")) {
                 try {
-                    const rawText = await res.text();
-                    if (rawText && !rawText.includes("<!DOCTYPE") && !rawText.includes("<html")) {
-                        errorMsg += `: ${rawText.substring(0, 150)}`;
-                    }
-                } catch (_) {}
+                    data = await res.json();
+                } catch (jsonErr) {
+                    console.error("Failed to parse JSON response:", jsonErr);
+                }
             }
-            handleApiError(res.status, data, errorMsg);
-            return;
-        }
 
-        if (!data) {
-            alert("Protocol Error: The server returned a 200 OK status without a valid JSON body.");
-            return;
-        }
+            if (!res.ok) {
+                let errorMsg = `Server responded with status HTTP ${res.status}`;
+                if (data && data.message) {
+                    errorMsg = data.message;
+                } else if (res.status === 502 || res.status === 503 || res.status === 504) {
+                    errorMsg = `VisionGuard AI service is temporarily unavailable (HTTP ${res.status}). The service is starting up, restarting, or currently processing another inspection. Please try again shortly.`;
+                } else {
+                    try {
+                        const rawText = await res.text();
+                        if (rawText && !rawText.includes("<!DOCTYPE") && !rawText.includes("<html")) {
+                            errorMsg += `: ${rawText.substring(0, 150)}`;
+                        }
+                    } catch (_) {}
+                }
+                handleApiError(res.status, data, errorMsg);
+                return;
+            }
 
-        try {
-            renderResults(data);
-        } catch (renderErr) {
-            console.error("UI rendering error:", renderErr);
-            alert(`Rendering Error: Failed to display detection findings: ${renderErr.message}`);
+            if (!data) {
+                alert("Protocol Error: The server returned a 200 OK status without a valid JSON body.");
+                return;
+            }
+
+            try {
+                renderResults(data);
+            } catch (renderErr) {
+                console.error("UI rendering error:", renderErr);
+                alert(`Rendering Error: Failed to display detection findings: ${renderErr.message}`);
+            }
+        } catch (outerErr) {
+            console.error("Unexpected inspection error:", outerErr);
+            alert(`Inspection Error: ${outerErr.message || "An unexpected error occurred during inspection."}`);
+        } finally {
+            if (thisRequestId === activeInspectionRequestId) {
+                setInspectionFormLocked(false);
+            }
         }
     });
 
@@ -961,13 +1072,13 @@ document.addEventListener("DOMContentLoaded", () => {
             originalImageTitle.textContent = isHome ? "Original Building Image" : "Original Surface Image";
         }
         if (detectionsTableHeading) {
-            detectionsTableHeading.textContent = isHome 
-                ? "Detected Building Defects (Authentic Model Coordinates)" 
+            detectionsTableHeading.textContent = isHome
+                ? "Detected Building Defects (Authentic Model Coordinates)"
                 : "Detected Road Distresses (Authentic Model Coordinates)";
         }
         if (disclaimerHeading) {
-            disclaimerHeading.textContent = isHome 
-                ? "Structural Engineering Disclaimer & Safety Boundary:" 
+            disclaimerHeading.textContent = isHome
+                ? "Structural Engineering Disclaimer & Safety Boundary:"
                 : "Civil Engineering Disclaimer & Safety Boundary:";
         }
         if (data.safety_disclaimer && disclaimerText) {
@@ -1562,8 +1673,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const latStr = Number(rec.latitude).toFixed(5);
         const lonStr = Number(rec.longitude).toFixed(5);
         const statusClass = getStatusBadgeClass(rec.status);
-        const countDisplay = rec.defect_count > 0 
-            ? `${rec.defect_count} Defect${rec.defect_count === 1 ? "" : "s"}` 
+        const countDisplay = rec.defect_count > 0
+            ? `${rec.defect_count} Defect${rec.defect_count === 1 ? "" : "s"}`
             : "Sound Surface (0 Defects)";
         const catDisplay = rec.defect_count > 0 ? (rec.defect_type || markerCfg.label) : "Sound Surface";
 
@@ -1613,8 +1724,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         let html = "";
         const isHome = rec.inspection_type === "home";
-        const domainBadge = isHome 
-            ? '<span class="badge badge-domain-home" style="margin-right: 4px; font-size: 0.7rem; padding: 2px 6px;">🏠 Home</span> ' 
+        const domainBadge = isHome
+            ? '<span class="badge badge-domain-home" style="margin-right: 4px; font-size: 0.7rem; padding: 2px 6px;">🏠 Home</span> '
             : '<span class="badge badge-domain-road" style="margin-right: 4px; font-size: 0.7rem; padding: 2px 6px;">🛣️ Road</span> ';
 
         if (road) {
@@ -1660,7 +1771,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function getDeadlineBadge(rec) {
         const urgency = rec.maintenance_urgency || (rec.status === "Resolved" ? "resolved" : "no_deadline");
         const label = rec.maintenance_label || (rec.target_repair_date ? rec.target_repair_date : "No Target Date");
-        
+
         switch (urgency) {
             case "overdue":
                 return `<span class="badge badge-deadline-overdue" title="Overdue by ${Math.abs(rec.days_remaining || 0)} day(s)">⚠️ ${escapeHtml(label)}</span>`;
@@ -2664,7 +2775,7 @@ document.addEventListener("DOMContentLoaded", () => {
         inspections.forEach(rec => {
             const tr = document.createElement("tr");
             const roadDisplay = formatLocationDisplay(rec);
-            const countDisplay = rec.defect_count > 0 
+            const countDisplay = rec.defect_count > 0
                 ? `<span class="badge badge-warning" style="font-weight: 700;">${rec.defect_count} Defect${rec.defect_count === 1 ? "" : "s"}</span>`
                 : `<span class="badge badge-success">0 (Sound)</span>`;
             const confDisplay = rec.defect_count > 0 && rec.confidence ? `${(rec.confidence * 100).toFixed(1)}%` : "N/A";
@@ -2791,16 +2902,16 @@ document.addEventListener("DOMContentLoaded", () => {
         inspections.forEach(rec => {
             const tr = document.createElement("tr");
             const roadDisplay = formatLocationDisplay(rec);
-            const countDisplay = rec.defect_count > 0 
+            const countDisplay = rec.defect_count > 0
                 ? `<span class="badge badge-warning" style="font-weight: 700;">${rec.defect_count} Defect${rec.defect_count === 1 ? "" : "s"}</span>`
                 : `<span class="badge badge-success">0 (Sound)</span>`;
-            
+
             const confDisplay = rec.defect_count > 0 && rec.confidence ? `${(rec.confidence * 100).toFixed(1)}%` : "N/A";
             const modeDisplay = (rec.inspection_mode || "standard") === "tiled" ? "🔬 Tiled" : "⚡ Standard";
             const statusClass = getStatusBadgeClass(rec.status);
 
             const deadlineDisplay = getDeadlineBadge(rec);
-            const domainBadge = (rec.inspection_type === "home") 
+            const domainBadge = (rec.inspection_type === "home")
                 ? '<span class="badge" style="background: rgba(168, 85, 247, 0.2); color: #c084fc; font-size: 0.72rem; padding: 2px 6px; display: inline-block; margin-top: 2px;">🏠 Home</span>'
                 : '<span class="badge" style="background: rgba(14, 165, 233, 0.2); color: #38bdf8; font-size: 0.72rem; padding: 2px 6px; display: inline-block; margin-top: 2px;">🛣️ Road</span>';
 
@@ -2871,9 +2982,31 @@ document.addEventListener("DOMContentLoaded", () => {
             if (detailStatusSelect) detailStatusSelect.value = rec.status;
             if (detailStatusNotes) detailStatusNotes.value = rec.notes || rec.location_notes || "";
 
-            // Images via safe streaming endpoints
-            detailOriginalImg.src = `/api/inspections/${id}/image/original`;
-            detailAnnotatedImg.src = `/api/inspections/${id}/image/annotated`;
+            // Durable image references with graceful fallback
+            try {
+                history.replaceState(null, "", `#detail-${id}`);
+            } catch (_) {}
+
+            detailOriginalImg.onerror = function() {
+                this.onerror = null;
+                this.style.opacity = "0.45";
+                this.title = "Original reference image unavailable on current storage backend.";
+            };
+            detailOriginalImg.onload = function() {
+                this.style.opacity = "1";
+            };
+
+            detailAnnotatedImg.onerror = function() {
+                this.onerror = null;
+                this.style.opacity = "0.45";
+                this.title = "Detection overlay unavailable on current storage backend.";
+            };
+            detailAnnotatedImg.onload = function() {
+                this.style.opacity = "1";
+            };
+
+            detailOriginalImg.src = rec.original_image_url || `/api/inspections/${id}/image/original`;
+            detailAnnotatedImg.src = rec.annotated_image_url || `/api/inspections/${id}/image/annotated`;
 
             // Telemetry
             const locSummary = [rec.road_name, rec.area, rec.city].filter(Boolean).join(", ");
@@ -2889,7 +3022,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (detailLocRoad) detailLocRoad.textContent = rec.road_name || "Unspecified";
             if (detailLocArea) detailLocArea.textContent = rec.area || "Not Specified";
             if (detailLocCity) detailLocCity.textContent = rec.city || "Not Specified";
-            
+
             const hasCoords = (rec.latitude !== null && rec.latitude !== undefined && rec.longitude !== null && rec.longitude !== undefined);
             if (detailLocCoords) {
                 if (hasCoords) {
@@ -3167,10 +3300,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 const res = await fetch(`/api/inspections/${currentDetailId}/status`, {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ 
-                        status: newStatus, 
+                    body: JSON.stringify({
+                        status: newStatus,
                         target_repair_date: targetRepairDate || null,
-                        notes: notes 
+                        notes: notes
                     }),
                 });
                 const data = await res.json();
@@ -3668,7 +3801,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     const domainBadge = domain === "home"
                         ? `<span class="badge badge-home">🏠 Home</span>`
                         : `<span class="badge badge-road">🛣️ Road</span>`;
-                    
+
                     const locSummary = [r.road_name, r.area, r.city].filter(Boolean).join(", ") || (r.latitude ? `${Number(r.latitude).toFixed(4)}, ${Number(r.longitude).toFixed(4)}` : "—");
                     const defectsSummary = r.defect_count > 0 ? `${r.defect_count} defect(s): ${escapeHtml(r.defect_type || "distress")}` : "0 defects detected";
                     const complaintBadge = `<span class="badge ${getComplaintBadgeClass(r.complaint_status)}">${formatComplaintStatus(r.complaint_status)}</span>`;
@@ -4560,8 +4693,8 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             if (assignTaskInspectionId) assignTaskInspectionId.value = currentDetailId;
             if (assignInstructionsInput) {
-                assignInstructionsInput.value = (detailAssignmentInstructionsDisplay && detailAssignmentInstructionsDisplay.textContent !== "No special instructions provided.") 
-                    ? detailAssignmentInstructionsDisplay.textContent 
+                assignInstructionsInput.value = (detailAssignmentInstructionsDisplay && detailAssignmentInstructionsDisplay.textContent !== "No special instructions provided.")
+                    ? detailAssignmentInstructionsDisplay.textContent
                     : "";
             }
             await loadMaintenanceStaffOptions();
@@ -4784,7 +4917,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const locHtml = subLoc ? `${roadName}<br/><small style="color:var(--text-muted);">${subLoc}</small>` : roadName;
 
                 // Defects
-                const defectCount = t.defect_count > 0 
+                const defectCount = t.defect_count > 0
                     ? `<strong class="text-danger">${t.defect_count}</strong> (${escapeHtml(t.defect_type || "Defect")})`
                     : `<span class="text-success">0 (Sound)</span>`;
                 const conf = (t.defect_count > 0 && t.confidence) ? ` <small class="text-muted">${(t.confidence * 100).toFixed(0)}%</small>` : "";
@@ -4875,6 +5008,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 switchView("dashboard");
             }
             return;
+        }
+
+        if (hash.startsWith("detail-") || hash.startsWith("inspection-")) {
+            const parts = hash.split("-");
+            const targetId = parseInt(parts[1], 10);
+            if (targetId && !isNaN(targetId)) {
+                openRecordDetail(targetId);
+                return;
+            }
         }
 
         if (hash === "map" || hash === "defect-map") {
@@ -5374,8 +5516,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (currentUser) {
             if (currentUser.role === "citizen") {
-                switchView("dashboard");
                 loadCitizenDashboard();
+                if (window.location.hash && (window.location.hash.includes("detail-") || window.location.hash.includes("inspection-"))) {
+                    checkHashRoute();
+                } else {
+                    switchView("dashboard");
+                }
             } else {
                 loadDashboardStats();
                 loadRecordsHeaderCount();
