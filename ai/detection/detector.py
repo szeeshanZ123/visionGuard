@@ -303,9 +303,18 @@ class DefectDetectionService:
         try:
             import gc
             try:
+                cv2.setNumThreads(1)
+            except Exception:
+                pass
+            try:
                 import torch
                 # Limit PyTorch CPU thread allocation to prevent thread pool memory explosion
                 torch.set_num_threads(1)
+                if hasattr(torch, "set_num_interop_threads"):
+                    try:
+                        torch.set_num_interop_threads(1)
+                    except RuntimeError:
+                        pass
             except Exception:
                 pass
 
@@ -482,13 +491,15 @@ class DefectDetectionService:
 
         try:
             t0 = time.perf_counter()
-            # Optimize for CPU: predict directly at caller's conf_threshold
+            # Optimize for CPU: predict directly at caller's conf_threshold under inference_mode
             # Eliminates evaluating thousands of near-zero noise candidates on CPU
-            results = self.model.predict(
-                source=image_bgr,
-                conf=conf_threshold,
-                verbose=False,
-            )
+            import torch
+            with torch.inference_mode():
+                results = self.model.predict(
+                    source=image_bgr,
+                    conf=conf_threshold,
+                    verbose=False,
+                )
             t_infer = time.perf_counter() - t0
 
             detections: List[Dict[str, Any]] = []
@@ -519,6 +530,8 @@ class DefectDetectionService:
             xyxy_arr = boxes.xyxy.cpu().numpy()
             conf_arr = boxes.conf.cpu().numpy()
             cls_arr = boxes.cls.cpu().numpy()
+            del boxes
+            del results
 
             top_raw_conf = float(np.max(conf_arr)) if raw_count > 0 else 0.0
             best_idx = int(np.argmax(conf_arr)) if raw_count > 0 else 0
