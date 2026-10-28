@@ -116,3 +116,63 @@ class TestAdminSetupProtection:
         })
         assert setup_res.status_code == 201
         assert count_admin_users(test_db_path) == 1
+
+    def test_setup_token_enforcement(self, monkeypatch, client, test_db_path):
+        """When VISIONGUARD_SETUP_TOKEN is configured, requests without valid token are rejected."""
+        monkeypatch.setenv("VISIONGUARD_SETUP_TOKEN", "super-secret-setup-key-42")
+
+        # 1. Missing token -> rejected with 403
+        r1 = client.post("/api/auth/setup-admin", json={
+            "username": "admin_no_token",
+            "password": "Password123!",
+        })
+        assert r1.status_code == 403
+        assert r1.get_json()["error_code"] == "SETUP_TOKEN_INVALID"
+
+        # 2. Invalid token -> rejected with 403
+        r2 = client.post("/api/auth/setup-admin", json={
+            "username": "admin_bad_token",
+            "password": "Password123!",
+            "setup_token": "wrong-token"
+        })
+        assert r2.status_code == 403
+        assert r2.get_json()["error_code"] == "SETUP_TOKEN_INVALID"
+
+        # 3. Valid token -> succeeds with 201
+        r3 = client.post("/api/auth/setup-admin", json={
+            "username": "authorized_admin",
+            "password": "AuthorizedPassword123!",
+            "setup_token": "super-secret-setup-key-42"
+        })
+        assert r3.status_code == 201
+        assert r3.get_json()["user"]["username"] == "authorized_admin"
+        assert count_admin_users(test_db_path) == 1
+
+    def test_production_guard_blocks_unauthorized_public_setup(self, monkeypatch, auth_app, test_db_path):
+        """In production mode without setup token, public web setup is rejected with 403."""
+        monkeypatch.setenv("VISIONGUARD_ENV", "production")
+        monkeypatch.delenv("VISIONGUARD_SETUP_TOKEN", raising=False)
+        auth_app.config["TESTING"] = False
+        prod_client = auth_app.test_client()
+
+        res = prod_client.post("/api/auth/setup-admin", json={
+            "username": "public_visitor",
+            "password": "VisitorPassword123!",
+        })
+        assert res.status_code == 403
+        assert res.get_json()["error_code"] == "SETUP_TOKEN_REQUIRED"
+        assert count_admin_users(test_db_path) == 0
+
+    def test_server_side_env_admin_bootstrap(self, monkeypatch, test_db_path):
+        """Server-side environment variables bootstrap the administrator cleanly."""
+        from database.auth import init_admin_from_env
+        monkeypatch.setenv("VISIONGUARD_ADMIN_USERNAME", "zeeshanshaikh1")
+        monkeypatch.setenv("VISIONGUARD_ADMIN_PASSWORD", "RootPass123!Secure")
+        monkeypatch.setenv("VISIONGUARD_ADMIN_EMAIL", "zeeshan@visionguard.gov")
+
+        admin = init_admin_from_env(db_path=test_db_path)
+        assert admin is not None
+        assert admin["username"] == "zeeshanshaikh1"
+        assert admin["role"] == ROLE_ADMIN
+        assert count_admin_users(test_db_path) == 1
+

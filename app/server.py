@@ -543,11 +543,19 @@ def create_app(
         admin_count = count_admin_users(db_path=db_path)
         requires_setup = (admin_count == 0)
 
+        setup_token_expected = bool((os.environ.get("VISIONGUARD_SETUP_TOKEN") or "").strip())
+        is_production_mode = (
+            os.environ.get("VISIONGUARD_ENV", "").lower() == "production"
+            or app.config.get("ENV") == "production"
+        ) and not app.config.get("TESTING", False)
+
         user = get_current_user_record()
         return jsonify({
             "status": "success",
             "authenticated": user is not None,
             "requires_setup": requires_setup,
+            "setup_token_required": setup_token_expected,
+            "web_setup_enabled": not (is_production_mode and not setup_token_expected),
             "user": user,
             "csrf_token": csrf_tok,
         }), 200
@@ -573,6 +581,33 @@ def create_app(
             }), 403
 
         payload = request.get_json(silent=True) or {}
+
+        # Controlled server-side bootstrap protection: prevent public visitors from claiming root admin
+        setup_token_expected = (os.environ.get("VISIONGUARD_SETUP_TOKEN") or "").strip()
+        is_production_mode = (
+            os.environ.get("VISIONGUARD_ENV", "").lower() == "production"
+            or app.config.get("ENV") == "production"
+        ) and not app.config.get("TESTING", False)
+
+        if setup_token_expected:
+            client_token = (payload.get("setup_token") or "").strip()
+            if not client_token or not secrets.compare_digest(client_token, setup_token_expected):
+                return jsonify({
+                    "status": "error",
+                    "error_code": "SETUP_TOKEN_INVALID",
+                    "message": "Invalid or missing server-side administrator setup token.",
+                }), 403
+        elif is_production_mode:
+            return jsonify({
+                "status": "error",
+                "error_code": "SETUP_TOKEN_REQUIRED",
+                "message": (
+                    "Public administrator setup is disabled in production. "
+                    "Configure VISIONGUARD_ADMIN_USERNAME and VISIONGUARD_ADMIN_PASSWORD in environment variables "
+                    "or configure VISIONGUARD_SETUP_TOKEN to authorize web-based setup."
+                ),
+            }), 403
+
         username = payload.get("username")
         password = payload.get("password")
         email = payload.get("email")
@@ -963,6 +998,15 @@ def create_app(
         """
         db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
         db_health = check_db_health(db_path)
+        is_render_production = (
+            os.environ.get("VISIONGUARD_ENV") == "production"
+            or "/opt/render" in str(db_path)
+        )
+        if db_health.get("engine") == "sqlite" and is_render_production:
+            db_health["ephemeral_warning"] = (
+                "Running ephemeral SQLite in production container; data will reset on redeployment. "
+                "Set DATABASE_URL to connect persistent Neon PostgreSQL."
+            )
         storage_type = "r2" if isinstance(getattr(app, "storage_backend", None), CloudflareR2StorageBackend) else "local"
         return jsonify({
             "status": "healthy",
