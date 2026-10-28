@@ -28,7 +28,12 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 import secrets
+import threading
+import gc
 from functools import wraps
+
+# Process-level inference lock ensuring single-flight YOLO forward passes on CPU
+INFERENCE_LOCK = threading.Lock()
 try:
     import cv2
 except ImportError:
@@ -252,7 +257,7 @@ def create_app(
     if test_config and "home_detector" in test_config:
         app.home_detector = test_config["home_detector"]
     else:
-        app.home_detector = home_detector or DefectDetectionService(domain="home")
+        app.home_detector = home_detector or DefectDetectionService(domain="home", lazy=True)
 
     # -------------------------------------------------------------------------
     # Authentication & Access Control Helpers / Decorators (Phase 4.6)
@@ -1324,8 +1329,8 @@ def create_app(
         t_prep_start = time.perf_counter()
         h, w = cv_img.shape[:2]
         max_dim = max(h, w)
-        if max_dim > 2560:
-            scale = 2560.0 / max_dim
+        if max_dim > 1920:
+            scale = 1920.0 / max_dim
             new_w = int(round(w * scale))
             new_h = int(round(h * scale))
             cv_img = cv2.resize(cv_img, (new_w, new_h), interpolation=cv2.INTER_AREA)
@@ -1343,21 +1348,22 @@ def create_app(
             inspection_mode = "standard"
         t_prep_ms = (time.perf_counter() - t_prep_start) * 1000
 
-        # 6. Execute genuine detection
+        # 6. Execute genuine detection (serialized under lock to prevent peak memory stacking)
         t_inf_start = time.perf_counter()
         try:
-            if inspection_mode in ["tiled", "sliced"] and hasattr(active_detector, "detect_sliced"):
-                detections = active_detector.detect_sliced(
-                    cv_img,
-                    conf_threshold=conf_thresh,
-                    raise_if_unloaded=True,
-                )
-            else:
-                detections = active_detector.detect(
-                    cv_img,
-                    conf_threshold=conf_thresh,
-                    raise_if_unloaded=True,
-                )
+            with INFERENCE_LOCK:
+                if inspection_mode in ["tiled", "sliced"] and hasattr(active_detector, "detect_sliced"):
+                    detections = active_detector.detect_sliced(
+                        cv_img,
+                        conf_threshold=conf_thresh,
+                        raise_if_unloaded=True,
+                    )
+                else:
+                    detections = active_detector.detect(
+                        cv_img,
+                        conf_threshold=conf_thresh,
+                        raise_if_unloaded=True,
+                    )
         except Exception as exc:
             logger.exception(f"Inference error processing '{filename}': {str(exc)}")
             return (
@@ -1517,11 +1523,20 @@ def create_app(
         # Filter by creator (e.g. for citizen "My Reports")
         my_reports = request.args.get("my_reports") or request.args.get("created_by_me")
         created_by_filter = None
-        if curr_user and curr_user.get("role") == ROLE_CITIZEN:
-            # Citizens strictly see only their own inspections in My Reports and list queries
+        created_by_username_filter = None
+        if my_reports and my_reports.lower() in ["1", "true", "yes"] and curr_user:
             created_by_filter = curr_user["id"]
-        elif my_reports and my_reports.lower() in ["1", "true", "yes"] and curr_user:
-            created_by_filter = curr_user["id"]
+            created_by_username_filter = curr_user.get("username")
+        elif curr_user and curr_user.get("role") == ROLE_CITIZEN:
+            # If citizen is exploring the Defect Map (has_coords=true or all_civic=true) without my_reports,
+            # allow them to view all civic geotagged map records across the city.
+            if has_coords or request.args.get("all_civic") in ["1", "true", "yes"]:
+                created_by_filter = None
+                created_by_username_filter = None
+            else:
+                # By default, citizens viewing their personal records list see only their own reports
+                created_by_filter = curr_user["id"]
+                created_by_username_filter = curr_user.get("username")
         elif request.args.get("created_by_user_id"):
             try:
                 created_by_filter = int(request.args.get("created_by_user_id"))
@@ -1556,6 +1571,7 @@ def create_app(
             assigned_to_user_id=parsed_assigned_user_id,
             assignment_status=assignment_status_filter,
             created_by_user_id=created_by_filter,
+            created_by_username=created_by_username_filter,
             domain=domain_filter if domain_filter and domain_filter.lower() != "all" else None,
             complaint_status=complaint_status_filter,
             sort_by=sort_by,
@@ -1567,7 +1583,7 @@ def create_app(
             "inspections": inspections,
         }
         if curr_user and curr_user.get("role") == ROLE_CITIZEN:
-            resp_data["citizen_summary"] = get_citizen_dashboard_summary(curr_user["id"], db_path=db_path)
+            resp_data["citizen_summary"] = get_citizen_dashboard_summary(curr_user["id"], username=curr_user.get("username"), db_path=db_path)
 
         return jsonify(resp_data), 200
 
@@ -1759,8 +1775,13 @@ def create_app(
                 }), 403
 
         if curr_user and curr_user["role"] == ROLE_CITIZEN:
-            created_by = record.get("created_by_user_id")
-            if created_by is None or int(created_by) != int(curr_user["id"]):
+            created_by_id = record.get("created_by_user_id")
+            created_by_name = record.get("created_by_username")
+            u_id = curr_user.get("id")
+            u_name = curr_user.get("username")
+            id_match = (created_by_id is not None and u_id is not None and int(created_by_id) == int(u_id))
+            name_match = (created_by_name and u_name and str(created_by_name).lower() == str(u_name).lower())
+            if not (id_match or name_match):
                 return jsonify({
                     "status": "error",
                     "error_code": "FORBIDDEN_REPORT_ACCESS",
@@ -2557,8 +2578,13 @@ def create_app(
                     "error_code": "INSPECTION_NOT_FOUND",
                     "message": f"Inspection #{inspection_id} not found.",
                 }), 404
-            created_by = rec.get("created_by_user_id")
-            if created_by is None or int(created_by) != int(curr_user["id"]):
+            created_by_id = rec.get("created_by_user_id")
+            created_by_name = rec.get("created_by_username")
+            u_id = curr_user.get("id")
+            u_name = curr_user.get("username")
+            id_match = (created_by_id is not None and u_id is not None and int(created_by_id) == int(u_id))
+            name_match = (created_by_name and u_name and str(created_by_name).lower() == str(u_name).lower())
+            if not (id_match or name_match):
                 return jsonify({
                     "status": "error",
                     "error_code": "FORBIDDEN_REPORT_ACCESS",
@@ -2569,6 +2595,7 @@ def create_app(
             pdf_bytes = export_complaint_draft_pdf(inspection_id=inspection_id, db_path=db_path)
             filename = f"visionguard_complaint_draft_insp_{inspection_id}.pdf"
             byte_stream = io.BytesIO(pdf_bytes)
+            gc.collect()
             return send_file(
                 byte_stream,
                 mimetype="application/pdf",
@@ -2579,6 +2606,12 @@ def create_app(
             return jsonify({"status": "error", "message": str(ve)}), 404
         except Exception as e:
             logger.exception(f"Failed to export PDF complaint draft: {e}")
+            return jsonify({
+                "status": "error",
+                "error_code": "PDF_EXPORT_FAILED",
+                "message": f"Failed to export complaint draft PDF: {str(e)}",
+            }), 500
+
     @app.route("/api/citizen/summary", methods=["GET"])
     @roles_required(ROLE_CITIZEN)
     def api_get_citizen_summary():
@@ -2590,7 +2623,7 @@ def create_app(
         curr_user = get_current_user_record()
         if not curr_user:
             return jsonify({"status": "error", "message": "Authentication required."}), 401
-        summary = get_citizen_dashboard_summary(curr_user["id"], db_path=db_path)
+        summary = get_citizen_dashboard_summary(curr_user["id"], username=curr_user.get("username"), db_path=db_path)
         return jsonify({
             "status": "success",
             "summary": summary

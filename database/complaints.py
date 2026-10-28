@@ -15,6 +15,7 @@ CRITICAL RULES:
 
 import os
 import io
+import html
 import datetime
 from typing import Dict, Any, Optional, Tuple, List
 
@@ -33,6 +34,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from database.db import (
     get_db_connection,
     init_db,
+    is_postgres_backend,
     get_inspection_by_id,
     row_to_dict,
     DEFAULT_DB_PATH,
@@ -51,6 +53,9 @@ COMPLAINT_DISCLAIMER_TEXT = (
 def init_complaints_db(db_path: str = DEFAULT_DB_PATH) -> None:
     """Initializes the complaint_drafts table in SQLite and performs backward-compatible schema migrations."""
     init_db(db_path)
+    if is_postgres_backend(db_path):
+        return
+
     conn = get_db_connection(db_path)
     cursor = conn.cursor()
 
@@ -330,12 +335,13 @@ def get_or_create_complaint_draft(
             username,
             default_complainant,
         ))
-        new_id = cursor.lastrowid
         conn.commit()
 
-        cursor.execute("SELECT * FROM complaint_drafts WHERE id = ?;", (new_id,))
+        cursor.execute("SELECT * FROM complaint_drafts WHERE inspection_id = ?;", (inspection_id,))
         created_row = cursor.fetchone()
         conn.close()
+        if not created_row:
+            raise RuntimeError(f"Failed to retrieve created complaint draft for inspection #{inspection_id}")
         draft = row_to_dict(created_row)
 
     draft["is_official_submission"] = (draft.get("status") == "submitted")
@@ -568,6 +574,9 @@ def export_complaint_draft_pdf(
     # 1. Status Banner
     is_submitted = (draft.get("status") == "submitted")
     if is_submitted:
+        safe_channel = html.escape(str(draft.get("submission_channel") or "Manual Submission"))
+        safe_ref = html.escape(str(draft.get("submission_reference") or "Self-Reported"))
+        safe_logged = html.escape(str(draft.get("submitted_at") or "")[:19])
         banner_data = [
             [
                 Paragraph("<b>CITIZEN COMPLAINT RECORD — SUBMITTED TO OFFICIAL CHANNEL</b>", ParagraphStyle(
@@ -576,9 +585,9 @@ def export_complaint_draft_pdf(
             ],
             [
                 Paragraph(
-                    f"Filing Channel: {draft.get('submission_channel') or 'Manual Submission'} &nbsp;|&nbsp; "
-                    f"Reference #: {draft.get('submission_reference') or 'Self-Reported'} &nbsp;|&nbsp; "
-                    f"Logged: {str(draft.get('submitted_at') or '')[:19]}",
+                    f"Filing Channel: {safe_channel} &nbsp;|&nbsp; "
+                    f"Reference #: {safe_ref} &nbsp;|&nbsp; "
+                    f"Logged: {safe_logged}",
                     ParagraphStyle("SubmittedSubBanner", parent=banner_sub_style, textColor=colors.HexColor("#166534"))
                 )
             ]
@@ -591,7 +600,7 @@ def export_complaint_draft_pdf(
             ("ALIGN", (0, 0), (-1, -1), "CENTER"),
         ]))
     else:
-        status_label = str(draft.get("status", "draft")).upper().replace("_", " ")
+        status_label = html.escape(str(draft.get("status", "draft")).upper().replace("_", " "))
         banner_data = [
             [
                 Paragraph("⚠️ FORMAL COMPLAINT DRAFT — NOT AN OFFICIAL GOVERNMENT SUBMISSION ⚠️", banner_style),
@@ -617,10 +626,11 @@ def export_complaint_draft_pdf(
     # 2. Document Title and Metadata
     story.append(Paragraph("VisionGuard AI — Infrastructure Grievance Notice", title_style))
     story.append(Spacer(1, 4))
-    complainant_disp = draft.get("complainant_name") or "Citizen Complainant"
+    complainant_disp = html.escape(str(draft.get("complainant_name") or "Citizen Complainant"))
+    domain_disp = html.escape(str(draft.get("complaint_type", "road_distress")).replace("_", " ").title())
     story.append(Paragraph(
         f"<b>Reference Inspection ID:</b> Record #{inspection_id} &nbsp;|&nbsp; "
-        f"<b>Domain:</b> {draft.get('complaint_type', 'road_distress').replace('_', ' ').title()} &nbsp;|&nbsp; "
+        f"<b>Domain:</b> {domain_disp} &nbsp;|&nbsp; "
         f"<b>Complainant:</b> {complainant_disp} &nbsp;|&nbsp; "
         f"<b>Date:</b> {datetime.date.today().isoformat()}",
         meta_style,
@@ -629,8 +639,10 @@ def export_complaint_draft_pdf(
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#cbd5e1"), spaceAfter=12))
 
     # 3. Addressee and Subject Box
-    agency_p = Paragraph(f"<b>TO:</b> {draft.get('recipient_agency', 'Municipal Authority')}", body_style)
-    subj_p = Paragraph(f"<b>SUBJECT:</b> {draft.get('subject', 'Grievance Notice')}", body_style)
+    safe_agency = html.escape(str(draft.get("recipient_agency") or "Municipal Authority"))
+    safe_subj = html.escape(str(draft.get("subject") or "Grievance Notice"))
+    agency_p = Paragraph(f"<b>TO:</b> {safe_agency}", body_style)
+    subj_p = Paragraph(f"<b>SUBJECT:</b> {safe_subj}", body_style)
     story.append(agency_p)
     story.append(Spacer(1, 6))
     story.append(subj_p)
@@ -645,14 +657,14 @@ def export_complaint_draft_pdf(
             continue
         if "DISCLAIMER & LEGAL NOTICE:" in cleaned:
             continue
-        escaped_para = cleaned.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br/>")
+        escaped_para = html.escape(cleaned).replace("\n", "<br/>")
         story.append(Paragraph(escaped_para, body_style))
         story.append(Spacer(1, 8))
 
     # 5. Footer Disclaimer
     story.append(Spacer(1, 10))
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#e2e8f0"), spaceAfter=8))
-    story.append(Paragraph(COMPLAINT_DISCLAIMER_TEXT, disclaimer_style))
+    story.append(Paragraph(html.escape(COMPLAINT_DISCLAIMER_TEXT), disclaimer_style))
 
     doc.build(story)
     pdf_bytes = buffer.getvalue()

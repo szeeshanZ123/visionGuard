@@ -665,6 +665,7 @@ def get_inspections(
     assigned_to_user_id: Optional[int] = None,
     assignment_status: Optional[str] = None,
     created_by_user_id: Optional[int] = None,
+    created_by_username: Optional[str] = None,
     ref_date: Optional[datetime.date] = None,
     domain: Optional[str] = None,
     inspection_type: Optional[str] = None,
@@ -677,9 +678,13 @@ def get_inspections(
     conn = get_db_connection(db_path)
     cursor = conn.cursor()
 
-    # Check if complaint_drafts table exists in SQLite
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='complaint_drafts';")
-    has_complaints_table = bool(cursor.fetchone())
+    # Check if complaint_drafts table exists
+    if is_postgres_backend(db_path):
+        cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_name='complaint_drafts';")
+        has_complaints_table = bool(cursor.fetchone())
+    else:
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='complaint_drafts';")
+        has_complaints_table = bool(cursor.fetchone())
 
     conditions = []
     params = []
@@ -774,9 +779,15 @@ def get_inspections(
             conditions.append("di.assignment_status = ?")
             params.append(ast)
 
-    if created_by_user_id is not None:
+    if created_by_user_id is not None and created_by_username and str(created_by_username).strip():
+        conditions.append("(di.created_by_user_id = ? OR (di.created_by_username IS NOT NULL AND LOWER(di.created_by_username) = LOWER(?)))")
+        params.extend([created_by_user_id, str(created_by_username).strip()])
+    elif created_by_user_id is not None:
         conditions.append("di.created_by_user_id = ?")
         params.append(created_by_user_id)
+    elif created_by_username and str(created_by_username).strip():
+        conditions.append("(di.created_by_username IS NOT NULL AND LOWER(di.created_by_username) = LOWER(?))")
+        params.append(str(created_by_username).strip())
 
     # Complaint filing status filter (Phase 4)
     if complaint_status and complaint_status.strip() and complaint_status.strip().lower() != "all" and has_complaints_table:
@@ -1061,6 +1072,7 @@ def get_inspection_by_id(
 
 def get_citizen_dashboard_summary(
     user_id: int,
+    username: Optional[str] = None,
     db_path: str = DEFAULT_DB_PATH
 ) -> Dict[str, int]:
     """Calculates summary counts for a citizen's own inspections and complaint submissions."""
@@ -1068,26 +1080,42 @@ def get_citizen_dashboard_summary(
     conn = get_db_connection(db_path)
     cursor = conn.cursor()
 
-    cursor.execute("SELECT COUNT(*) as count FROM defect_inspections WHERE created_by_user_id = ?;", (user_id,))
+    if username and str(username).strip():
+        norm_u = str(username).strip()
+        owner_filter = "(created_by_user_id = ? OR (created_by_username IS NOT NULL AND LOWER(created_by_username) = LOWER(?)))"
+        owner_params = (user_id, norm_u)
+        join_owner_filter = "(di.created_by_user_id = ? OR (di.created_by_username IS NOT NULL AND LOWER(di.created_by_username) = LOWER(?)))"
+    else:
+        owner_filter = "created_by_user_id = ?"
+        owner_params = (user_id,)
+        join_owner_filter = "di.created_by_user_id = ?"
+
+    cursor.execute(f"SELECT COUNT(*) as count FROM defect_inspections WHERE {owner_filter};", owner_params)
     total = cursor.fetchone()["count"]
 
-    cursor.execute("SELECT COUNT(*) as count FROM defect_inspections WHERE created_by_user_id = ? AND status = 'Open';", (user_id,))
+    cursor.execute(f"SELECT COUNT(*) as count FROM defect_inspections WHERE {owner_filter} AND status = 'Open';", owner_params)
     open_count = cursor.fetchone()["count"]
 
-    cursor.execute("SELECT COUNT(*) as count FROM defect_inspections WHERE created_by_user_id = ? AND status IN ('Under Review', 'In Progress', 'Repair in Progress', 'Assigned', 'Reopened');", (user_id,))
+    cursor.execute(f"SELECT COUNT(*) as count FROM defect_inspections WHERE {owner_filter} AND status IN ('Under Review', 'In Progress', 'Repair in Progress', 'Assigned', 'Reopened');", owner_params)
     under_review_count = cursor.fetchone()["count"]
 
-    cursor.execute("SELECT COUNT(*) as count FROM defect_inspections WHERE created_by_user_id = ? AND status = 'Resolved';", (user_id,))
+    cursor.execute(f"SELECT COUNT(*) as count FROM defect_inspections WHERE {owner_filter} AND status = 'Resolved';", owner_params)
     resolved_count = cursor.fetchone()["count"]
 
     submitted_complaints = 0
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='complaint_drafts';")
-    if cursor.fetchone():
-        cursor.execute("""
+    if is_postgres_backend(db_path):
+        cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_name='complaint_drafts';")
+        has_table = bool(cursor.fetchone())
+    else:
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='complaint_drafts';")
+        has_table = bool(cursor.fetchone())
+
+    if has_table:
+        cursor.execute(f"""
         SELECT COUNT(*) as count FROM complaint_drafts cd
         JOIN defect_inspections di ON cd.inspection_id = di.id
-        WHERE di.created_by_user_id = ? AND cd.status = 'submitted';
-        """, (user_id,))
+        WHERE {join_owner_filter} AND cd.status = 'submitted';
+        """, owner_params)
         submitted_complaints = cursor.fetchone()["count"]
 
     conn.close()

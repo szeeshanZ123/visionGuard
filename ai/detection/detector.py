@@ -184,7 +184,7 @@ class DefectDetectionService:
     Supports both 'road' (RDD2022) and 'home' (Building Defects) domains.
     """
 
-    def __init__(self, model_path: Optional[str] = None, domain: str = "road"):
+    def __init__(self, model_path: Optional[str] = None, domain: str = "road", lazy: bool = False):
         self.domain = (domain or "road").lower().strip()
         if self.domain not in ("road", "home"):
             self.domain = "road"
@@ -225,8 +225,20 @@ class DefectDetectionService:
         # Tile size 512, overlap 0.20, max_slices 12 for CPU-friendly high-resolution crack preservation
         self.slicer = SlicedInferenceEngine(slice_size=512, overlap_ratio=0.20, merge_iou_threshold=0.40, max_slices=12)
 
-        # Attempt to load checkpoint if present
-        self.load_model()
+        if lazy:
+            # On-demand loading: verify file existence and metadata without allocating weights to RAM
+            resolved = self._resolve_model_path()
+            if resolved and os.path.isfile(resolved):
+                self.model_path = resolved
+                self.model_info["checkpoint_path"] = resolved
+                self.is_loaded = True
+                self.status_message = f"Model verified and ready (on-demand loading) from '{resolved}'"
+            else:
+                self.is_loaded = False
+                self.status_message = f"Model checkpoint not found at '{self.model_path}'"
+        else:
+            # Eagerly load checkpoint into memory
+            self.load_model()
 
     @property
     def classes_map(self) -> Dict[int, str]:
@@ -240,15 +252,8 @@ class DefectDetectionService:
     def colors_bgr_map(self) -> Dict[int, Tuple[int, int, int]]:
         return HOME_CLASS_COLORS_BGR if self.domain == "home" else ROAD_CLASS_COLORS_BGR
 
-    def load_model(self) -> bool:
-        """
-        Loads the genuine YOLOv8 defect detection model into memory.
-
-        Returns:
-            True if model checkpoint was successfully loaded, False otherwise.
-        """
-        # Multi-location candidate resolution to ensure path-independence
-        resolved_path = None
+    def _resolve_model_path(self) -> Optional[str]:
+        """Resolves model path across candidate locations for path independence."""
         candidates = [
             self.model_path,
             str(PROJECT_ROOT / self.model_path) if self.model_path else None,
@@ -258,8 +263,18 @@ class DefectDetectionService:
         ]
         for cand in candidates:
             if cand and os.path.isfile(cand):
-                resolved_path = os.path.abspath(cand)
-                break
+                return os.path.abspath(cand)
+        return None
+
+    def load_model(self) -> bool:
+        """
+        Loads the genuine YOLOv8 defect detection model into memory.
+
+        Returns:
+            True if model checkpoint was successfully loaded, False otherwise.
+        """
+        # Multi-location candidate resolution to ensure path-independence
+        resolved_path = self._resolve_model_path()
 
         if not resolved_path:
             self.is_loaded = False
@@ -286,6 +301,14 @@ class DefectDetectionService:
         self.model_info["checkpoint_path"] = resolved_path
 
         try:
+            import gc
+            try:
+                import torch
+                # Limit PyTorch CPU thread allocation to prevent thread pool memory explosion
+                torch.set_num_threads(1)
+            except Exception:
+                pass
+
             from ultralytics import YOLO
 
             t_load_start = time.perf_counter()
@@ -305,9 +328,12 @@ class DefectDetectionService:
             self.model_info["checkpoint_path"] = self.model_path
             self.model_info["domain"] = self.domain
 
-            # Single warmup pass to eliminate cold-start latency on first user request
+            # Single warmup pass in inference mode to compile graph without caching activations
             try:
-                self.model.predict(source=np.zeros((64, 64, 3), dtype=np.uint8), conf=0.25, verbose=False)
+                import torch
+                with torch.inference_mode():
+                    self.model.predict(source=np.zeros((64, 64, 3), dtype=np.uint8), conf=0.25, verbose=False)
+                gc.collect()
             except Exception as e_warm:
                 logger.debug("Model warmup pass skipped: %s", e_warm)
 
@@ -398,6 +424,12 @@ class DefectDetectionService:
                 raise FileNotFoundError(self.status_message)
             return []
 
+        if self.model is None:
+            if not self.load_model():
+                if raise_if_unloaded:
+                    raise FileNotFoundError(self.status_message)
+                return []
+
         if image_bgr is None or not isinstance(image_bgr, np.ndarray) or image_bgr.size == 0:
             return []
 
@@ -438,6 +470,12 @@ class DefectDetectionService:
             if raise_if_unloaded:
                 raise FileNotFoundError(self.status_message)
             return []
+
+        if self.model is None:
+            if not self.load_model():
+                if raise_if_unloaded:
+                    raise FileNotFoundError(self.status_message)
+                return []
 
         if image_bgr is None or not isinstance(image_bgr, np.ndarray) or image_bgr.size == 0:
             return []
@@ -695,8 +733,8 @@ class DefectDetectionService:
 class HomeDefectDetectionService(DefectDetectionService):
     """Specialized Home & Building Defect Detection Service."""
 
-    def __init__(self, model_path: Optional[str] = None):
-        super().__init__(model_path=model_path, domain="home")
+    def __init__(self, model_path: Optional[str] = None, lazy: bool = True):
+        super().__init__(model_path=model_path, domain="home", lazy=lazy)
 
 
 class RoadDefectDetectionService(DefectDetectionService):
