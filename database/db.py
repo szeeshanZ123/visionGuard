@@ -201,6 +201,10 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
     );
     """)
 
+    # Safe additive indexes for case-insensitive username and email uniqueness
+    cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username_nocase ON users(username COLLATE NOCASE);")
+    cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_nocase ON users(email COLLATE NOCASE) WHERE email IS NOT NULL AND email != '';")
+
     # Table for civic complaint assistance drafts
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS complaint_drafts (
