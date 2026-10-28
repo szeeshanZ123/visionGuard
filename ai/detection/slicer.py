@@ -131,11 +131,13 @@ class SlicedInferenceEngine:
         overlap_ratio: float = 0.20,
         merge_iou_threshold: float = 0.40,
         merge_iom_threshold: float = 0.60,
+        max_slices: int = 16,
     ):
         self.slice_size = max(160, slice_size)
         self.overlap_ratio = max(0.05, min(0.60, overlap_ratio))
         self.merge_iou_threshold = merge_iou_threshold
         self.merge_iom_threshold = merge_iom_threshold
+        self.max_slices = max_slices
         self.last_sliced_stats: Dict[str, Any] = {
             "slice_count": 0,
             "raw_candidate_count": 0,
@@ -150,16 +152,26 @@ class SlicedInferenceEngine:
         img_h: int,
         slice_size: Optional[int] = None,
         overlap_ratio: Optional[float] = None,
+        max_slices: Optional[int] = None,
     ) -> List[Tuple[int, int, int, int]]:
         """
         Calculates slice bounding coordinates: (x_min, y_min, x_max, y_max)
-        with the specified overlap ratio.
+        with the specified overlap ratio. Safeguards against excessive slice counts.
         """
         eff_size = slice_size or self.slice_size
         eff_overlap = overlap_ratio if overlap_ratio is not None else self.overlap_ratio
+        eff_max_slices = max_slices if max_slices is not None else getattr(self, "max_slices", 16)
 
         eff_size = max(160, eff_size)
         eff_overlap = max(0.05, min(0.60, eff_overlap))
+
+        # Dynamic tile size adjustment if image would exceed max_slices
+        if eff_max_slices and eff_max_slices > 0:
+            import math
+            step_factor = max(0.40, 1.0 - eff_overlap)
+            target_dim = int(math.ceil(math.sqrt((img_w * img_h) / eff_max_slices) / step_factor))
+            if target_dim > eff_size:
+                eff_size = target_dim
 
         tile_w = min(img_w, eff_size)
         tile_h = min(img_h, eff_size)
