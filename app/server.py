@@ -28,7 +28,10 @@ if str(PROJECT_ROOT) not in sys.path:
 
 import secrets
 from functools import wraps
-import cv2
+try:
+    import cv2
+except ImportError:
+    cv2 = None
 from werkzeug.utils import secure_filename
 from flask import Flask, request, jsonify, render_template, send_file, session
 
@@ -436,11 +439,14 @@ def create_app(
                 "message": err or "Invalid username or password.",
             }), 401
 
+        # Prevent session fixation: clear pre-existing session state and assign fresh CSRF token
+        session.clear()
         session["user_id"] = user["id"]
         session["username"] = user["username"]
         session["role"] = user["role"]
         session.permanent = True
-        csrf_tok = get_or_create_csrf_token()
+        csrf_tok = secrets.token_hex(32)
+        session["csrf_token"] = csrf_tok
 
         return jsonify({
             "status": "success",
@@ -478,11 +484,14 @@ def create_app(
                 is_active=1,
                 db_path=db_path
             )
+            # Prevent session fixation: clear pre-existing session state and assign fresh CSRF token
+            session.clear()
             session["user_id"] = user["id"]
             session["username"] = user["username"]
             session["role"] = user["role"]
             session.permanent = True
-            csrf_tok = get_or_create_csrf_token()
+            csrf_tok = secrets.token_hex(32)
+            session["csrf_token"] = csrf_tok
 
             return jsonify({
                 "status": "success",
@@ -507,9 +516,11 @@ def create_app(
     @app.route("/api/auth/logout", methods=["POST"])
     def api_auth_logout():
         session.clear()
+        new_csrf = get_or_create_csrf_token()
         return jsonify({
             "status": "success",
             "message": "Logged out successfully.",
+            "csrf_token": new_csrf,
         }), 200
 
     @app.route("/api/auth/status", methods=["GET"])
@@ -561,11 +572,14 @@ def create_app(
                 is_active=1,
                 db_path=db_path
             )
+            # Prevent session fixation: clear pre-existing session state and assign fresh CSRF token
+            session.clear()
             session["user_id"] = admin_user["id"]
             session["username"] = admin_user["username"]
             session["role"] = admin_user["role"]
             session.permanent = True
-            csrf_tok = get_or_create_csrf_token()
+            csrf_tok = secrets.token_hex(32)
+            session["csrf_token"] = csrf_tok
 
             return jsonify({
                 "status": "success",
@@ -1951,7 +1965,7 @@ def create_app(
         curr_user = get_current_user_record()
         if curr_user and curr_user["role"] == ROLE_CITIZEN:
             created_by = record.get("created_by_user_id")
-            if created_by is not None and int(created_by) != int(curr_user["id"]):
+            if created_by is None or int(created_by) != int(curr_user["id"]):
                 return jsonify({
                     "status": "error",
                     "error_code": "FORBIDDEN_REPORT_ACCESS",
@@ -2012,7 +2026,7 @@ def create_app(
         curr_user = get_current_user_record()
         if curr_user and curr_user["role"] == ROLE_CITIZEN:
             created_by = record.get("created_by_user_id")
-            if created_by is not None and int(created_by) != int(curr_user["id"]):
+            if created_by is None or int(created_by) != int(curr_user["id"]):
                 return jsonify({
                     "status": "error",
                     "error_code": "FORBIDDEN_REPORT_ACCESS",
@@ -2182,7 +2196,14 @@ def create_app(
         curr_user = get_current_user_record()
         if curr_user and curr_user["role"] == ROLE_CITIZEN:
             rec = get_inspection_by_id(inspection_id, db_path=db_path)
-            if rec and rec.get("created_by_user_id") is not None and int(rec["created_by_user_id"]) != int(curr_user["id"]):
+            if not rec:
+                return jsonify({
+                    "status": "error",
+                    "error_code": "INSPECTION_NOT_FOUND",
+                    "message": f"Inspection #{inspection_id} not found.",
+                }), 404
+            created_by = rec.get("created_by_user_id")
+            if created_by is None or int(created_by) != int(curr_user["id"]):
                 return jsonify({
                     "status": "error",
                     "error_code": "FORBIDDEN_REPORT_ACCESS",
@@ -2230,7 +2251,14 @@ def create_app(
         curr_user = get_current_user_record()
         if curr_user and curr_user["role"] == ROLE_CITIZEN:
             rec = get_inspection_by_id(inspection_id, db_path=db_path)
-            if rec and rec.get("created_by_user_id") is not None and int(rec["created_by_user_id"]) != int(curr_user["id"]):
+            if not rec:
+                return jsonify({
+                    "status": "error",
+                    "error_code": "INSPECTION_NOT_FOUND",
+                    "message": f"Inspection #{inspection_id} not found.",
+                }), 404
+            created_by = rec.get("created_by_user_id")
+            if created_by is None or int(created_by) != int(curr_user["id"]):
                 return jsonify({
                     "status": "error",
                     "error_code": "FORBIDDEN_REPORT_ACCESS",
@@ -2277,7 +2305,14 @@ def create_app(
         curr_user = get_current_user_record()
         if curr_user and curr_user["role"] == ROLE_CITIZEN:
             rec = get_inspection_by_id(inspection_id, db_path=db_path)
-            if rec and rec.get("created_by_user_id") is not None and int(rec["created_by_user_id"]) != int(curr_user["id"]):
+            if not rec:
+                return jsonify({
+                    "status": "error",
+                    "error_code": "INSPECTION_NOT_FOUND",
+                    "message": f"Inspection #{inspection_id} not found.",
+                }), 404
+            created_by = rec.get("created_by_user_id")
+            if created_by is None or int(created_by) != int(curr_user["id"]):
                 return jsonify({
                     "status": "error",
                     "error_code": "FORBIDDEN_REPORT_ACCESS",
@@ -2338,7 +2373,14 @@ def create_app(
         curr_user = get_current_user_record()
         if curr_user and curr_user["role"] == ROLE_CITIZEN:
             rec = get_inspection_by_id(inspection_id, db_path=db_path)
-            if rec and rec.get("created_by_user_id") is not None and int(rec["created_by_user_id"]) != int(curr_user["id"]):
+            if not rec:
+                return jsonify({
+                    "status": "error",
+                    "error_code": "INSPECTION_NOT_FOUND",
+                    "message": f"Inspection #{inspection_id} not found.",
+                }), 404
+            created_by = rec.get("created_by_user_id")
+            if created_by is None or int(created_by) != int(curr_user["id"]):
                 return jsonify({
                     "status": "error",
                     "error_code": "FORBIDDEN_REPORT_ACCESS",
