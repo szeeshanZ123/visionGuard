@@ -13,6 +13,7 @@ Adheres strictly to docs/PRD.md and docs/SYSTEM_ARCHITECTURE.md principles:
 from typing import List, Dict, Any, Optional, Tuple
 import base64
 import os
+import time
 import cv2
 import numpy as np
 
@@ -221,7 +222,8 @@ class DefectDetectionService:
             "suggested_threshold": None,
         }
         # Sliced / Tiled inference engine for capturing continuous cracks at native resolution
-        self.slicer = SlicedInferenceEngine(slice_size=384, overlap_ratio=0.20, merge_iou_threshold=0.40)
+        # Tile size 512, overlap 0.20, max_slices 12 for CPU-friendly high-resolution crack preservation
+        self.slicer = SlicedInferenceEngine(slice_size=512, overlap_ratio=0.20, merge_iou_threshold=0.40, max_slices=12)
 
         # Attempt to load checkpoint if present
         self.load_model()
@@ -286,7 +288,9 @@ class DefectDetectionService:
         try:
             from ultralytics import YOLO
 
+            t_load_start = time.perf_counter()
             self.model = YOLO(resolved_path)
+            t_load_elapsed = time.perf_counter() - t_load_start
             self.is_loaded = True
             self.status_message = f"Model loaded successfully from '{resolved_path}'"
 
@@ -300,6 +304,21 @@ class DefectDetectionService:
             self.model_info["classes"] = classes
             self.model_info["checkpoint_path"] = self.model_path
             self.model_info["domain"] = self.domain
+
+            # Single warmup pass to eliminate cold-start latency on first user request
+            try:
+                self.model.predict(source=np.zeros((64, 64, 3), dtype=np.uint8), conf=0.25, verbose=False)
+            except Exception as e_warm:
+                logger.debug("Model warmup pass skipped: %s", e_warm)
+
+            logger.info(
+                "Model '%s' loaded once in %.3fs from '%s' (domain=%s, classes=%d)",
+                self.model_info["name"],
+                t_load_elapsed,
+                resolved_path,
+                self.domain,
+                len(classes),
+            )
             return True
 
         except Exception as exc:
@@ -424,17 +443,18 @@ class DefectDetectionService:
             return []
 
         try:
-            # Predict using min(conf_threshold, 0.01) so raw candidates are visible for logging
-            diagnostic_threshold = min(conf_threshold, 0.01)
+            t0 = time.perf_counter()
+            # Optimize for CPU: predict directly at caller's conf_threshold
+            # Eliminates evaluating thousands of near-zero noise candidates on CPU
             results = self.model.predict(
                 source=image_bgr,
-                conf=diagnostic_threshold,
+                conf=conf_threshold,
                 verbose=False,
             )
+            t_infer = time.perf_counter() - t0
 
             detections: List[Dict[str, Any]] = []
-            if not results or len(results) == 0:
-                logger.info("Zero raw candidate detections found at diagnostic threshold (conf=%.4f).", diagnostic_threshold)
+            if not results or len(results) == 0 or results[0].boxes is None:
                 self.last_inference_stats = {
                     "raw_candidate_count": 0,
                     "top_raw_confidence": 0.0,
@@ -444,8 +464,8 @@ class DefectDetectionService:
                 return detections
 
             boxes = results[0].boxes
-            if boxes is None or len(boxes) == 0:
-                logger.info("Zero raw candidate boxes found at diagnostic threshold (conf=%.4f).", diagnostic_threshold)
+            raw_count = len(boxes)
+            if raw_count == 0:
                 self.last_inference_stats = {
                     "raw_candidate_count": 0,
                     "top_raw_confidence": 0.0,
@@ -456,25 +476,45 @@ class DefectDetectionService:
 
             img_h, img_w = image_bgr.shape[:2]
             model_names = getattr(self.model, "names", self.classes_map)
-            raw_count = len(boxes)
-            logger.info(
-                "YOLO inference (%s): %d raw candidate box(es) detected before filtering (target threshold >= %.2f):",
-                self.domain,
-                raw_count,
-                conf_threshold,
-            )
 
-            top_raw_conf = 0.0
-            top_raw_class = ""
+            # Vectorized tensor-to-numpy conversion for zero-overhead CPU loop
+            xyxy_arr = boxes.xyxy.cpu().numpy()
+            conf_arr = boxes.conf.cpu().numpy()
+            cls_arr = boxes.cls.cpu().numpy()
+
+            top_raw_conf = float(np.max(conf_arr)) if raw_count > 0 else 0.0
+            best_idx = int(np.argmax(conf_arr)) if raw_count > 0 else 0
+            top_raw_cls_id = int(cls_arr[best_idx]) if raw_count > 0 else 0
+            if isinstance(model_names, dict):
+                top_raw_cls_raw = model_names.get(top_raw_cls_id, self.classes_map.get(top_raw_cls_id, f"Class_{top_raw_cls_id}"))
+            elif isinstance(model_names, (list, tuple)) and top_raw_cls_id < len(model_names):
+                top_raw_cls_raw = model_names[top_raw_cls_id]
+            else:
+                top_raw_cls_raw = f"Class_{top_raw_cls_id}"
+            top_raw_class = self.display_names_map.get(top_raw_cls_raw, top_raw_cls_raw.replace("_", " ").title())
+
+            self.last_inference_stats = {
+                "raw_candidate_count": raw_count,
+                "top_raw_confidence": round(top_raw_conf, 4),
+                "top_raw_class": top_raw_class,
+                "suggested_threshold": None,
+            }
 
             for i in range(raw_count):
-                xyxy = boxes.xyxy[i].cpu().numpy().tolist()
-                x1 = max(0.0, min(float(img_w), float(xyxy[0])))
-                y1 = max(0.0, min(float(img_h), float(xyxy[1])))
-                x2 = max(0.0, min(float(img_w), float(xyxy[2])))
-                y2 = max(0.0, min(float(img_h), float(xyxy[3])))
-                conf = float(boxes.conf[i].cpu().numpy())
-                cls_id = int(boxes.cls[i].cpu().numpy())
+                conf = float(conf_arr[i])
+                if conf < conf_threshold:
+                    continue
+
+                cls_id = int(cls_arr[i])
+                x1 = max(0.0, min(float(img_w), float(xyxy_arr[i][0])))
+                y1 = max(0.0, min(float(img_h), float(xyxy_arr[i][1])))
+                x2 = max(0.0, min(float(img_w), float(xyxy_arr[i][2])))
+                y2 = max(0.0, min(float(img_h), float(xyxy_arr[i][3])))
+
+                box_w = max(0.0, x2 - x1)
+                box_h = max(0.0, y2 - y1)
+                if box_w <= 0.0 or box_h <= 0.0:
+                    continue
 
                 if isinstance(model_names, dict):
                     cls_raw = model_names.get(cls_id, self.classes_map.get(cls_id, f"Class_{cls_id}"))
@@ -487,58 +527,40 @@ class DefectDetectionService:
                     cls_raw, cls_raw.replace("_", " ").title()
                 )
 
-                if conf > top_raw_conf:
-                    top_raw_conf = conf
-                    top_raw_class = distress_category
-
-                box_w = max(0.0, x2 - x1)
-                box_h = max(0.0, y2 - y1)
-                if box_w <= 0.0 or box_h <= 0.0:
-                    continue
-
-                aspect_ratio = round(box_w / box_h, 3) if box_h > 0 else 0.0
-                pixel_area = round(box_w * box_h, 1)
-
-                is_kept = conf >= conf_threshold
-                logger.info(
-                    "  [Raw Detection #%d] domain=%s, class_id=%d, class_name=%s (%s), conf=%.4f, bbox=[%.1f, %.1f, %.1f, %.1f] -> %s",
-                    i + 1,
-                    self.domain,
-                    cls_id,
-                    cls_raw,
-                    distress_category,
-                    conf,
-                    x1,
-                    y1,
-                    x2,
-                    y2,
-                    "ACCEPTED" if is_kept else "FILTERED OUT",
+                disclaimer = (
+                    "Detection confidence is statistical likelihood, not building structural integrity or physical safety."
+                    if self.domain == "home"
+                    else "Detection confidence is statistical likelihood, not pavement structural safety."
                 )
+                detections.append({
+                    "domain": self.domain,
+                    "class_id": cls_id,
+                    "class_name": cls_raw,
+                    "distress_category": distress_category,
+                    "confidence": round(conf, 4),
+                    "bbox": {
+                        "x1": round(x1, 1),
+                        "y1": round(y1, 1),
+                        "x2": round(x2, 1),
+                        "y2": round(y2, 1),
+                        "width": round(box_w, 1),
+                        "height": round(box_h, 1),
+                        "aspect_ratio": round(box_w / box_h, 3) if box_h > 0 else 0.0,
+                        "pixel_area": round(box_w * box_h, 1),
+                    },
+                    "disclaimer": disclaimer,
+                })
 
-                if is_kept:
-                    disclaimer = (
-                        "Detection confidence is statistical likelihood, not building structural integrity or physical safety."
-                        if self.domain == "home"
-                        else "Detection confidence is statistical likelihood, not pavement structural safety."
-                    )
-                    detections.append({
-                        "domain": self.domain,
-                        "class_id": cls_id,
-                        "class_name": cls_raw,
-                        "distress_category": distress_category,
-                        "confidence": round(conf, 4),
-                        "bbox": {
-                            "x1": round(x1, 1),
-                            "y1": round(y1, 1),
-                            "x2": round(x2, 1),
-                            "y2": round(y2, 1),
-                            "width": round(box_w, 1),
-                            "height": round(box_h, 1),
-                            "aspect_ratio": aspect_ratio,
-                            "pixel_area": pixel_area,
-                        },
-                        "disclaimer": disclaimer,
-                    })
+            logger.info(
+                "YOLO inference (%s): %d detection(s) at conf >= %.2f in %.3fs (raw_count=%d, top_conf=%.4f [%s])",
+                self.domain,
+                len(detections),
+                conf_threshold,
+                t_infer,
+                raw_count,
+                top_raw_conf,
+                top_raw_class,
+            )
 
             # Suppress overlapping boxes to avoid overwhelming user interface
             detections = suppress_overlapping_detections(

@@ -11,6 +11,7 @@ Provides REST API endpoints and web client serving for infrastructure inspection
 import io
 import os
 import sys
+import time
 import uuid
 import logging
 import datetime
@@ -414,10 +415,63 @@ def create_app(
             jsonify({
                 "status": "error",
                 "error_code": "INTERNAL_SERVER_ERROR",
-                "message": "An unexpected error occurred during processing.",
+                "message": getattr(error, "description", "An unexpected error occurred during processing."),
             }),
             500,
         )
+
+    @app.errorhandler(502)
+    def bad_gateway(error):
+        return (
+            jsonify({
+                "status": "error",
+                "error_code": "BAD_GATEWAY",
+                "message": "Upstream inference worker timed out or was temporarily unavailable.",
+            }),
+            502,
+        )
+
+    @app.errorhandler(503)
+    def service_unavailable(error):
+        return (
+            jsonify({
+                "status": "error",
+                "error_code": "SERVICE_UNAVAILABLE",
+                "message": getattr(error, "description", "Service temporarily unavailable. Please retry shortly."),
+            }),
+            503,
+        )
+
+    @app.errorhandler(504)
+    def gateway_timeout(error):
+        return (
+            jsonify({
+                "status": "error",
+                "error_code": "GATEWAY_TIMEOUT",
+                "message": "Inference took longer than the server timeout. Please try with standard mode or smaller image.",
+            }),
+            504,
+        )
+
+    @app.errorhandler(Exception)
+    def handle_unhandled_exception(error):
+        from werkzeug.exceptions import HTTPException
+        code = 500
+        msg = "An unexpected server error occurred."
+        if isinstance(error, HTTPException):
+            code = error.code or 500
+            msg = error.description or msg
+        logger.exception("Unhandled exception on %s %s: %s", request.method, request.path, error)
+        if request.path.startswith("/api/"):
+            return (
+                jsonify({
+                    "status": "error",
+                    "error_code": "INTERNAL_SERVER_ERROR" if code == 500 else "HTTP_ERROR",
+                    "message": msg,
+                }),
+                code,
+            )
+        return jsonify({"status": "error", "message": msg}), code
 
     # -------------------------------------------------------------------------
     # API Routes
@@ -1162,7 +1216,10 @@ def create_app(
         Primary defect inspection endpoint.
         Accepts multipart/form-data image stream, validates format,
         runs genuine YOLOv8 defect detection, and renders visual overlay.
+        Includes high-resolution safety clamping and timing telemetry.
         """
+        t_req_start = time.perf_counter()
+
         # 1. Check for file part
         file = None
         if "image" in request.files:
@@ -1187,7 +1244,9 @@ def create_app(
         file_stream = io.BytesIO(raw_bytes)
 
         # 2. Validate image stream (format, size, integrity)
+        t_val_start = time.perf_counter()
         is_valid, err_msg, metadata = validate_image_stream(file_stream, filename)
+        t_val_ms = (time.perf_counter() - t_val_start) * 1000
         if not is_valid:
             return (
                 jsonify({
@@ -1247,8 +1306,10 @@ def create_app(
             )
 
         # 5. Decode with OpenCV
+        t_dec_start = time.perf_counter()
         file_stream.seek(0)
         cv_img = load_image_as_opencv(file_stream)
+        t_dec_ms = (time.perf_counter() - t_dec_start) * 1000
         if cv_img is None:
             return (
                 jsonify({
@@ -1259,7 +1320,17 @@ def create_app(
                 400,
             )
 
-        # 6. Execute genuine detection
+        # Resolution safety guard: prevents massive memory spikes and Gunicorn timeout on Render Free
+        t_prep_start = time.perf_counter()
+        h, w = cv_img.shape[:2]
+        max_dim = max(h, w)
+        if max_dim > 2560:
+            scale = 2560.0 / max_dim
+            new_w = int(round(w * scale))
+            new_h = int(round(h * scale))
+            cv_img = cv2.resize(cv_img, (new_w, new_h), interpolation=cv2.INTER_AREA)
+            logger.info("Resized high-res image from %dx%d to %dx%d for CPU memory and latency efficiency", w, h, new_w, new_h)
+
         conf_param = request.form.get("confidence_threshold", "0.25")
         try:
             conf_thresh = float(conf_param)
@@ -1270,7 +1341,10 @@ def create_app(
         inspection_mode = request.form.get("inspection_mode", "standard").lower().strip()
         if inspection_mode not in ["standard", "tiled", "sliced"]:
             inspection_mode = "standard"
+        t_prep_ms = (time.perf_counter() - t_prep_start) * 1000
 
+        # 6. Execute genuine detection
+        t_inf_start = time.perf_counter()
         try:
             if inspection_mode in ["tiled", "sliced"] and hasattr(active_detector, "detect_sliced"):
                 detections = active_detector.detect_sliced(
@@ -1284,9 +1358,6 @@ def create_app(
                     conf_threshold=conf_thresh,
                     raise_if_unloaded=True,
                 )
-            # 7. Generate genuine visual overlay
-            annotated_bgr = active_detector.draw_annotations(cv_img, detections)
-            annotated_b64 = active_detector.encode_image_to_base64(annotated_bgr)
         except Exception as exc:
             logger.exception(f"Inference error processing '{filename}': {str(exc)}")
             return (
@@ -1297,8 +1368,16 @@ def create_app(
                 }),
                 500,
             )
+        t_inf_ms = (time.perf_counter() - t_inf_start) * 1000
 
-        # Persist original uploaded image via configured storage backend
+        # 7. Generate genuine visual overlay
+        t_post_start = time.perf_counter()
+        annotated_bgr = active_detector.draw_annotations(cv_img, detections)
+        annotated_b64 = active_detector.encode_image_to_base64(annotated_bgr)
+        t_post_ms = (time.perf_counter() - t_post_start) * 1000
+
+        # 8. Persist images via configured storage backend
+        t_stor_start = time.perf_counter()
         orig_filename = f"orig_{uuid.uuid4().hex[:8]}_{filename}"
         orig_key = f"uploads/{orig_filename}"
         try:
@@ -1307,15 +1386,31 @@ def create_app(
             logger.warning(f"Failed to persist original image: {e}")
             orig_path = None
 
-        # Optionally persist annotated image via configured storage backend
         saved_filename = f"annotated_{uuid.uuid4().hex[:8]}_{filename}"
         saved_key = f"processed/{saved_filename}"
         try:
-            _, buffer = cv2.imencode(".jpg", annotated_bgr)
+            _, buffer = cv2.imencode(".jpg", annotated_bgr, [cv2.IMWRITE_JPEG_QUALITY, 85])
             saved_path = app.storage_backend.save(saved_key, buffer.tobytes(), content_type="image/jpeg")
         except Exception as e:
             logger.warning(f"Failed to persist annotated image: {e}")
             saved_path = None
+        t_stor_ms = (time.perf_counter() - t_stor_start) * 1000
+
+        t_total_ms = (time.perf_counter() - t_req_start) * 1000
+        logger.info(
+            "Inspection complete for '%s' in %.1fms [val=%.1fms, dec=%.1fms, prep=%.1fms, inf=%.1fms, post=%.1fms, stor=%.1fms] (domain=%s, mode=%s, detections=%d)",
+            filename,
+            t_total_ms,
+            t_val_ms,
+            t_dec_ms,
+            t_prep_ms,
+            t_inf_ms,
+            t_post_ms,
+            t_stor_ms,
+            domain,
+            inspection_mode,
+            len(detections),
+        )
 
         disclaimer = (
             "Notice: Detection confidence measures model statistical likelihood, "
@@ -1340,6 +1435,15 @@ def create_app(
             "annotated_image": annotated_b64,
             "original_file_path": orig_path,
             "processed_file_path": saved_path,
+            "timings": {
+                "validation_ms": round(t_val_ms, 1),
+                "decode_ms": round(t_dec_ms, 1),
+                "preprocessing_ms": round(t_prep_ms, 1),
+                "inference_ms": round(t_inf_ms, 1),
+                "postprocessing_ms": round(t_post_ms, 1),
+                "storage_ms": round(t_stor_ms, 1),
+                "total_ms": round(t_total_ms, 1),
+            },
             "disclaimer": disclaimer,
             "safety_disclaimer": disclaimer,
         }), 200
@@ -1612,7 +1716,10 @@ def create_app(
             if curr_user:
                 payload["created_by_user_id"] = curr_user["id"]
                 payload["created_by_username"] = curr_user["username"]
+            t_db_start = time.perf_counter()
             record = save_inspection(payload, db_path=db_path)
+            t_db_ms = (time.perf_counter() - t_db_start) * 1000
+            logger.info("Inspection record saved (ID: %s) to database in %.1fms", record.get("id"), t_db_ms)
             return jsonify({
                 "status": "success",
                 "message": "Inspection record saved successfully.",

@@ -847,7 +847,7 @@ document.addEventListener("DOMContentLoaded", () => {
         formData.append("domain", selectedDomain);
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
+        const timeoutId = setTimeout(() => controller.abort(), 90000); // 90s timeout (aligned with backend SLA)
 
         let res;
         try {
@@ -860,7 +860,7 @@ document.addEventListener("DOMContentLoaded", () => {
             clearTimeout(timeoutId);
             console.error("Fetch communication failure:", fetchErr);
             if (fetchErr.name === "AbortError") {
-                alert("Request timed out: Inference took longer than 60 seconds. Please try again with a smaller image or higher confidence threshold.");
+                alert("Request timed out: Inference took longer than 90 seconds. Please try again with a smaller image or higher confidence threshold.");
             } else {
                 alert(`Network connection error: Unable to reach the VisionGuard AI backend at ${window.location.origin}.\n\nDetails: ${fetchErr.message || "Connection refused"}\n\nPlease verify that 'python app/server.py' is running in your terminal.`);
             }
