@@ -28,7 +28,10 @@ if str(PROJECT_ROOT) not in sys.path:
 
 import secrets
 from functools import wraps
-import cv2
+try:
+    import cv2
+except ImportError:
+    cv2 = None
 from werkzeug.utils import secure_filename
 from flask import Flask, request, jsonify, render_template, send_file, session
 
