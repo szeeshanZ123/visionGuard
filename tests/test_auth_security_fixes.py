@@ -434,3 +434,4 @@ class TestIDORAndDataPrivacy:
         # Complaint draft TXT export -> 200
         res_txt = client.get(f"/api/inspections/{a_id}/complaint-draft/export/txt")
         assert res_txt.status_code == 200
+
