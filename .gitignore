@@ -28,12 +28,16 @@ data/datasets/*
 !data/datasets/.gitkeep
 !data/sample_road.jpg
 
-# AI model artifacts (preserve gitkeep)
+# AI model artifacts (preserve gitkeep and canonical trained checkpoints)
 ai/models/*
 !ai/models/.gitkeep
+!ai/models/best.pt
+!ai/models/home_best.pt
 *.pt
 *.pth
 *.onnx
+!ai/models/best.pt
+!ai/models/home_best.pt
 
 # Reports
 reports/*

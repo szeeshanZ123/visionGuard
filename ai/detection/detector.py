@@ -20,12 +20,16 @@ import logging
 
 from ai.detection.slicer import SlicedInferenceEngine
 
+from pathlib import Path
+
 logger = logging.getLogger("visionguard.detector")
 if not logger.handlers:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 
-DEFAULT_ROAD_MODEL_PATH = os.path.join("ai", "models", "best.pt")
-DEFAULT_HOME_MODEL_PATH = os.path.join("ai", "models", "home_best.pt")
+# Anchor default model paths to the project root directory
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+DEFAULT_ROAD_MODEL_PATH = str(PROJECT_ROOT / "ai" / "models" / "best.pt")
+DEFAULT_HOME_MODEL_PATH = str(PROJECT_ROOT / "ai" / "models" / "home_best.pt")
 DEFAULT_MODEL_PATH = DEFAULT_ROAD_MODEL_PATH
 
 # Canonical class taxonomy from Phase 3.4 (RDD2022 India dataset)
@@ -241,7 +245,21 @@ class DefectDetectionService:
         Returns:
             True if model checkpoint was successfully loaded, False otherwise.
         """
-        if not os.path.exists(self.model_path):
+        # Multi-location candidate resolution to ensure path-independence
+        resolved_path = None
+        candidates = [
+            self.model_path,
+            str(PROJECT_ROOT / self.model_path) if self.model_path else None,
+            str(PROJECT_ROOT / "ai" / "models" / os.path.basename(self.model_path)) if self.model_path else None,
+            os.path.abspath(self.model_path) if self.model_path else None,
+            os.path.join(os.getcwd(), self.model_path) if self.model_path else None,
+        ]
+        for cand in candidates:
+            if cand and os.path.isfile(cand):
+                resolved_path = os.path.abspath(cand)
+                break
+
+        if not resolved_path:
             self.is_loaded = False
             self.model = None
             if self.domain == "home":
@@ -262,12 +280,15 @@ class DefectDetectionService:
                 )
             return False
 
+        self.model_path = resolved_path
+        self.model_info["checkpoint_path"] = resolved_path
+
         try:
             from ultralytics import YOLO
 
-            self.model = YOLO(self.model_path)
+            self.model = YOLO(resolved_path)
             self.is_loaded = True
-            self.status_message = f"Model loaded successfully from '{self.model_path}'"
+            self.status_message = f"Model loaded successfully from '{resolved_path}'"
 
             # Reconcile class names with checkpoint metadata if available
             names = getattr(self.model, "names", self.classes_map)

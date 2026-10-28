@@ -14,24 +14,59 @@ import datetime
 from typing import Dict, Any, List, Optional, Tuple
 
 
-DEFAULT_DB_PATH = os.path.join("data", "visionguard.db")
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+DEFAULT_DB_PATH = os.path.join(PROJECT_ROOT, "data", "visionguard.db")
 ALLOWED_STATUSES = ["Open", "In Progress", "Under Review", "Assigned", "Repair in Progress", "Resolved", "Reopened"]
 DEFAULT_STATUS = "Open"
 
 
-def get_db_connection(db_path: str = DEFAULT_DB_PATH) -> sqlite3.Connection:
-    """Creates and returns a connection to the SQLite database."""
-    db_dir = os.path.dirname(db_path)
-    if db_dir and not os.path.exists(db_dir):
-        os.makedirs(db_dir, exist_ok=True)
+def is_postgres_backend(db_path: Optional[str] = None) -> bool:
+    """Checks whether the designated database target is PostgreSQL."""
+    if db_path and (db_path.startswith("postgres://") or db_path.startswith("postgresql://")):
+        return True
+    if db_path is None or db_path == DEFAULT_DB_PATH:
+        env_url = (os.environ.get("DATABASE_URL") or "").strip().lower()
+        if env_url.startswith("postgres://") or env_url.startswith("postgresql://"):
+            return True
+    return False
 
-    conn = sqlite3.connect(db_path)
+
+def get_db_connection(db_path: str = DEFAULT_DB_PATH) -> Any:
+    """
+    Creates and returns a database connection.
+    Supports PostgreSQL when DATABASE_URL or db_path specifies postgres:// or postgresql://,
+    otherwise defaults to local SQLite persistence anchored to PROJECT_ROOT.
+    """
+    if is_postgres_backend(db_path):
+        from database.postgres import get_wrapped_postgres_connection
+        pg_url = db_path if (db_path and ("postgres://" in db_path or "postgresql://" in db_path)) else os.environ.get("DATABASE_URL")
+        return get_wrapped_postgres_connection(pg_url)
+
+    if db_path == ":memory:" or db_path.startswith("file:") or os.path.isabs(db_path):
+        resolved_db = db_path
+    else:
+        resolved_db = os.path.join(PROJECT_ROOT, db_path)
+
+    if resolved_db != ":memory:" and not resolved_db.startswith("file:"):
+        db_dir = os.path.dirname(resolved_db)
+        if db_dir and not os.path.exists(db_dir):
+            os.makedirs(db_dir, exist_ok=True)
+
+    conn = sqlite3.connect(resolved_db)
     conn.row_factory = sqlite3.Row
     return conn
 
 
 def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
     """Initializes the database schema with necessary tables for inspection workflows."""
+    if is_postgres_backend(db_path):
+        from database.postgres import init_postgres_db
+        conn = get_db_connection(db_path)
+        raw_conn = getattr(conn, "_raw_conn", conn)
+        init_postgres_db(raw_conn)
+        conn.close()
+        return
+
     conn = get_db_connection(db_path)
     cursor = conn.cursor()
 
@@ -382,12 +417,23 @@ def get_inspection_activity(inspection_id: int, db_path: str = DEFAULT_DB_PATH) 
     """, (inspection_id,))
     rows = cursor.fetchall()
     conn.close()
-    return [dict(r) for r in rows]
+    result = []
+    for r in rows:
+        item = dict(r)
+        if isinstance(item.get("created_at"), (datetime.datetime, datetime.date)):
+            item["created_at"] = item["created_at"].isoformat()
+        result.append(item)
+    return result
 
 
-def row_to_dict(row: sqlite3.Row, ref_date: Optional[datetime.date] = None) -> Dict[str, Any]:
-    """Converts a sqlite3.Row into a dict and parses detections_json, location, and maintenance deadline fields safely."""
+def row_to_dict(row: Any, ref_date: Optional[datetime.date] = None) -> Dict[str, Any]:
+    """Converts a database row into a dict and parses detections_json, location, and maintenance deadline fields safely."""
     d = dict(row)
+    # Convert datetime fields to ISO strings for cross-backend JSON serialization safety
+    for dt_key in ("uploaded_at", "updated_at", "assigned_at", "assignment_updated_at", "submitted_at", "created_at"):
+        if isinstance(d.get(dt_key), (datetime.datetime, datetime.date)):
+            d[dt_key] = d[dt_key].isoformat()
+
     # Parse detections_json
     raw_json = d.get("detections_json")
     if raw_json:
@@ -1307,7 +1353,15 @@ def delete_inspection(inspection_id: int, db_path: str = DEFAULT_DB_PATH) -> boo
 
 
 def check_db_health(db_path: str = DEFAULT_DB_PATH) -> Dict[str, Any]:
-    """Checks SQLite connection and reports database readiness."""
+    """Checks database connection and reports database readiness and engine type."""
+    is_pg = is_postgres_backend(db_path)
+    engine_name = "postgres" if is_pg else "sqlite"
+    display_path = db_path
+    if is_pg:
+        from database.postgres import sanitize_db_url
+        raw_url = db_path if (db_path and ("postgres://" in db_path or "postgresql://" in db_path)) else (os.environ.get("DATABASE_URL") or "")
+        display_path = sanitize_db_url(raw_url)
+
     try:
         init_db(db_path)
         conn = get_db_connection(db_path)
@@ -1320,7 +1374,8 @@ def check_db_health(db_path: str = DEFAULT_DB_PATH) -> Dict[str, Any]:
         conn.close()
         return {
             "status": "Healthy",
-            "db_path": db_path,
+            "engine": engine_name,
+            "db_path": display_path,
             "schema_version": version,
             "records_count": inspections_count,
             "connected": True
@@ -1328,7 +1383,8 @@ def check_db_health(db_path: str = DEFAULT_DB_PATH) -> Dict[str, Any]:
     except Exception as e:
         return {
             "status": "Error",
-            "db_path": db_path,
+            "engine": engine_name,
+            "db_path": display_path,
             "error": str(e),
             "connected": False
         }

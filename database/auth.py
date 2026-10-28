@@ -35,7 +35,12 @@ ROLE_DISPLAY_NAMES = {
 }
 
 USERNAME_REGEX = re.compile(r"^[a-zA-Z0-9_.-]{3,40}$")
+EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
 MIN_PASSWORD_LENGTH = 8
+MAX_PASSWORD_LENGTH = 128
+
+# Pre-computed dummy hash to guarantee constant-time verification on missing users without runtime overhead
+_DUMMY_PASSWORD_HASH = generate_password_hash("dummy_protection_hash_visionguard")
 
 
 def hash_password(password: str) -> str:
@@ -61,11 +66,25 @@ def validate_username(username: Any) -> Tuple[bool, Optional[str]]:
 
 
 def validate_password_strength(password: Any) -> Tuple[bool, Optional[str]]:
-    """Enforces minimum password security standards."""
+    """Enforces minimum and maximum password security standards."""
     if not password or not isinstance(password, str):
         return False, "Password is required."
     if len(password) < MIN_PASSWORD_LENGTH:
         return False, f"Password must be at least {MIN_PASSWORD_LENGTH} characters in length."
+    if len(password) > MAX_PASSWORD_LENGTH:
+        return False, f"Password cannot exceed {MAX_PASSWORD_LENGTH} characters in length."
+    return True, None
+
+
+def validate_email(email: Any) -> Tuple[bool, Optional[str]]:
+    """Validates optional email format and maximum length."""
+    if email is None or str(email).strip() == "":
+        return True, None
+    e = str(email).strip()
+    if len(e) > 120:
+        return False, "Email address cannot exceed 120 characters."
+    if not EMAIL_REGEX.match(e):
+        return False, "Invalid email address format."
     return True, None
 
 
@@ -114,14 +133,30 @@ def create_user(
     if not is_valid_r:
         raise ValueError(r_err)
 
+    is_valid_e, e_err = validate_email(email)
+    if not is_valid_e:
+        raise ValueError(e_err)
+
     norm_username = str(username).strip()
     norm_email = str(email).strip().lower() if email and str(email).strip() else None
 
-    # 2. Hash password with scrypt
-    pw_hash = generate_password_hash(password)
-
     conn = get_db_connection(db_path)
     cursor = conn.cursor()
+
+    # Pre-insert uniqueness checks (case-insensitive) to prevent SQLite binary collation collisions
+    cursor.execute("SELECT id FROM users WHERE LOWER(username) = LOWER(?);", (norm_username,))
+    if cursor.fetchone():
+        conn.close()
+        raise ValueError(f"Username '{norm_username}' is already in use.")
+
+    if norm_email:
+        cursor.execute("SELECT id FROM users WHERE LOWER(email) = LOWER(?);", (norm_email,))
+        if cursor.fetchone():
+            conn.close()
+            raise ValueError(f"Email '{norm_email}' is already in use.")
+
+    # 2. Hash password with scrypt
+    pw_hash = generate_password_hash(password)
 
     try:
         cursor.execute("""
@@ -137,9 +172,10 @@ def create_user(
         return sanitize_user_dict(row)
     except sqlite3.IntegrityError as e:
         conn.close()
-        if "UNIQUE constraint failed: users.username" in str(e) or "users.username" in str(e):
+        err_str = str(e).lower()
+        if "username" in err_str:
             raise ValueError(f"Username '{norm_username}' is already in use.")
-        elif norm_email and ("UNIQUE" in str(e) and "email" in str(e)):
+        elif norm_email and "email" in err_str:
             raise ValueError(f"Email '{norm_email}' is already in use.")
         raise ValueError(f"Database integrity error: {str(e)}")
 
@@ -205,6 +241,19 @@ def count_users(db_path: str = DEFAULT_DB_PATH) -> int:
     return count
 
 
+def count_admin_users(db_path: str = DEFAULT_DB_PATH) -> int:
+    """Returns total number of active administrator accounts."""
+    init_db(db_path)
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) as count FROM users WHERE role = ? AND is_active = 1;", (ROLE_ADMIN,))
+    row = cursor.fetchone()
+    count = row["count"] if row else 0
+    conn.close()
+    return count
+
+
+
 def update_user(
     user_id: int,
     updates: Dict[str, Any],
@@ -242,6 +291,15 @@ def update_user(
 
     if "email" in updates:
         new_email = str(updates["email"]).strip().lower() if updates["email"] and str(updates["email"]).strip() else None
+        if new_email:
+            is_valid_e, e_err = validate_email(new_email)
+            if not is_valid_e:
+                conn.close()
+                raise ValueError(e_err)
+            cursor.execute("SELECT id FROM users WHERE LOWER(email) = LOWER(?) AND id != ?;", (new_email, user_id))
+            if cursor.fetchone():
+                conn.close()
+                raise ValueError(f"Email '{new_email}' is already in use.")
         fields.append("email = ?")
         params.append(new_email)
 
@@ -262,8 +320,15 @@ def update_user(
     sql = f"UPDATE users SET {', '.join(fields)} WHERE id = ?;"
     params.append(user_id)
 
-    cursor.execute(sql, tuple(params))
-    conn.commit()
+    try:
+        cursor.execute(sql, tuple(params))
+        conn.commit()
+    except sqlite3.IntegrityError as e:
+        conn.close()
+        err_str = str(e).lower()
+        if "email" in err_str:
+            raise ValueError(f"Email '{new_email}' is already in use.")
+        raise ValueError(f"Database integrity error: {str(e)}")
 
     cursor.execute("SELECT * FROM users WHERE id = ?;", (user_id,))
     updated_row = cursor.fetchone()
@@ -284,10 +349,11 @@ def authenticate_user(
     if not username or not password:
         return False, None, "Invalid username or password."
 
-    user = get_user_by_username(username, include_password_hash=True, db_path=db_path)
+    norm_username = str(username).strip()
+    user = get_user_by_username(norm_username, include_password_hash=True, db_path=db_path)
     if not user:
-        # Dummy verification to prevent timing discrepancy
-        check_password_hash(generate_password_hash("dummy"), password)
+        # Precomputed dummy verification to prevent timing discrepancy without runtime overhead
+        check_password_hash(_DUMMY_PASSWORD_HASH, password)
         return False, None, "Invalid username or password."
 
     if not check_password_hash(user["password_hash"], password):
