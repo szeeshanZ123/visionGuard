@@ -8,6 +8,18 @@ document.addEventListener("DOMContentLoaded", () => {
     let currentCsrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
     let currentUser = null; // { id, username, email, role, is_active }
 
+    // Helper for safe JSON response parsing (prevents "Unexpected token <" on 502/503 HTML proxy pages)
+    async function parseJsonSafely(res) {
+        if (!res) return null;
+        try {
+            const contentType = (res.headers && res.headers.get("content-type")) || "";
+            if (contentType.includes("application/json")) {
+                return await res.json();
+            }
+        } catch (_) {}
+        return null;
+    }
+
     // Intercept window.fetch to automatically include credentials and X-CSRF-Token on mutating requests
     const originalFetch = window.fetch;
     window.fetch = async function (input, init = {}) {
@@ -2040,9 +2052,12 @@ document.addEventListener("DOMContentLoaded", () => {
         if (mapErrorBanner) mapErrorBanner.style.display = "none";
         try {
             const res = await fetch("/api/inspections?limit=500");
-            const data = await res.json();
-            if (!res.ok || data.status !== "success") {
-                throw new Error(data.message || `Failed to fetch inspections (HTTP ${res.status})`);
+            const data = await parseJsonSafely(res);
+            if (!res.ok || !data || data.status !== "success") {
+                if (res.status === 502 || res.status === 503 || res.status === 504) {
+                    throw new Error(`VisionGuard server is temporarily unavailable (HTTP ${res.status}).`);
+                }
+                throw new Error((data && data.message) || `Failed to fetch inspections (HTTP ${res.status})`);
             }
             cachedMapRecords = data.inspections || [];
             renderMapMarkers();
@@ -3577,9 +3592,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
         try {
             const res = await fetch(`/api/inspections?${params.toString()}`);
-            const data = await res.json();
-            if (!res.ok || data.status !== "success") {
-                throw new Error(data.message || "Failed to load reports.");
+            const data = await parseJsonSafely(res);
+            if (!res.ok || !data || data.status !== "success") {
+                if (res.status === 502 || res.status === 503 || res.status === 504) {
+                    throw new Error(`VisionGuard server is temporarily unavailable (HTTP ${res.status}).`);
+                }
+                throw new Error((data && data.message) || "Failed to load reports.");
             }
 
             const reports = data.inspections || [];
@@ -3722,7 +3740,8 @@ document.addEventListener("DOMContentLoaded", () => {
     async function checkAuthStatus() {
         try {
             const res = await fetch("/api/auth/status");
-            const data = await res.json();
+            const data = await parseJsonSafely(res);
+            if (!data) return;
             if (data.csrf_token) {
                 currentCsrfToken = data.csrf_token;
             }
@@ -3927,10 +3946,14 @@ document.addEventListener("DOMContentLoaded", () => {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ username, password })
                 });
-                const data = await res.json();
+                const data = await parseJsonSafely(res);
 
-                if (!res.ok || data.status !== "success") {
-                    throw new Error(data.message || "Invalid credentials.");
+                if (!res.ok || !data || data.status !== "success") {
+                    if (res.status === 502 || res.status === 503 || res.status === 504) {
+                        throw new Error(`VisionGuard server is temporarily unavailable (HTTP ${res.status}). The service may be starting up or under high load. Please try again shortly.`);
+                    }
+                    const msg = (data && data.message) || (res.status === 401 ? "Invalid username or password." : `Sign in request failed (HTTP ${res.status}).`);
+                    throw new Error(msg);
                 }
 
                 if (data.csrf_token) currentCsrfToken = data.csrf_token;
@@ -4021,10 +4044,14 @@ document.addEventListener("DOMContentLoaded", () => {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ username, email, password })
                 });
-                const data = await res.json();
+                const data = await parseJsonSafely(res);
 
-                if (!res.ok || data.status !== "success") {
-                    throw new Error(data.message || "Registration failed.");
+                if (!res.ok || !data || data.status !== "success") {
+                    if (res.status === 502 || res.status === 503 || res.status === 504) {
+                        throw new Error(`VisionGuard server is temporarily unavailable (HTTP ${res.status}). The service may be starting up or under high load. Please try again shortly.`);
+                    }
+                    const msg = (data && data.message) || `Registration request failed (HTTP ${res.status}).`;
+                    throw new Error(msg);
                 }
 
                 if (data.csrf_token) currentCsrfToken = data.csrf_token;
@@ -4069,10 +4096,14 @@ document.addEventListener("DOMContentLoaded", () => {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ username, email, password })
                 });
-                const data = await res.json();
+                const data = await parseJsonSafely(res);
 
-                if (!res.ok || data.status !== "success") {
-                    throw new Error(data.message || "Failed to configure administrator.");
+                if (!res.ok || !data || data.status !== "success") {
+                    if (res.status === 502 || res.status === 503 || res.status === 504) {
+                        throw new Error(`VisionGuard server is temporarily unavailable (HTTP ${res.status}). The service may be starting up or under high load. Please try again shortly.`);
+                    }
+                    const msg = (data && data.message) || `Admin setup request failed (HTTP ${res.status}).`;
+                    throw new Error(msg);
                 }
 
                 if (data.csrf_token) currentCsrfToken = data.csrf_token;

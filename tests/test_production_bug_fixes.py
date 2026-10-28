@@ -10,7 +10,7 @@ import os
 import pytest
 from unittest.mock import patch, MagicMock
 
-from app.server import create_app, INFERENCE_LOCK
+from app.server import create_app, INFERENCE_LOCK, INSPECTION_SEMAPHORE
 from ai.detection.detector import DefectDetectionService, HomeDefectDetectionService
 from database.db import (
     init_db,
@@ -397,4 +397,33 @@ def test_inference_lock_exists_and_serializes():
     acquired = INFERENCE_LOCK.acquire(timeout=1.0)
     assert acquired is True
     INFERENCE_LOCK.release()
+
+def test_inspection_semaphore_concurrency_guard(test_setup):
+    """Verifies that INSPECTION_SEMAPHORE prevents concurrent inspections and returns HTTP 503."""
+    app = test_setup["app"]
+    client = app.test_client()
+    assert INSPECTION_SEMAPHORE is not None
+
+    with client.session_transaction() as sess:
+        sess["user_id"] = test_setup["c1"]["id"]
+        sess["username"] = test_setup["c1"]["username"]
+        sess["role"] = test_setup["c1"]["role"]
+
+    acquired = INSPECTION_SEMAPHORE.acquire(blocking=False)
+    assert acquired is True
+
+    try:
+        with patch.object(INSPECTION_SEMAPHORE, "acquire", return_value=False):
+            data = {
+                "image": (io.BytesIO(b"\xff\xd8\xff\xe0" + b"\x00" * 100), "test.jpg"),
+                "domain": "road",
+            }
+            res = client.post("/api/inspect", data=data, content_type="multipart/form-data")
+            assert res.status_code == 503
+            json_body = res.get_json()
+            assert json_body["status"] == "error"
+            assert json_body["error_code"] == "SERVER_OVERLOADED"
+            assert "processing another inspection" in json_body["message"]
+    finally:
+        INSPECTION_SEMAPHORE.release()
 

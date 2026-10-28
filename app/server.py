@@ -34,9 +34,12 @@ from functools import wraps
 
 # Process-level inference lock ensuring single-flight YOLO forward passes on CPU
 INFERENCE_LOCK = threading.Lock()
+# Process-level concurrency gate ensuring at most 1 heavy inspection is in-flight simultaneously
+INSPECTION_SEMAPHORE = threading.Semaphore(1)
 try:
     import cv2
-except ImportError:
+    cv2.setNumThreads(1)
+except Exception:
     cv2 = None
 from werkzeug.utils import secure_filename
 from flask import Flask, request, jsonify, render_template, send_file, session
@@ -1225,6 +1228,24 @@ def create_app(
         """
         t_req_start = time.perf_counter()
 
+        acquired = INSPECTION_SEMAPHORE.acquire(blocking=True, timeout=20.0)
+        if not acquired:
+            return (
+                jsonify({
+                    "status": "error",
+                    "error_code": "SERVER_OVERLOADED",
+                    "message": "VisionGuard AI server is currently processing another inspection. Please try again in a few seconds.",
+                }),
+                503,
+            )
+
+        try:
+            return _execute_inspection_internal(t_req_start)
+        finally:
+            INSPECTION_SEMAPHORE.release()
+            gc.collect()
+
+    def _execute_inspection_internal(t_req_start):
         # 1. Check for file part
         file = None
         if "image" in request.files:
@@ -1329,12 +1350,12 @@ def create_app(
         t_prep_start = time.perf_counter()
         h, w = cv_img.shape[:2]
         max_dim = max(h, w)
-        if max_dim > 1920:
-            scale = 1920.0 / max_dim
+        if max_dim > 1280:
+            scale = 1280.0 / max_dim
             new_w = int(round(w * scale))
             new_h = int(round(h * scale))
             cv_img = cv2.resize(cv_img, (new_w, new_h), interpolation=cv2.INTER_AREA)
-            logger.info("Resized high-res image from %dx%d to %dx%d for CPU memory and latency efficiency", w, h, new_w, new_h)
+            logger.info("Resized high-res image from %dx%d to %dx%d for 512MB RAM budget", w, h, new_w, new_h)
 
         conf_param = request.form.get("confidence_threshold", "0.25")
         try:
