@@ -299,6 +299,55 @@ def create_app(
             return None
         return user
 
+    def check_citizen_inspection_access(record: dict, curr_user: dict, db_path: str = DEFAULT_DB_PATH) -> bool:
+        """
+        Securely checks if a citizen user owns and is authorized to access an inspection record.
+        1. Authoritative check: Stable authenticated user ID (created_by_user_id == curr_user['id']).
+        2. Strict isolation: If record has a created_by_user_id pointing to another existing user, access is DENIED.
+        3. Historical fallback: If created_by_user_id is None or an orphaned non-existent ID,
+           and record['created_by_username'] matches curr_user['username'], access is granted and
+           the record's created_by_user_id is auto-healed in the database.
+        """
+        if not curr_user:
+            return False
+        if curr_user.get("role") != ROLE_CITIZEN:
+            return True
+
+        created_by_id = record.get("created_by_user_id")
+        created_by_name = record.get("created_by_username")
+        u_id = curr_user.get("id")
+        u_name = curr_user.get("username")
+
+        # 1. Authoritative match by stable authenticated user ID
+        if created_by_id is not None and u_id is not None and int(created_by_id) == int(u_id):
+            return True
+
+        # 2. Strict isolation: if record is bound to another user ID, verify if that user exists in DB
+        if created_by_id is not None and u_id is not None and int(created_by_id) != int(u_id):
+            owner_user = get_user_by_id(int(created_by_id), db_path=db_path)
+            if owner_user:
+                return False
+
+        # 3. Safe historical fallback: created_by_user_id is NULL or orphaned
+        if created_by_name and u_name and str(created_by_name).lower() == str(u_name).lower():
+            # Auto-heal: backfill created_by_user_id in DB to make future queries strictly ID-based
+            if u_id is not None and record.get("id"):
+                try:
+                    conn = get_db_connection(db_path)
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        "UPDATE defect_inspections SET created_by_user_id = ? WHERE id = ?;",
+                        (u_id, record["id"])
+                    )
+                    conn.commit()
+                    conn.close()
+                    record["created_by_user_id"] = u_id
+                except Exception as e:
+                    logger.warning(f"Failed to auto-heal historical inspection #{record.get('id')} owner ID: {e}")
+            return True
+
+        return False
+
     def login_required(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
@@ -1605,6 +1654,10 @@ def create_app(
             sort_by=sort_by,
             db_path=db_path
         )
+        for r in inspections:
+            r["original_image_url"] = f"/api/inspections/{r['id']}/image/original"
+            r["annotated_image_url"] = f"/api/inspections/{r['id']}/image/annotated"
+
         resp_data = {
             "status": "success",
             "count": len(inspections),
@@ -1726,15 +1779,29 @@ def create_app(
                     "message": date_err,
                 }), 400
             payload["target_repair_date"] = norm_date
-        # Sanitize image paths in payload to ensure they reside in authorized project data directory
+        # Sanitize image paths in payload to ensure they reside in authorized project data directory or valid storage keys
         data_root = os.path.abspath(os.path.join(PROJECT_ROOT, "data"))
         project_root_abs = os.path.abspath(PROJECT_ROOT)
         for path_key in ("original_image_path", "annotated_image_path"):
             val = payload.get(path_key)
             if val and isinstance(val, str) and val.strip():
-                abs_val = os.path.abspath(val.strip())
-                if not abs_val.startswith(data_root) and not abs_val.startswith(project_root_abs):
+                val_clean = val.strip().replace("\\", "/")
+                if ".." in val_clean:
                     payload[path_key] = None
+                elif val_clean.startswith("http://") or val_clean.startswith("https://"):
+                    payload[path_key] = val_clean
+                elif val_clean.startswith("uploads/") or val_clean.startswith("processed/"):
+                    payload[path_key] = val_clean
+                elif val_clean.startswith("data/uploads/") or val_clean.startswith("data/processed/"):
+                    payload[path_key] = val_clean
+                else:
+                    abs_val = os.path.abspath(val_clean)
+                    if abs_val.startswith(data_root) or abs_val.startswith(project_root_abs):
+                        payload[path_key] = val_clean
+                    else:
+                        payload[path_key] = None
+            else:
+                payload[path_key] = None
 
         original_image_path = (payload.get("original_image_path") or "").strip()
         if original_image_path:
@@ -1796,6 +1863,12 @@ def create_app(
             }), 404
 
         curr_user = get_current_user_record()
+        if not curr_user and session.get("role"):
+            curr_user = {
+                "id": session.get("user_id"),
+                "username": session.get("username"),
+                "role": session.get("role"),
+            }
         if curr_user and curr_user["role"] == ROLE_MAINTENANCE:
             assigned_id = record.get("assigned_to_user_id")
             if assigned_id is not None and int(assigned_id) != int(curr_user["id"]):
@@ -1806,13 +1879,7 @@ def create_app(
                 }), 403
 
         if curr_user and curr_user["role"] == ROLE_CITIZEN:
-            created_by_id = record.get("created_by_user_id")
-            created_by_name = record.get("created_by_username")
-            u_id = curr_user.get("id")
-            u_name = curr_user.get("username")
-            id_match = (created_by_id is not None and u_id is not None and int(created_by_id) == int(u_id))
-            name_match = (created_by_name and u_name and str(created_by_name).lower() == str(u_name).lower())
-            if not (id_match or name_match):
+            if not check_citizen_inspection_access(record, curr_user, db_path=db_path):
                 return jsonify({
                     "status": "error",
                     "error_code": "FORBIDDEN_REPORT_ACCESS",
@@ -1845,6 +1912,8 @@ def create_app(
             "Status classifications are administrative workflow tracking and do not prove physical road repair."
         )
         record["disclaimer"] = disclaimer_text
+        record["original_image_url"] = f"/api/inspections/{inspection_id}/image/original"
+        record["annotated_image_url"] = f"/api/inspections/{inspection_id}/image/annotated"
 
         return jsonify({
             "status": "success",
@@ -2171,6 +2240,7 @@ def create_app(
         """
         Serves the original or annotated image file for a saved inspection.
         img_type: 'original' or 'annotated'.
+        Supports both local filesystem and Cloudflare R2 storage backends.
         """
         db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
         record = get_inspection_by_id(inspection_id, db_path=db_path)
@@ -2178,15 +2248,21 @@ def create_app(
             return jsonify({"status": "error", "message": f"Inspection #{inspection_id} not found."}), 404
 
         curr_user = get_current_user_record()
+        if not curr_user and session.get("role"):
+            curr_user = {
+                "id": session.get("user_id"),
+                "username": session.get("username"),
+                "role": session.get("role"),
+            }
         if curr_user and curr_user["role"] == ROLE_CITIZEN:
-            created_by = record.get("created_by_user_id")
-            if created_by is None or int(created_by) != int(curr_user["id"]):
+            if not check_citizen_inspection_access(record, curr_user, db_path=db_path):
                 return jsonify({
                     "status": "error",
                     "error_code": "FORBIDDEN_REPORT_ACCESS",
                     "message": "Access denied: Citizens may only access images from their own inspection records.",
                 }), 403
 
+        # Select target path strictly for the requested image type
         if img_type == "original":
             target_path = record.get("original_image_path") or record.get("file_path")
         elif img_type == "annotated":
@@ -2194,12 +2270,19 @@ def create_app(
         else:
             return jsonify({"status": "error", "message": "Invalid image type. Use 'original' or 'annotated'."}), 400
 
-        if not target_path:
+        if not target_path or not str(target_path).strip():
             return jsonify({
                 "status": "error",
                 "error_code": "IMAGE_FILE_NOT_FOUND",
-                "message": "Image record does not specify an image path.",
+                "message": f"Inspection #{inspection_id} does not have a recorded {img_type} image.",
             }), 404
+
+        target_path = str(target_path).strip()
+
+        # 0. If direct URL stored (e.g. public R2 / S3 URL)
+        if target_path.startswith("http://") or target_path.startswith("https://"):
+            from flask import redirect
+            return redirect(target_path)
 
         # 1. Check if storage backend provides direct presigned URL (e.g. Cloudflare R2)
         url = app.storage_backend.get_url(target_path, expires_in=3600)
@@ -2209,6 +2292,13 @@ def create_app(
 
         # 2. Try retrieving bytes from configured storage backend
         img_bytes = app.storage_backend.get_bytes(target_path)
+        if img_bytes is None:
+            clean_k = target_path.replace("\\", "/").strip().lstrip("/")
+            if clean_k.startswith("data/"):
+                img_bytes = app.storage_backend.get_bytes(clean_k[5:])
+            else:
+                img_bytes = app.storage_backend.get_bytes(f"data/{clean_k}")
+
         if img_bytes is not None:
             import io
             ext = os.path.splitext(target_path)[1].lower()
@@ -2216,9 +2306,9 @@ def create_app(
             return send_file(io.BytesIO(img_bytes), mimetype=mimetype)
 
         # 3. Fallback to direct disk resolution with directory traversal prevention
-        abs_target = os.path.abspath(target_path)
         data_root = os.path.abspath(os.path.join(PROJECT_ROOT, "data"))
         project_root_abs = os.path.abspath(PROJECT_ROOT)
+        abs_target = os.path.abspath(target_path if os.path.isabs(target_path) else os.path.join(PROJECT_ROOT, target_path))
 
         # Enforce that served file resides within the authorized project data directory
         if not abs_target.startswith(data_root) and not abs_target.startswith(project_root_abs):
@@ -2229,14 +2319,28 @@ def create_app(
                 "message": "Access denied: Image path is outside authorized data directory.",
             }), 403
 
-        if not os.path.exists(abs_target):
-            return jsonify({
-                "status": "error",
-                "error_code": "IMAGE_FILE_NOT_FOUND",
-                "message": "Image file does not exist on disk.",
-            }), 404
+        base_name = os.path.basename(target_path)
+        candidates = [
+            target_path if os.path.isabs(target_path) else None,
+            os.path.abspath(os.path.join(PROJECT_ROOT, target_path)),
+            os.path.abspath(os.path.join(PROJECT_ROOT, "data", target_path)),
+            os.path.abspath(os.path.join(PROJECT_ROOT, "data", "uploads", base_name)),
+            os.path.abspath(os.path.join(PROJECT_ROOT, "data", "processed", base_name)),
+        ]
 
-        return send_file(abs_target)
+        for cand in candidates:
+            if cand and os.path.isfile(cand):
+                abs_cand = os.path.abspath(cand)
+                if abs_cand.startswith(data_root) or abs_cand.startswith(project_root_abs):
+                    ext = os.path.splitext(abs_cand)[1].lower()
+                    mimetype = "image/png" if ext == ".png" else "image/jpeg"
+                    return send_file(abs_cand, mimetype=mimetype)
+
+        return jsonify({
+            "status": "error",
+            "error_code": "IMAGE_FILE_NOT_FOUND",
+            "message": "Image file does not exist on disk or storage backend.",
+        }), 404
 
     @app.route("/api/inspections/<int:inspection_id>/activity", methods=["GET"])
     @roles_required(ROLE_ADMIN, ROLE_INSPECTOR, ROLE_MAINTENANCE, ROLE_CITIZEN)
@@ -2254,9 +2358,14 @@ def create_app(
             }), 404
 
         curr_user = get_current_user_record()
+        if not curr_user and session.get("role"):
+            curr_user = {
+                "id": session.get("user_id"),
+                "username": session.get("username"),
+                "role": session.get("role"),
+            }
         if curr_user and curr_user["role"] == ROLE_CITIZEN:
-            created_by = record.get("created_by_user_id")
-            if created_by is None or int(created_by) != int(curr_user["id"]):
+            if not check_citizen_inspection_access(record, curr_user, db_path=db_path):
                 return jsonify({
                     "status": "error",
                     "error_code": "FORBIDDEN_REPORT_ACCESS",
@@ -2424,6 +2533,12 @@ def create_app(
         """
         db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
         curr_user = get_current_user_record()
+        if not curr_user and session.get("role"):
+            curr_user = {
+                "id": session.get("user_id"),
+                "username": session.get("username"),
+                "role": session.get("role"),
+            }
         if curr_user and curr_user["role"] == ROLE_CITIZEN:
             rec = get_inspection_by_id(inspection_id, db_path=db_path)
             if not rec:
@@ -2432,8 +2547,7 @@ def create_app(
                     "error_code": "INSPECTION_NOT_FOUND",
                     "message": f"Inspection #{inspection_id} not found.",
                 }), 404
-            created_by = rec.get("created_by_user_id")
-            if created_by is None or int(created_by) != int(curr_user["id"]):
+            if not check_citizen_inspection_access(rec, curr_user, db_path=db_path):
                 return jsonify({
                     "status": "error",
                     "error_code": "FORBIDDEN_REPORT_ACCESS",
@@ -2479,6 +2593,12 @@ def create_app(
         db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
         payload = request.get_json(silent=True) or {}
         curr_user = get_current_user_record()
+        if not curr_user and session.get("role"):
+            curr_user = {
+                "id": session.get("user_id"),
+                "username": session.get("username"),
+                "role": session.get("role"),
+            }
         if curr_user and curr_user["role"] == ROLE_CITIZEN:
             rec = get_inspection_by_id(inspection_id, db_path=db_path)
             if not rec:
@@ -2487,8 +2607,7 @@ def create_app(
                     "error_code": "INSPECTION_NOT_FOUND",
                     "message": f"Inspection #{inspection_id} not found.",
                 }), 404
-            created_by = rec.get("created_by_user_id")
-            if created_by is None or int(created_by) != int(curr_user["id"]):
+            if not check_citizen_inspection_access(rec, curr_user, db_path=db_path):
                 return jsonify({
                     "status": "error",
                     "error_code": "FORBIDDEN_REPORT_ACCESS",
@@ -2533,6 +2652,12 @@ def create_app(
         """
         db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
         curr_user = get_current_user_record()
+        if not curr_user and session.get("role"):
+            curr_user = {
+                "id": session.get("user_id"),
+                "username": session.get("username"),
+                "role": session.get("role"),
+            }
         if curr_user and curr_user["role"] == ROLE_CITIZEN:
             rec = get_inspection_by_id(inspection_id, db_path=db_path)
             if not rec:
@@ -2541,8 +2666,7 @@ def create_app(
                     "error_code": "INSPECTION_NOT_FOUND",
                     "message": f"Inspection #{inspection_id} not found.",
                 }), 404
-            created_by = rec.get("created_by_user_id")
-            if created_by is None or int(created_by) != int(curr_user["id"]):
+            if not check_citizen_inspection_access(rec, curr_user, db_path=db_path):
                 return jsonify({
                     "status": "error",
                     "error_code": "FORBIDDEN_REPORT_ACCESS",
@@ -2601,6 +2725,12 @@ def create_app(
         """
         db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
         curr_user = get_current_user_record()
+        if not curr_user and session.get("role"):
+            curr_user = {
+                "id": session.get("user_id"),
+                "username": session.get("username"),
+                "role": session.get("role"),
+            }
         if curr_user and curr_user["role"] == ROLE_CITIZEN:
             rec = get_inspection_by_id(inspection_id, db_path=db_path)
             if not rec:
@@ -2609,13 +2739,7 @@ def create_app(
                     "error_code": "INSPECTION_NOT_FOUND",
                     "message": f"Inspection #{inspection_id} not found.",
                 }), 404
-            created_by_id = rec.get("created_by_user_id")
-            created_by_name = rec.get("created_by_username")
-            u_id = curr_user.get("id")
-            u_name = curr_user.get("username")
-            id_match = (created_by_id is not None and u_id is not None and int(created_by_id) == int(u_id))
-            name_match = (created_by_name and u_name and str(created_by_name).lower() == str(u_name).lower())
-            if not (id_match or name_match):
+            if not check_citizen_inspection_access(rec, curr_user, db_path=db_path):
                 return jsonify({
                     "status": "error",
                     "error_code": "FORBIDDEN_REPORT_ACCESS",

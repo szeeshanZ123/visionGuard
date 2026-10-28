@@ -274,6 +274,13 @@ body {
     background-color: rgba(59, 130, 246, 0.05);
 }
 
+.upload-area.dropzone-locked {
+    pointer-events: none;
+    opacity: 0.65;
+    cursor: not-allowed;
+    border-color: var(--border-color);
+}
+
 .upload-icon {
     font-size: 2.5rem;
     margin-bottom: 0.75rem;
