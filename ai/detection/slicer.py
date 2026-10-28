@@ -1,3 +1,4 @@
+import time
 """
 Sliced / Tiled Inference Engine for VisionGuard AI.
 
@@ -293,10 +294,13 @@ class SlicedInferenceEngine:
                     top_raw_class = g_stats.get("top_raw_class", "")
 
         # 2. Sliced pass
+        t_slice_start = time.perf_counter()
         slice_coords = self.calculate_slices(w, h, slice_size=slice_size, overlap_ratio=overlap_ratio)
+        t_slicing_calc_ms = (time.perf_counter() - t_slice_start) * 1000
         logger.info(
-            "Tiled inference starting: %d slices generated (image %dx%d, slice_size=%d, overlap=%.2f, fuse_with_global=%s)",
+            "Tiled inference starting: %d slices generated in %.2fms (image %dx%d, slice_size=%d, overlap=%.2f, fuse_with_global=%s)",
             len(slice_coords),
+            t_slicing_calc_ms,
             w,
             h,
             slice_size or self.slice_size,
@@ -304,13 +308,16 @@ class SlicedInferenceEngine:
             fuse_with_global,
         )
 
+        total_tile_fwd_ms = 0.0
         for tile_idx, (x_min, y_min, x_max, y_max) in enumerate(slice_coords):
             # If the single slice covers the exact entire image, skip redundant slice
             if x_min == 0 and y_min == 0 and x_max == w and y_max == h and fuse_with_global:
                 continue
 
             tile = image_bgr[y_min:y_max, x_min:x_max]
+            t_t0 = time.perf_counter()
             tile_dets = run_standard(tile)
+            total_tile_fwd_ms += (time.perf_counter() - t_t0) * 1000
 
             # Check detector's stats from tile pass
             if hasattr(detector, "last_inference_stats"):
@@ -353,12 +360,14 @@ class SlicedInferenceEngine:
 
         # 3. Fuse and deduplicate using NMS with IoU + IoM containment
         raw_count = len(all_candidates)
+        t_fus0 = time.perf_counter()
         fused = apply_nms(
             all_candidates,
             iou_threshold=self.merge_iou_threshold,
             iom_threshold=self.merge_iom_threshold,
             class_aware=True,
         )
+        t_fusion_ms = (time.perf_counter() - t_fus0) * 1000
         logger.info(
             "Tiled inference candidate fusion complete: %d raw candidates -> %d fused detections (suppressed %d duplicates, IoU thresh=%.2f, IoM thresh=%.2f)",
             raw_count,
@@ -376,6 +385,13 @@ class SlicedInferenceEngine:
             "top_raw_confidence": round(top_raw_conf, 4),
             "top_raw_class": top_raw_class,
             "suggested_threshold": suggested,
+            "timings": {
+                "model_load_ms": 0.0,
+                "forward_pass_ms": round(total_tile_fwd_ms, 1),
+                "slicing_ms": round(t_slicing_calc_ms, 1),
+                "fusion_ms": round(t_fusion_ms, 1),
+                "slice_count": len(slice_coords),
+            },
         }
 
         return fused

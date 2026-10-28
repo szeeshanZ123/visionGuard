@@ -123,6 +123,7 @@ from ai.detection.detector import (
     HOME_CLASS_NAMES,
     HOME_CLASS_DISPLAY_NAMES,
     DEFAULT_HOME_MODEL_PATH,
+    get_process_rss_mb,
 )
 from storage import (
     get_storage_backend,
@@ -144,6 +145,7 @@ def create_app(
     templates_dir = os.path.join(app_dir, "templates")
     static_dir = os.path.join(app_dir, "static")
 
+    t_app_start = time.perf_counter()
     app = Flask(
         __name__,
         template_folder=templates_dir,
@@ -253,7 +255,7 @@ def create_app(
     if test_config and "detector" in test_config:
         app.detector = test_config["detector"]
     else:
-        app.detector = detector or DefectDetectionService(domain="road")
+        app.detector = detector or DefectDetectionService(domain="road", lazy=True)
 
     app.road_detector = app.detector
 
@@ -1425,7 +1427,7 @@ def create_app(
 
         t_total_ms = (time.perf_counter() - t_req_start) * 1000
         logger.info(
-            "Inspection complete for '%s' in %.1fms [val=%.1fms, dec=%.1fms, prep=%.1fms, inf=%.1fms, post=%.1fms, stor=%.1fms] (domain=%s, mode=%s, detections=%d)",
+            "Inspection complete for '%s' in %.1fms [val=%.1fms, dec=%.1fms, prep=%.1fms, inf=%.1fms, post=%.1fms, stor=%.1fms] (domain=%s, mode=%s, detections=%d, RSS=%.1f MB / 512MB limit)",
             filename,
             t_total_ms,
             t_val_ms,
@@ -1437,6 +1439,7 @@ def create_app(
             domain,
             inspection_mode,
             len(detections),
+            get_process_rss_mb(),
         )
 
         disclaimer = (
@@ -1466,7 +1469,11 @@ def create_app(
                 "validation_ms": round(t_val_ms, 1),
                 "decode_ms": round(t_dec_ms, 1),
                 "preprocessing_ms": round(t_prep_ms, 1),
+                "model_load_ms": round(getattr(active_detector, "last_inference_stats", {}).get("timings", {}).get("model_load_ms", 0.0), 1),
                 "inference_ms": round(t_inf_ms, 1),
+                "forward_pass_ms": round(getattr(active_detector, "last_inference_stats", {}).get("timings", {}).get("forward_pass_ms", t_inf_ms), 1),
+                "slicing_ms": round(getattr(active_detector, "last_inference_stats", {}).get("timings", {}).get("slicing_ms", 0.0), 1),
+                "slice_count": int(getattr(active_detector, "last_inference_stats", {}).get("timings", {}).get("slice_count", 1)),
                 "postprocessing_ms": round(t_post_ms, 1),
                 "storage_ms": round(t_stor_ms, 1),
                 "total_ms": round(t_total_ms, 1),
@@ -1761,6 +1768,9 @@ def create_app(
                 "status": "success",
                 "message": "Inspection record saved successfully.",
                 "inspection": record,
+                "timings": {
+                    "database_save_ms": round(t_db_ms, 1),
+                },
             }), 201
         except Exception as e:
             logger.exception(f"Failed to persist inspection record: {e}")
@@ -2649,6 +2659,16 @@ def create_app(
             "status": "success",
             "summary": summary
         }), 200
+
+    t_app_elapsed = time.perf_counter() - t_app_start
+    logger.info(
+        "VisionGuard AI application initialized successfully in %.2fs (RSS: %.1f MB / 512MB budget, env=%s, road_lazy=%s, home_lazy=%s)",
+        t_app_elapsed,
+        get_process_rss_mb(),
+        vg_env,
+        getattr(app.detector, "is_loaded", False),
+        getattr(app.home_detector, "is_loaded", False),
+    )
 
     return app
 
