@@ -401,3 +401,12 @@ def test_api_inspect_tiled_mode(client):
     assert "candidate_summary" in json_data
     assert "detections" in json_data
     assert "annotated_image" in json_data
+
+
+def test_calculate_slices_max_slices_cap():
+    """Ultra-high resolution images must dynamically scale tile size to prevent slice count explosion."""
+    slicer = SlicedInferenceEngine(slice_size=384, overlap_ratio=0.20, max_slices=16)
+    # 4000x3000 would normally generate 140+ slices without cap
+    slices = slicer.calculate_slices(img_w=4000, img_h=3000)
+    assert len(slices) <= 25  # Bounded to protect against Gunicorn worker timeout
+
