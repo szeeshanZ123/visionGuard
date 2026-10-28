@@ -47,6 +47,20 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!url.includes("/api/auth/login") && !url.includes("/api/auth/status") && !url.includes("/api/auth/setup-admin")) {
                 handleSessionExpired();
             }
+        } else if (response.status === 403) {
+            try {
+                const clone = response.clone();
+                const errData = await clone.json();
+                if (errData && errData.error_code === "CSRF_TOKEN_INVALID") {
+                    const statusRes = await originalFetch("/api/auth/status");
+                    if (statusRes.ok) {
+                        const statusData = await statusRes.json();
+                        if (statusData.csrf_token) {
+                            currentCsrfToken = statusData.csrf_token;
+                        }
+                    }
+                }
+            } catch (_) {}
         }
 
         return response;
@@ -4085,10 +4099,16 @@ document.addEventListener("DOMContentLoaded", () => {
     if (logoutBtn) {
         logoutBtn.addEventListener("click", async () => {
             try {
-                await fetch("/api/auth/logout", {
+                const res = await fetch("/api/auth/logout", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" }
                 });
+                if (res.ok) {
+                    const data = await res.json().catch(() => null);
+                    if (data && data.csrf_token) {
+                        currentCsrfToken = data.csrf_token;
+                    }
+                }
             } catch (err) {
                 console.error("Logout request error:", err);
             }
