@@ -177,6 +177,28 @@ def suppress_overlapping_detections(
     return kept
 
 
+def get_process_rss_mb() -> float:
+    """Returns current process Resident Set Size (RSS) in MB across Linux/Render and local environments."""
+    try:
+        import psutil
+        return round(psutil.Process().memory_info().rss / (1024 * 1024), 1)
+    except Exception:
+        pass
+    try:
+        with open("/proc/self/status", "r") as f:
+            for line in f:
+                if line.startswith("VmRSS:"):
+                    return round(float(line.split()[1]) / 1024.0, 1)
+    except Exception:
+        pass
+    try:
+        import resource
+        return round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0, 1)
+    except Exception:
+        pass
+    return 0.0
+
+
 class DefectDetectionService:
     """
     Defect detection engine interface.
@@ -223,7 +245,7 @@ class DefectDetectionService:
         }
         # Sliced / Tiled inference engine for capturing continuous cracks at native resolution
         # Tile size 512, overlap 0.20, max_slices 12 for CPU-friendly high-resolution crack preservation
-        self.slicer = SlicedInferenceEngine(slice_size=512, overlap_ratio=0.20, merge_iou_threshold=0.40, max_slices=12)
+        self.slicer = SlicedInferenceEngine(slice_size=512, overlap_ratio=0.20, merge_iou_threshold=0.40, max_slices=8)
 
         if lazy:
             # On-demand loading: verify file existence and metadata without allocating weights to RAM
@@ -346,13 +368,15 @@ class DefectDetectionService:
             except Exception as e_warm:
                 logger.debug("Model warmup pass skipped: %s", e_warm)
 
+            rss_mb = get_process_rss_mb()
             logger.info(
-                "Model '%s' loaded once in %.3fs from '%s' (domain=%s, classes=%d)",
+                "Model '%s' loaded once in %.3fs from '%s' (domain=%s, classes=%d, RSS=%.1f MB / 512MB limit)",
                 self.model_info["name"],
                 t_load_elapsed,
                 resolved_path,
                 self.domain,
                 len(classes),
+                rss_mb,
             )
             return True
 
@@ -490,17 +514,34 @@ class DefectDetectionService:
             return []
 
         try:
-            t0 = time.perf_counter()
+            t_load_ms = 0.0
+            if self.model is None:
+                t0_load = time.perf_counter()
+                if not self.load_model():
+                    if raise_if_unloaded:
+                        raise FileNotFoundError(self.status_message)
+                    return []
+                t_load_ms = (time.perf_counter() - t0_load) * 1000
+
+            t0_fwd = time.perf_counter()
             # Optimize for CPU: predict directly at caller's conf_threshold under inference_mode
-            # Eliminates evaluating thousands of near-zero noise candidates on CPU
+            # Native 640 resolution ensures fast CPU matrix multiplication without oversized feature maps
             import torch
             with torch.inference_mode():
-                results = self.model.predict(
-                    source=image_bgr,
-                    conf=conf_threshold,
-                    verbose=False,
-                )
-            t_infer = time.perf_counter() - t0
+                try:
+                    results = self.model.predict(
+                        source=image_bgr,
+                        conf=conf_threshold,
+                        imgsz=640,
+                        verbose=False,
+                    )
+                except TypeError:
+                    results = self.model.predict(
+                        source=image_bgr,
+                        conf=conf_threshold,
+                        verbose=False,
+                    )
+            t_fwd_ms = (time.perf_counter() - t0_fwd) * 1000
 
             detections: List[Dict[str, Any]] = []
             if not results or len(results) == 0 or results[0].boxes is None:
@@ -549,6 +590,12 @@ class DefectDetectionService:
                 "top_raw_confidence": round(top_raw_conf, 4),
                 "top_raw_class": top_raw_class,
                 "suggested_threshold": None,
+                "timings": {
+                    "model_load_ms": round(t_load_ms, 1),
+                    "forward_pass_ms": round(t_fwd_ms, 1),
+                    "slicing_ms": 0.0,
+                    "slice_count": 1,
+                },
             }
 
             for i in range(raw_count):
@@ -602,6 +649,7 @@ class DefectDetectionService:
                     "disclaimer": disclaimer,
                 })
 
+            t_infer = t_fwd_ms / 1000.0
             logger.info(
                 "YOLO inference (%s): %d detection(s) at conf >= %.2f in %.3fs (raw_count=%d, top_conf=%.4f [%s])",
                 self.domain,

@@ -899,10 +899,14 @@ document.addEventListener("DOMContentLoaded", () => {
             let errorMsg = `Server responded with status HTTP ${res.status}`;
             if (data && data.message) {
                 errorMsg = data.message;
+            } else if (res.status === 502 || res.status === 503 || res.status === 504) {
+                errorMsg = `VisionGuard AI service is temporarily unavailable (HTTP ${res.status}). The service is starting up, restarting, or currently processing another inspection. Please try again shortly.`;
             } else {
                 try {
                     const rawText = await res.text();
-                    if (rawText) errorMsg += `: ${rawText.substring(0, 150)}`;
+                    if (rawText && !rawText.includes("<!DOCTYPE") && !rawText.includes("<html")) {
+                        errorMsg += `: ${rawText.substring(0, 150)}`;
+                    }
                 } catch (_) {}
             }
             handleApiError(res.status, data, errorMsg);
