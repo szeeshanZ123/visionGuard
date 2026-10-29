@@ -4,6 +4,7 @@
 
 <head>
     <meta charset="utf-8" />
+    <meta name="csrf-token" content="{{ csrf_token or '' }}">
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <title>VisionGuard AI - Infrastructure Hazard &amp; Defect Inspection</title>
     <!-- Tailwind CSS v3 with Plugins -->
@@ -801,17 +802,33 @@
             fetch('/api/auth/status')
                 .then(r => r.json())
                 .then(data => {
+                    if (data && data.csrf_token) {
+                        try { sessionStorage.setItem('vg_csrf_token', data.csrf_token); } catch (e) {}
+                        const m = document.querySelector('meta[name="csrf-token"]');
+                        if (m) m.setAttribute('content', data.csrf_token);
+                    }
                     if (data && data.authenticated && data.user) {
+                        const isStaff = (data.user.role === 'admin' || data.user.role === 'inspector' || data.user.role === 'maintenance');
                         const authBtn = document.getElementById('nav-auth-btn');
                         if (authBtn) {
-                            authBtn.href = '/create_home';
+                            authBtn.href = isStaff ? '/app' : '/create_home';
+                            authBtn.title = `${data.user.username} (${data.user.role}) - Click for ${isStaff ? 'Operations Dashboard' : 'Inspection Studio'}`;
                             authBtn.innerHTML = `
                                 <span class="flex items-center gap-1.5">
                                     <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                    <span>${data.user.username}</span>
+                                    <span class="font-bold">${data.user.username}</span>
+                                    <span class="text-[10px] text-slate-500 uppercase">(${data.user.role || 'citizen'})</span>
                                 </span>
                             `;
                         }
+                        // Update desktop Dashboard link for staff vs citizen
+                        const navLinks = document.querySelectorAll('header nav a');
+                        navLinks.forEach(a => {
+                            if (a.textContent.trim() === 'Dashboard') {
+                                a.href = isStaff ? '/app' : '/report';
+                                a.textContent = isStaff ? 'Operations Dashboard' : 'My Reports';
+                            }
+                        });
                     }
                 })
                 .catch(() => {});

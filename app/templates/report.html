@@ -4,6 +4,7 @@
 
 <head>
     <meta charset="utf-8" />
+    <meta name="csrf-token" content="{{ csrf_token or '' }}">
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <meta content="web_standard" name="shell-type" />
     <link
@@ -772,15 +773,38 @@
 
             async function loadStats() {
                 try {
-                    const res = await fetch('/api/dashboard/stats');
-                    if (!res.ok) return;
-                    const data = await res.json();
-                    if (data.status === 'success' && data.stats) {
-                        const s = data.stats;
-                        if (s.total_records !== undefined) document.getElementById('metric-total-count').innerText = s.total_records;
-                        if (s.open_records !== undefined) document.getElementById('metric-open-count').innerText = s.open_records;
-                        if (s.in_progress_records !== undefined) document.getElementById('metric-review-count').innerText = s.in_progress_records;
-                        if (s.resolved_records !== undefined) document.getElementById('metric-resolved-count').innerText = s.resolved_records;
+                    // Check auth status to determine role-appropriate metrics source
+                    const authRes = await fetch('/api/auth/status');
+                    const authData = await authRes.json().catch(() => ({}));
+                    const isStaff = authData && authData.user && (authData.user.role === 'admin' || authData.user.role === 'inspector' || authData.user.role === 'maintenance');
+
+                    if (isStaff) {
+                        const res = await fetch('/api/dashboard/stats');
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data.status === 'success' && data.stats) {
+                                const s = data.stats;
+                                if (s.total_records !== undefined) document.getElementById('metric-total-count').innerText = s.total_records;
+                                if (s.open_records !== undefined) document.getElementById('metric-open-count').innerText = s.open_records;
+                                if (s.in_progress_records !== undefined) document.getElementById('metric-review-count').innerText = s.in_progress_records;
+                                if (s.resolved_records !== undefined) document.getElementById('metric-resolved-count').innerText = s.resolved_records;
+                                return;
+                            }
+                        }
+                    } else if (authData && authData.authenticated && authData.user?.role === 'citizen') {
+                        // For citizens, fetch authentic citizen summary metrics
+                        const res = await fetch('/api/citizen/summary');
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data.status === 'success' && data.summary) {
+                                const s = data.summary;
+                                if (s.total_reports !== undefined) document.getElementById('metric-total-count').innerText = s.total_reports;
+                                if (s.open_reports !== undefined) document.getElementById('metric-open-count').innerText = s.open_reports;
+                                if (s.in_progress_reports !== undefined) document.getElementById('metric-review-count').innerText = s.in_progress_reports;
+                                if (s.resolved_reports !== undefined) document.getElementById('metric-resolved-count').innerText = s.resolved_reports;
+                                return;
+                            }
+                        }
                     }
                 } catch (e) {}
             }
@@ -944,15 +968,39 @@
                 window.URL.revokeObjectURL(url);
             }
 
-            // Sync user auth status in header
+            // Sync user auth status in header & CSRF token
             fetch('/api/auth/status')
                 .then(r => r.json())
                 .then(data => {
+                    if (data && data.csrf_token) {
+                        try { sessionStorage.setItem('vg_csrf_token', data.csrf_token); } catch (e) {}
+                        const m = document.querySelector('meta[name="csrf-token"]');
+                        if (m) m.setAttribute('content', data.csrf_token);
+                    }
                     if (data && data.authenticated && data.user) {
                         const nameEl = document.getElementById('report-username');
                         const roleEl = document.getElementById('report-role');
+                        const avatarEl = document.getElementById('report-user-avatar');
                         if (nameEl) nameEl.innerText = data.user.username;
-                        if (roleEl) roleEl.innerText = data.user.role.toUpperCase();
+                        if (roleEl) roleEl.innerText = (data.user.role || 'citizen').toUpperCase();
+                        if (avatarEl) {
+                            const isStaff = (data.user.role === 'admin' || data.user.role === 'inspector' || data.user.role === 'maintenance');
+                            avatarEl.href = isStaff ? '/app' : '/report';
+                            avatarEl.title = `${data.user.username} (${data.user.role}) - ${isStaff ? 'Operations Dashboard' : 'My Reports'}`;
+                        }
+                        if (data.user.role === 'citizen') {
+                            const h1 = document.querySelector('h1');
+                            if (h1 && h1.textContent.includes('Municipal Defect Records')) {
+                                h1.textContent = 'My Defect Reports';
+                            }
+                        }
+                    } else {
+                        const nameEl = document.getElementById('report-username');
+                        const roleEl = document.getElementById('report-role');
+                        const avatarEl = document.getElementById('report-user-avatar');
+                        if (nameEl) nameEl.innerText = 'Guest';
+                        if (roleEl) roleEl.innerText = 'Sign In';
+                        if (avatarEl) avatarEl.href = '/login?return=/report';
                     }
                 })
                 .catch(() => {});

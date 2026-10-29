@@ -4,6 +4,7 @@
 
 <head>
     <meta charset="utf-8" />
+    <meta name="csrf-token" content="{{ csrf_token or '' }}">
     <meta content="width=device-width, initial-scale=1.0, maximum-scale=5.0" name="viewport" />
     <title>Geospatial Defect Map - VisionGuard AI</title>
     <!-- Fonts & Icons -->
@@ -772,7 +773,7 @@
 
         async function loadBackendInspections() {
             try {
-                const res = await fetch('/api/inspections?limit=100');
+                const res = await fetch('/api/inspections?limit=100&has_coords=true&all_civic=true');
                 if (!res.ok) return;
                 const data = await res.json();
                 if (data.status === 'success' && data.inspections && data.inspections.length > 0) {
@@ -992,15 +993,33 @@
                 });
             }
 
-            // Sync user auth status in header
+            // Sync user auth status in header & CSRF token
             fetch('/api/auth/status')
                 .then(r => r.json())
                 .then(data => {
+                    if (data && data.csrf_token) {
+                        try { sessionStorage.setItem('vg_csrf_token', data.csrf_token); } catch (e) {}
+                        const m = document.querySelector('meta[name="csrf-token"]');
+                        if (m) m.setAttribute('content', data.csrf_token);
+                    }
                     if (data && data.authenticated && data.user) {
                         const nameEl = document.getElementById('map-username');
                         const roleEl = document.getElementById('map-role');
+                        const avatarEl = document.getElementById('map-user-avatar');
                         if (nameEl) nameEl.innerText = data.user.username;
-                        if (roleEl) roleEl.innerText = data.user.role.toUpperCase();
+                        if (roleEl) roleEl.innerText = (data.user.role || 'citizen').toUpperCase();
+                        if (avatarEl) {
+                            const isStaff = (data.user.role === 'admin' || data.user.role === 'inspector' || data.user.role === 'maintenance');
+                            avatarEl.href = isStaff ? '/app' : '/report';
+                            avatarEl.title = `${data.user.username} (${data.user.role}) - Click for ${isStaff ? 'Operations Dashboard' : 'My Reports'}`;
+                        }
+                    } else {
+                        const nameEl = document.getElementById('map-username');
+                        const roleEl = document.getElementById('map-role');
+                        const avatarEl = document.getElementById('map-user-avatar');
+                        if (nameEl) nameEl.innerText = 'Guest';
+                        if (roleEl) roleEl.innerText = 'Sign In';
+                        if (avatarEl) avatarEl.href = '/login?return=/map';
                     }
                 })
                 .catch(() => {});
