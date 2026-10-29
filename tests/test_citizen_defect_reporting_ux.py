@@ -4,7 +4,7 @@ Tests for Phase 5: Simplified Citizen Defect Reporting UX in VisionGuard AI.
 Validates:
 1. Simplified Citizen Inspection Form:
    - Technical confidence slider and tiled slicing mode controls are hidden from the citizen view.
-   - Default threshold is 0.25 and default mode is standard.
+   - Default threshold is 0.15 and default mode is standard.
    - Main inspection action button is labeled "Detect Defect".
    - Target selection provides simple, nontechnical options ("Road / Street" vs. "Building / Property").
    - Plain-English capture guidelines provide clear instructions without ML jargon.
@@ -76,7 +76,7 @@ class TestCitizenReportFormHtmlContract:
 
         # Slider and modes must still exist with safe defaults
         assert 'id="confSlider"' in html
-        assert 'value="0.25"' in html
+        assert 'value="0.15"' in html
         assert 'id="inspectionModeGroup"' in html
         assert 'value="standard" checked' in html
 
@@ -267,3 +267,138 @@ class TestCitizenReportSubmissionApi:
         assert my_reports_data["inspections"][0]["original_image_url"] is not None
         assert my_reports_data["inspections"][0]["annotated_image_url"] is not None
 
+    def test_road_inspection_with_real_weights_identifies_defects(self, app_and_client, test_db_path):
+        """Verifies that citizen road defect detection successfully detects real defects with authentic weights."""
+        _, client = app_and_client
+        user = create_user("test_road_citizen", "Password123!", role=ROLE_CITIZEN, db_path=test_db_path)
+        with client.session_transaction() as sess:
+            sess["user_id"] = user["id"]
+            sess["username"] = user["username"]
+            sess["role"] = user["role"]
+
+        defect_img_path = PROJECT_ROOT / "data" / "evaluation_benchmark" / "images" / "benchmark_08_d20_alligator_urban.jpg"
+        if not defect_img_path.exists():
+            pytest.skip(f"Benchmark image {defect_img_path} not found")
+
+        with open(defect_img_path, "rb") as f:
+            img_bytes = f.read()
+
+        # Simulate citizen submission using safe defaults
+        res = client.post(
+            "/api/inspect",
+            data={
+                "image": (io.BytesIO(img_bytes), defect_img_path.name),
+                "domain": "road",
+                "confidence_threshold": "0.15",
+                "inspection_mode": "standard",
+            },
+            content_type="multipart/form-data"
+        )
+        assert res.status_code == 200
+        data = res.get_json()
+        assert data["status"] == "success"
+        assert data["domain"] == "road"
+        assert data["defect_count"] > 0
+        assert len(data["detections"]) > 0
+        assert data["annotated_image"].startswith("data:image/jpeg;base64,")
+
+        first_det = data["detections"][0]
+        assert "distress_category" in first_det
+        assert "confidence" in first_det
+        assert "bbox" in first_det
+        assert first_det["confidence"] >= 0.15
+
+    def test_road_inspection_on_sound_road_returns_zero_defects(self, app_and_client, test_db_path):
+        """Verifies that genuine clean asphalt produces zero defects cleanly under citizen default sensitivity."""
+        _, client = app_and_client
+        user = create_user("test_clean_citizen", "Password123!", role=ROLE_CITIZEN, db_path=test_db_path)
+        with client.session_transaction() as sess:
+            sess["user_id"] = user["id"]
+            sess["username"] = user["username"]
+            sess["role"] = user["role"]
+
+        sound_road_path = PROJECT_ROOT / "data" / "sample_road.jpg"
+        if not sound_road_path.exists():
+            pytest.skip(f"Sound road image {sound_road_path} not found")
+
+        with open(sound_road_path, "rb") as f:
+            img_bytes = f.read()
+
+        res = client.post(
+            "/api/inspect",
+            data={
+                "image": (io.BytesIO(img_bytes), sound_road_path.name),
+                "domain": "road",
+                "confidence_threshold": "0.15",
+                "inspection_mode": "standard",
+            },
+            content_type="multipart/form-data"
+        )
+        assert res.status_code == 200
+        data = res.get_json()
+        assert data["status"] == "success"
+        assert data["defect_count"] == 0
+        assert data["detections"] == []
+
+    def test_building_inspection_with_real_weights_identifies_defects(self, app_and_client, test_db_path):
+        """Verifies that selecting Building domain routes to home model and identifies wall/building defects."""
+        _, client = app_and_client
+        user = create_user("test_home_citizen", "Password123!", role=ROLE_CITIZEN, db_path=test_db_path)
+        with client.session_transaction() as sess:
+            sess["user_id"] = user["id"]
+            sess["username"] = user["username"]
+            sess["role"] = user["role"]
+
+        home_img_path = PROJECT_ROOT / "data" / "test_representative_home_defects" / "01_wall_crack_zenodo_022.jpg"
+        if not home_img_path.exists():
+            pytest.skip(f"Home defect image {home_img_path} not found")
+
+        with open(home_img_path, "rb") as f:
+            img_bytes = f.read()
+
+        res = client.post(
+            "/api/inspect",
+            data={
+                "image": (io.BytesIO(img_bytes), home_img_path.name),
+                "domain": "home",
+                "confidence_threshold": "0.15",
+                "inspection_mode": "standard",
+            },
+            content_type="multipart/form-data"
+        )
+        assert res.status_code == 200
+        data = res.get_json()
+        assert data["status"] == "success"
+        assert data["domain"] == "home"
+        assert data["defect_count"] > 0
+        assert len(data["detections"]) > 0
+
+        first_det = data["detections"][0]
+        assert "wall_crack" in first_det["class_name"].lower() or "wall crack" in first_det["distress_category"].lower()
+
+    def test_inspect_confidence_alias_parameter_handling(self, app_and_client, test_db_path):
+        """Verifies that request parameter normalization accepts 'confidence' as well as 'confidence_threshold'."""
+        _, client = app_and_client
+        user = create_user("test_alias_citizen", "Password123!", role=ROLE_CITIZEN, db_path=test_db_path)
+        with client.session_transaction() as sess:
+            sess["user_id"] = user["id"]
+            sess["username"] = user["username"]
+            sess["role"] = user["role"]
+
+        sound_road_path = PROJECT_ROOT / "data" / "sample_road.jpg"
+        with open(sound_road_path, "rb") as f:
+            img_bytes = f.read()
+
+        # Pass 'confidence' instead of 'confidence_threshold'
+        res = client.post(
+            "/api/inspect",
+            data={
+                "image": (io.BytesIO(img_bytes), "sample_road.jpg"),
+                "domain": "road",
+                "confidence": "0.18",
+            },
+            content_type="multipart/form-data"
+        )
+        assert res.status_code == 200
+        data = res.get_json()
+        assert data["confidence_threshold"] == 0.18

@@ -927,7 +927,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function syncSliderDisplay() {
         if (isInspecting) return;
         const val = parseFloat(confSlider.value);
-        confValDisplay.textContent = isNaN(val) ? "0.25" : val.toFixed(2);
+        confValDisplay.textContent = isNaN(val) ? "0.15" : val.toFixed(2);
     }
     // Synchronize immediately on page load in case browser restored previous input state
     syncSliderDisplay();
@@ -946,7 +946,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const thisRequestId = ++activeInspectionRequestId;
         setInspectionFormLocked(true);
 
-        const activeThreshold = parseFloat(confSlider.value) || 0.25;
+        const activeThreshold = parseFloat(confSlider.value) || 0.15;
         const modeRadio = document.querySelector('input[name="inspectionMode"]:checked');
         const activeMode = modeRadio ? modeRadio.value : "standard";
 
@@ -1240,7 +1240,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const defectCount = detections.length;
         const usedThreshold = (typeof data.confidence_threshold === "number")
             ? data.confidence_threshold.toFixed(2)
-            : (parseFloat(confSlider.value) || 0.25).toFixed(2);
+            : (parseFloat(confSlider.value) || 0.15).toFixed(2);
 
         resultsCountBadge.textContent = `${defectCount} Defect${defectCount === 1 ? "" : "s"} Detected (Threshold ≥ ${usedThreshold})`;
         resultsCountBadge.className = defectCount > 0 ? "badge badge-warning" : "badge badge-success";
@@ -1293,6 +1293,26 @@ document.addEventListener("DOMContentLoaded", () => {
                     citizenFindingsBadge.className = "badge badge-success";
                 }
 
+                const cand = data.candidate_summary;
+                const hasSubtleDistress = cand && cand.suggested_threshold && cand.suggested_threshold < parseFloat(usedThreshold);
+
+                let subtleNoticeHtml = "";
+                if (hasSubtleDistress) {
+                    subtleNoticeHtml = `
+                        <div style="margin: 0.75rem 0 1rem 0; padding: 0.85rem; background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.35); border-radius: 8px; text-align: left;">
+                            <strong style="color: #60a5fa; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.3rem;">
+                                <span>💡</span> Subtle Distress Detected Below Sensitivity
+                            </strong>
+                            <p style="font-size: 0.88rem; color: var(--text-secondary); margin: 0.25rem 0 0.65rem 0; line-height: 1.4;">
+                                A faint distress pattern was recognized. Run deep high-resolution analysis to inspect for hairline fissures or subtle surface wear.
+                            </p>
+                            <button type="button" class="btn btn-secondary btn-sm" id="btnCitizenDeepAnalysis">
+                                🔬 Run Deep Analysis (${(cand.suggested_threshold * 100).toFixed(0)}% sensitivity)
+                            </button>
+                        </div>
+                    `;
+                }
+
                 citizenFindingsSummary.innerHTML = `
                     <div class="citizen-zero-defects-box">
                         <div class="citizen-zero-defects-title">
@@ -1301,6 +1321,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         <p class="citizen-zero-defects-guidance">
                             Our AI did not detect significant potholes, cracks, or surface distress in this photo. If a defect is present, it may be due to lighting, angle, or distance.
                         </p>
+                        ${subtleNoticeHtml}
                         <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
                             <strong>Tips for a better photo:</strong> Stand 1–2 meters away, hold the camera steady in clear daylight, and avoid heavy shadows or glare.
                         </div>
@@ -1311,6 +1332,17 @@ document.addEventListener("DOMContentLoaded", () => {
                         </div>
                     </div>
                 `;
+
+                const btnCitizenDeep = document.getElementById("btnCitizenDeepAnalysis");
+                if (btnCitizenDeep && cand && cand.suggested_threshold) {
+                    btnCitizenDeep.addEventListener("click", () => {
+                        confSlider.value = cand.suggested_threshold.toFixed(2);
+                        syncSliderDisplay();
+                        const tiledRadio = document.querySelector('input[name="inspectionMode"][value="tiled"]');
+                        if (tiledRadio) tiledRadio.checked = true;
+                        inspectBtn.click();
+                    });
+                }
 
                 const btnRetry = document.getElementById("btnRetryPhoto");
                 if (btnRetry) {
