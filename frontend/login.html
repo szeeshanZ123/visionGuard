@@ -3,6 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="csrf-token" content="{{ csrf_token or '' }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VisionGuard AI — Authentication &amp; Citizen Access</title>
     <!-- Google Fonts: Inter / Manrope -->
@@ -14,6 +15,12 @@
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
+        function getCsrfToken() {
+            return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+                || sessionStorage.getItem('vg_csrf_token')
+                || '';
+        }
+
         tailwind.config = {
             theme: {
                 extend: {
@@ -54,22 +61,59 @@
         document.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
             const tab = urlParams.get('tab') || urlParams.get('mode');
-            if (tab === 'signin' || tab === 'login') {
-                switchTab('signin');
-            } else if (tab === 'register' || tab === 'signup') {
+            if (tab === 'register' || tab === 'signup') {
                 switchTab('register');
+            } else {
+                // Default to sign-in tab for cleaner return UX
+                switchTab('signin');
             }
 
             fetch('/api/auth/status')
                 .then(r => r.json())
                 .then(data => {
+                    if (data && data.csrf_token) {
+                        try { sessionStorage.setItem('vg_csrf_token', data.csrf_token); } catch (e) {}
+                        const meta = document.querySelector('meta[name="csrf-token"]');
+                        if (meta) meta.setAttribute('content', data.csrf_token);
+                    }
                     if (data && data.authenticated && data.user) {
-                        showAlert(
-                            'info',
-                            'Active Session',
-                            'Signed in as ' + data.user.username + ' (' + (data.user.role || 'citizen') + '). '
-                            + '<a href="/create_home" class="font-bold underline ml-1">Go to Inspection Studio &rarr;</a>'
-                        );
+                        const container = document.createElement('div');
+                        container.className = 'flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full';
+
+                        const infoSpan = document.createElement('span');
+                        infoSpan.textContent = `Signed in as ${data.user.username} (${(data.user.role || 'citizen').toUpperCase()}).`;
+
+                        const btnGroup = document.createElement('div');
+                        btnGroup.className = 'flex items-center gap-2 flex-wrap';
+
+                        const isStaff = (data.user.role === 'admin' || data.user.role === 'inspector' || data.user.role === 'maintenance');
+                        const targetUrl = isStaff ? '/app' : '/create_home';
+                        const targetLabel = isStaff ? 'Municipal Dashboard →' : 'Inspection Studio →';
+
+                        const goBtn = document.createElement('a');
+                        goBtn.href = targetUrl;
+                        goBtn.className = 'inline-flex items-center px-3.5 py-1.5 rounded-full bg-vgBlue text-white text-xs font-semibold hover:bg-blue-700 transition shadow-sm';
+                        goBtn.textContent = targetLabel;
+                        btnGroup.appendChild(goBtn);
+
+                        const logoutBtn = document.createElement('button');
+                        logoutBtn.type = 'button';
+                        logoutBtn.className = 'inline-flex items-center px-3.5 py-1.5 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold transition';
+                        logoutBtn.textContent = 'Sign Out';
+                        logoutBtn.onclick = async () => {
+                            await fetch('/api/auth/logout', {
+                                method: 'POST',
+                                headers: { 'X-CSRF-Token': getCsrfToken() }
+                            });
+                            sessionStorage.removeItem('vg_csrf_token');
+                            window.location.reload();
+                        };
+                        btnGroup.appendChild(logoutBtn);
+
+                        container.appendChild(infoSpan);
+                        container.appendChild(btnGroup);
+
+                        showAlert('info', 'Active Session', container);
                     }
                 })
                 .catch(() => {});
@@ -709,12 +753,17 @@
             // Trigger Loading State
             setSignInLoading(true);
 
+            const csrfTok = getCsrfToken();
             fetch('/api/auth/login', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(csrfTok ? { 'X-CSRF-Token': csrfTok } : {})
+                },
                 body: JSON.stringify({
                     username: usernameInput.value.trim(),
-                    password: passwordInput.value
+                    password: passwordInput.value,
+                    csrf_token: csrfTok
                 })
             })
             .then(async (res) => {
@@ -729,8 +778,12 @@
                         'Authentication Successful',
                         'Welcome back, ' + (data.user?.username || usernameInput.value.trim()) + '. Redirecting to Inspection Studio...'
                     );
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const isStaff = (data.user?.role === 'admin' || data.user?.role === 'inspector' || data.user?.role === 'maintenance');
+                    const defaultDestination = isStaff ? '/app' : '/create_home';
+                    const targetDest = urlParams.get('return') || urlParams.get('next') || defaultDestination;
                     setTimeout(() => {
-                        window.location.href = '/create_home';
+                        window.location.href = targetDest;
                     }, 800);
                 } else {
                     showAlert(
@@ -799,12 +852,17 @@
 
             setRegisterLoading(true);
 
+            const csrfTok = getCsrfToken();
             fetch('/api/auth/register', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(csrfTok ? { 'X-CSRF-Token': csrfTok } : {})
+                },
                 body: JSON.stringify({
                     username: user.value.trim(),
-                    password: pass.value
+                    password: pass.value,
+                    csrf_token: csrfTok
                 })
             })
             .then(async (res) => {
@@ -819,8 +877,10 @@
                         'Citizen Account Created',
                         'Your citizen account has been created. Redirecting to Inspection Studio...'
                     );
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const targetDest = urlParams.get('return') || urlParams.get('next') || '/create_home';
                     setTimeout(() => {
-                        window.location.href = '/create_home';
+                        window.location.href = targetDest;
                     }, 800);
                 } else {
                     showAlert(
@@ -894,7 +954,12 @@
             }
 
             titleElem.textContent = title;
-            msgElem.textContent = message;
+            msgElem.replaceChildren();
+            if (typeof message === 'string') {
+                msgElem.textContent = message;
+            } else if (message instanceof Node) {
+                msgElem.appendChild(message);
+            }
         }
 
         function dismissAlert() {
@@ -933,30 +998,7 @@
             showAlert('info', 'Inspector Access', 'Municipal and DoT field inspectors are provisioned through county GIS supervisors. Call extension 408-INFRA-OPS.');
         }
 
-        // On Page Load: Handle URL query params and check session
-        document.addEventListener('DOMContentLoaded', () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const tab = urlParams.get('tab') || urlParams.get('mode');
-            if (tab === 'signin' || tab === 'login') {
-                switchTab('signin');
-            } else if (tab === 'register' || tab === 'signup') {
-                switchTab('register');
-            }
 
-            fetch('/api/auth/status')
-                .then(r => r.json())
-                .then(data => {
-                    if (data && data.authenticated && data.user) {
-                        showAlert(
-                            'info',
-                            'Active Session',
-                            'Signed in as ' + data.user.username + ' (' + (data.user.role || 'citizen') + '). '
-                            + '<a href="/create_home" class="font-bold underline ml-1">Go to Inspection Studio &rarr;</a>'
-                        );
-                    }
-                })
-                .catch(() => {});
-        });
     </script>
 
 

@@ -4,6 +4,7 @@
 
 <head>
     <meta charset="utf-8" />
+    <meta name="csrf-token" content="{{ csrf_token or '' }}">
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <meta content="web_standard" name="shell-type" />
     <title>VisionGuard AI</title>
@@ -577,6 +578,12 @@
             </div>
         </div>
         <script>
+function getCsrfToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+        || sessionStorage.getItem('vg_csrf_token')
+        || '';
+}
+
 let activeWorkflow = 'building';
 let activeMode = 'standard';
 let selectedFile = null;
@@ -738,6 +745,9 @@ function dismissStudioAlert() {
     if (box) box.classList.add('hidden');
 }
 
+let inspectionTimer1 = null;
+let inspectionTimer2 = null;
+
 function triggerInspection() {
     if (!selectedFile) {
         showStudioAlert('error', 'Photograph Required', 'Please select or capture an image of the distress surface before running inference.');
@@ -750,30 +760,87 @@ function triggerInspection() {
     dismissStudioAlert();
     const btn = document.getElementById('btn-run-inspection');
     const label = document.getElementById('cta-label');
-    const originalText = label.innerText;
+    const originalText = 'Run Defect Inspection';
 
     btn.disabled = true;
     btn.classList.add('opacity-90', 'cursor-wait');
-    label.innerText = 'Executing Neural Inference (YOLOv8)...';
+    label.innerText = 'Analyzing distress photo (YOLOv8)...';
 
+    clearTimeout(inspectionTimer1);
+    clearTimeout(inspectionTimer2);
+
+    inspectionTimer1 = setTimeout(() => {
+        if (btn.disabled) {
+            label.innerText = 'Warming up neural engine & scanning surface...';
+        }
+    }, 8000);
+
+    inspectionTimer2 = setTimeout(() => {
+        if (btn.disabled) {
+            label.innerText = 'Localizing defect distress & bounding boxes...';
+        }
+    }, 20000);
+
+    const csrfTok = getCsrfToken();
     const formData = new FormData();
     formData.append('image', selectedFile);
     formData.append('domain', activeWorkflow === 'building' ? 'home' : 'road');
     formData.append('inspection_mode', activeMode);
     formData.append('confidence_threshold', '0.25');
+    if (csrfTok) {
+        formData.append('csrf_token', csrfTok);
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
 
     fetch('/api/inspect', {
         method: 'POST',
-        body: formData
+        headers: csrfTok ? { 'X-CSRF-Token': csrfTok } : {},
+        body: formData,
+        signal: controller.signal
     })
     .then(async (res) => {
-        const data = await res.json().catch(() => ({}));
-        btn.disabled = false;
-        btn.classList.remove('opacity-90', 'cursor-wait');
-        label.innerText = 'Run Defect Inspection';
+        clearTimeout(timeoutId);
+        clearTimeout(inspectionTimer1);
+        clearTimeout(inspectionTimer2);
 
-        if (!res.ok || data.status !== 'success') {
-            showStudioAlert('error', 'Inspection Failed', data.message || 'An error occurred during defect analysis.');
+        let data = null;
+        try {
+            data = await res.json();
+        } catch (_) {}
+
+        if (!res.ok || !data || data.status !== 'success') {
+            let errorTitle = 'Inspection Failed';
+            let errorMsg = (data && data.message) ? data.message : `Server responded with HTTP ${res.status}.`;
+            if (res.status === 403 && (data?.error_code === 'CSRF_TOKEN_INVALID' || data?.message?.includes('CSRF'))) {
+                // Refresh CSRF token dynamically from status endpoint
+                try {
+                    const statusRes = await fetch('/api/auth/status');
+                    const statusData = await statusRes.json();
+                    if (statusData.csrf_token) {
+                        sessionStorage.setItem('vg_csrf_token', statusData.csrf_token);
+                        const m = document.querySelector('meta[name="csrf-token"]');
+                        if (m) m.setAttribute('content', statusData.csrf_token);
+                    }
+                } catch (_) {}
+                errorTitle = 'Session Refreshed';
+                errorMsg = 'Security token updated. Please click Run Defect Inspection again.';
+            } else if (res.status === 401) {
+                errorTitle = 'Authentication Required';
+                errorMsg = 'Please sign in to run defect inspections.';
+                setTimeout(() => { window.location.href = '/login?return=/create_home'; }, 1500);
+            } else if (res.status === 413) {
+                errorTitle = 'Image Too Large';
+                errorMsg = 'Photograph exceeds the 15 MB limit. Please select a compressed or smaller image.';
+            } else if (res.status === 503) {
+                errorTitle = 'Server Busy / Warming Up';
+                errorMsg = data?.message || 'VisionGuard AI server is currently busy or warming up from standby. Please retry shortly.';
+            } else if (res.status === 504) {
+                errorTitle = 'Inference Timeout';
+                errorMsg = 'Neural inference took longer than expected. Please retry with standard mode.';
+            }
+            showStudioAlert('error', errorTitle, errorMsg);
             return;
         }
 
@@ -781,10 +848,21 @@ function triggerInspection() {
         renderInspectionResults(data);
     })
     .catch((err) => {
+        clearTimeout(timeoutId);
+        clearTimeout(inspectionTimer1);
+        clearTimeout(inspectionTimer2);
+        if (err.name === 'AbortError') {
+            showStudioAlert('error', 'Inspection Timed Out', 'Analysis took longer than 60 seconds. The server may be waking up from cold standby. Please retry.');
+        } else {
+            showStudioAlert('error', 'Network Failure', `Unable to reach inspection server: ${err.message || 'Connection lost'}. Please verify backend status.`);
+        }
+    })
+    .finally(() => {
+        clearTimeout(inspectionTimer1);
+        clearTimeout(inspectionTimer2);
         btn.disabled = false;
         btn.classList.remove('opacity-90', 'cursor-wait');
-        label.innerText = 'Run Defect Inspection';
-        showStudioAlert('error', 'Network Failure', 'Unable to reach the inspection endpoint. Please verify server connectivity.');
+        label.innerText = originalText;
     });
 }
 
@@ -795,7 +873,9 @@ function renderInspectionResults(data) {
     // Visual overlay
     const imgElem = document.getElementById('result-annotated-image');
     if (data.annotated_image) {
-        imgElem.src = 'data:image/jpeg;base64,' + data.annotated_image;
+        imgElem.src = data.annotated_image.startsWith('data:')
+            ? data.annotated_image
+            : 'data:image/jpeg;base64,' + data.annotated_image;
     } else if (data.processed_file_path) {
         imgElem.src = data.processed_file_path;
     } else {
@@ -866,6 +946,7 @@ function saveCurrentInspection() {
 
     const roadName = building ? (building + (area ? ` - ${area}` : '')) : (area || 'Municipal Asset');
 
+    const csrfTok = getCsrfToken();
     const payload = {
         image_name: lastInspectionResult.filename || (selectedFile ? selectedFile.name : 'inspection.jpg'),
         domain: activeWorkflow === 'building' ? 'home' : 'road',
@@ -879,12 +960,16 @@ function saveCurrentInspection() {
         detections: lastInspectionResult.detections || [],
         original_image_path: lastInspectionResult.original_file_path || '',
         annotated_image_path: lastInspectionResult.processed_file_path || '',
-        status: 'Open'
+        status: 'Open',
+        csrf_token: csrfTok
     };
 
     fetch('/api/inspections', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            'Content-Type': 'application/json',
+            ...(csrfTok ? { 'X-CSRF-Token': csrfTok } : {})
+        },
         body: JSON.stringify(payload)
     })
     .then(async (res) => {
@@ -934,15 +1019,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }, false);
     }
 
-    // Populate user profile if signed in
+    // Populate user profile & sync CSRF token
     fetch('/api/auth/status')
         .then(r => r.json())
         .then(data => {
+            if (data && data.csrf_token) {
+                try { sessionStorage.setItem('vg_csrf_token', data.csrf_token); } catch (e) {}
+                const m = document.querySelector('meta[name="csrf-token"]');
+                if (m) m.setAttribute('content', data.csrf_token);
+            }
             if (data && data.authenticated && data.user) {
                 const nameEl = document.getElementById('nav-username');
                 const roleEl = document.getElementById('nav-role');
+                const avatarEl = document.getElementById('nav-user-avatar');
                 if (nameEl) nameEl.innerText = data.user.username;
-                if (roleEl) roleEl.innerText = data.user.role.toUpperCase();
+                if (roleEl) roleEl.innerText = (data.user.role || 'citizen').toUpperCase();
+                if (avatarEl) {
+                    const isStaff = (data.user.role === 'admin' || data.user.role === 'inspector' || data.user.role === 'maintenance');
+                    avatarEl.href = isStaff ? '/app' : '/report';
+                    avatarEl.title = `${data.user.username} (${data.user.role}) - Click for ${isStaff ? 'Operations Dashboard' : 'My Reports'}`;
+                }
+            } else {
+                const nameEl = document.getElementById('nav-username');
+                const roleEl = document.getElementById('nav-role');
+                const avatarEl = document.getElementById('nav-user-avatar');
+                if (nameEl) nameEl.innerText = 'Guest';
+                if (roleEl) roleEl.innerText = 'Sign In';
+                if (avatarEl) avatarEl.href = '/login?return=/create_home';
             }
         })
         .catch(() => {});
