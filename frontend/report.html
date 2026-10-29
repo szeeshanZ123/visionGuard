@@ -39,7 +39,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex flex-wrap lg:flex-nowrap items-center justify-between gap-3 sm:gap-4 py-3 sm:py-3.5">
                 <!-- Logo & Branding -->
-                <div class="flex items-center gap-3 shrink-0">
+                <a href="/" class="flex items-center gap-3 shrink-0 hover:opacity-95 transition-opacity">
                     <div
                         class="flex items-center justify-center w-10 h-10 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 shadow-sm">
                         <span class="material-symbols-outlined text-[24px]">shield</span>
@@ -53,7 +53,7 @@
                         </div>
                         <p class="text-xs text-slate-500 font-medium">Infrastructure Inspection</p>
                     </div>
-                </div>
+                </a>
                 <!-- Global Search Bar (Responsive & Fluid) -->
                 <div class="order-3 lg:order-2 w-full lg:max-w-md xl:max-w-lg">
                     <div class="relative flex items-center w-full">
@@ -66,12 +66,11 @@
                 </div>
                 <!-- Right Side Actions & Profile -->
                 <div class="order-2 lg:order-3 flex items-center gap-2 sm:gap-3 shrink-0 ml-auto lg:ml-0">
-                    <button
-                        class="inline-flex items-center gap-1.5 px-3.5 sm:px-4 h-10 bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs sm:text-sm rounded-full shadow-sm shadow-blue-500/20 active:scale-[0.98] transition-all"
-                        type="button">
+                    <a href="/create_home"
+                        class="inline-flex items-center gap-1.5 px-3.5 sm:px-4 h-10 bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs sm:text-sm rounded-full shadow-sm shadow-blue-500/20 active:scale-[0.98] transition-all">
                         <span class="material-symbols-outlined text-[18px]">add</span>
                         <span class="font-semibold">+ New Report</span>
-                    </button>
+                    </a>
                     <button
                         class="w-10 h-10 rounded-full bg-white hover:bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-colors"
                         title="Help &amp; Documentation" type="button">
@@ -79,13 +78,13 @@
                     </button>
                     <div class="flex items-center gap-2.5 pl-1 sm:pl-2 border-l border-slate-200">
                         <div class="text-right hidden sm:block">
-                            <div class="text-xs font-semibold text-slate-900 leading-tight">Harsh</div>
-                            <div class="text-[11px] text-slate-500 leading-tight">Citizen Auditor</div>
+                            <div id="report-username" class="text-xs font-semibold text-slate-900 leading-tight">Citizen Auditor</div>
+                            <div id="report-role" class="text-[11px] text-slate-500 leading-tight">Municipal Portal</div>
                         </div>
-                        <div
-                            class="w-9 h-9 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-700 shadow-sm font-semibold text-xs">
+                        <a href="/login" id="report-user-avatar"
+                            class="w-9 h-9 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-700 shadow-sm font-semibold text-xs hover:bg-blue-200 transition-colors" title="Account Status">
                             <span class="material-symbols-outlined text-[20px]">person</span>
-                        </div>
+                        </a>
                     </div>
                 </div>
             </div>
@@ -97,21 +96,21 @@
                     data-active-classes="text-blue-600 font-semibold border-b-2 border-blue-600">
                     <a aria-current="page"
                         class="text-blue-600 font-semibold text-xs sm:text-sm border-b-2 border-blue-600 pb-1.5 pt-1 -mb-[3px] transition-colors flex items-center gap-1.5"
-                        data-path="inspection-records" href="#">
+                        href="/report">
                         <span class="material-symbols-outlined text-[17px]">inventory_2</span>
                         <span>Inspection Records</span>
                     </a>
                     <span class="text-slate-200 text-xs">/</span>
                     <a class="text-slate-500 hover:text-slate-900 font-medium text-xs sm:text-sm pb-1.5 pt-1 transition-colors flex items-center gap-1.5"
-                        data-path="work-orders" href="#">
-                        <span class="material-symbols-outlined text-[17px]">assignment</span>
-                        <span>Work Orders</span>
+                        href="/map">
+                        <span class="material-symbols-outlined text-[17px]">map</span>
+                        <span>Defect Map</span>
                     </a>
                     <span class="text-slate-200 text-xs">/</span>
                     <a class="text-slate-500 hover:text-slate-900 font-medium text-xs sm:text-sm pb-1.5 pt-1 transition-colors flex items-center gap-1.5"
-                        data-path="asset-telemetry" href="#">
+                        href="/create_home">
                         <span class="material-symbols-outlined text-[17px]">sensors</span>
-                        <span>Asset Telemetry</span>
+                        <span>New Inspection</span>
                     </a>
                 </nav>
                 <div class="hidden sm:flex items-center gap-2 pl-4 shrink-0">
@@ -127,7 +126,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
             <!-- 1. Breadcrumb -->
             <nav aria-label="Breadcrumb" class="flex items-center text-xs font-medium text-slate-500 space-x-2">
-                <a class="hover:text-blue-600 transition-colors flex items-center gap-1" href="#">
+                <a class="hover:text-blue-600 transition-colors flex items-center gap-1" href="/">
                     <span class="material-symbols-outlined text-[16px]">home</span>
                     <span>Home</span>
                 </a>
@@ -184,7 +183,7 @@
                             </span>
                         </div>
                         <div class="mt-4 flex items-baseline gap-2">
-                            <span class="text-3xl font-extrabold text-slate-900 tracking-tight">14</span>
+                            <span id="metric-total-count" class="text-3xl font-extrabold text-slate-900 tracking-tight">14</span>
                             <span class="text-xs text-slate-400 font-medium">records</span>
                         </div>
                         <div
@@ -204,7 +203,7 @@
                             </span>
                         </div>
                         <div class="mt-4 flex items-baseline gap-2">
-                            <span class="text-3xl font-extrabold text-slate-900 tracking-tight">3</span>
+                            <span id="metric-open-count" class="text-3xl font-extrabold text-slate-900 tracking-tight">3</span>
                             <span
                                 class="text-xs text-amber-700 bg-amber-50 border border-amber-200/50 px-2 py-0.5 rounded-full font-medium">Critical
                                 focus</span>
@@ -228,7 +227,7 @@
                             </span>
                         </div>
                         <div class="mt-4 flex items-baseline gap-2">
-                            <span class="text-3xl font-extrabold text-slate-900 tracking-tight">4</span>
+                            <span id="metric-review-count" class="text-3xl font-extrabold text-slate-900 tracking-tight">4</span>
                             <span class="text-xs text-slate-400 font-medium">in-flight</span>
                         </div>
                         <div class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
@@ -249,7 +248,7 @@
                             </span>
                         </div>
                         <div class="mt-4 flex items-baseline gap-2">
-                            <span class="text-3xl font-extrabold text-slate-900 tracking-tight">7</span>
+                            <span id="metric-resolved-count" class="text-3xl font-extrabold text-slate-900 tracking-tight">7</span>
                             <span
                                 class="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200/50 px-2 py-0.5 rounded-full font-medium">50.0%
                                 completion</span>
@@ -330,9 +329,7 @@
                     <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400" id="registry-heading">
                         Inspection Registry Table
                     </h2>
-                    <span class="text-xs text-slate-500 font-medium">
-                        Showing 7 of 14 total entries
-                    </span>
+                    <span id="table-entry-count" class="text-xs text-slate-500 font-medium">Loading inspection registry...</span>
                 </div>
                 <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
                     <!-- Responsive horizontal scroll wrapper -->
@@ -689,23 +686,32 @@
             const refreshBtn = document.getElementById('refreshBtn');
             const refreshIcon = document.getElementById('refreshIcon');
             const exportBtn = document.getElementById('exportBtn');
+            const tableCountSpan = document.getElementById('table-entry-count');
+
+            let allRowsData = [];
 
             function filterTable() {
                 const query = (searchInput.value || '').trim().toLowerCase();
-                const selectedDomain = domainSelect.value;
-                const selectedStatus = statusSelect.value;
+                const selectedDomain = domainSelect.value.toUpperCase();
+                const selectedStatus = statusSelect.value.toUpperCase();
 
                 const rows = tableBody.querySelectorAll('tr');
                 let visibleCount = 0;
 
                 rows.forEach(row => {
                     const rowText = (row.getAttribute('data-text') || '').toLowerCase();
-                    const rowDomain = row.getAttribute('data-domain');
-                    const rowStatus = row.getAttribute('data-status');
+                    const rowDomain = (row.getAttribute('data-domain') || '').toUpperCase();
+                    const rowStatus = (row.getAttribute('data-status') || '').toUpperCase();
 
                     const matchesQuery = !query || rowText.includes(query);
                     const matchesDomain = selectedDomain === 'ALL' || rowDomain === selectedDomain;
-                    const matchesStatus = selectedStatus === 'ALL' || rowStatus === selectedStatus;
+                    
+                    let matchesStatus = (selectedStatus === 'ALL');
+                    if (!matchesStatus) {
+                        if (selectedStatus === 'OPEN' && (rowStatus === 'OPEN' || rowStatus === 'ACTION REQUIRED')) matchesStatus = true;
+                        else if (selectedStatus === 'REVIEW' && (rowStatus === 'REVIEW' || rowStatus === 'UNDER REVIEW' || rowStatus === 'IN PROGRESS' || rowStatus === 'ASSIGNED')) matchesStatus = true;
+                        else if (selectedStatus === 'RESOLVED' && rowStatus === 'RESOLVED') matchesStatus = true;
+                    }
 
                     if (matchesQuery && matchesDomain && matchesStatus) {
                         row.style.display = '';
@@ -716,15 +722,23 @@
                 });
 
                 if (visibleCount === 0) {
-                    tableBody.parentElement.style.display = 'none';
-                    emptyState.classList.remove('hidden');
-                    emptyState.classList.add('flex');
-                    visibleRange.textContent = '0–0';
+                    if (tableBody.parentElement) tableBody.parentElement.style.display = 'none';
+                    if (emptyState) {
+                        emptyState.classList.remove('hidden');
+                        emptyState.classList.add('flex');
+                    }
+                    if (visibleRange) visibleRange.textContent = '0–0';
                 } else {
-                    tableBody.parentElement.style.display = '';
-                    emptyState.classList.add('hidden');
-                    emptyState.classList.remove('flex');
-                    visibleRange.textContent = `1–${visibleCount}`;
+                    if (tableBody.parentElement) tableBody.parentElement.style.display = '';
+                    if (emptyState) {
+                        emptyState.classList.add('hidden');
+                        emptyState.classList.remove('flex');
+                    }
+                    if (visibleRange) visibleRange.textContent = `1–${visibleCount}`;
+                }
+
+                if (tableCountSpan) {
+                    tableCountSpan.textContent = `Showing ${visibleCount} of ${rows.length} total entries`;
                 }
             }
 
@@ -739,27 +753,213 @@
             domainSelect.addEventListener('change', filterTable);
             statusSelect.addEventListener('change', filterTable);
             resetBtn.addEventListener('click', resetAll);
-            clearFiltersBtn.addEventListener('click', resetAll);
+            if (clearFiltersBtn) clearFiltersBtn.addEventListener('click', resetAll);
 
-            // Refresh micro-interaction
+            // Fetch live inspection records from backend
+            async function loadLiveInspections() {
+                try {
+                    const res = await fetch('/api/inspections?limit=100');
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    if (data.status === 'success' && data.inspections && data.inspections.length > 0) {
+                        renderTableRows(data.inspections);
+                        updateMetricCardsFromData(data.inspections);
+                    }
+                } catch (e) {
+                    console.warn('Error loading live inspections:', e);
+                }
+            }
+
+            async function loadStats() {
+                try {
+                    const res = await fetch('/api/dashboard/stats');
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    if (data.status === 'success' && data.stats) {
+                        const s = data.stats;
+                        if (s.total_records !== undefined) document.getElementById('metric-total-count').innerText = s.total_records;
+                        if (s.open_records !== undefined) document.getElementById('metric-open-count').innerText = s.open_records;
+                        if (s.in_progress_records !== undefined) document.getElementById('metric-review-count').innerText = s.in_progress_records;
+                        if (s.resolved_records !== undefined) document.getElementById('metric-resolved-count').innerText = s.resolved_records;
+                    }
+                } catch (e) {}
+            }
+
+            function updateMetricCardsFromData(inspections) {
+                const total = inspections.length;
+                let openCount = 0;
+                let reviewCount = 0;
+                let resolvedCount = 0;
+
+                inspections.forEach(item => {
+                    const st = (item.status || '').toLowerCase();
+                    if (st === 'open') openCount++;
+                    else if (st === 'resolved') resolvedCount++;
+                    else reviewCount++;
+                });
+
+                document.getElementById('metric-total-count').innerText = total;
+                document.getElementById('metric-open-count').innerText = openCount;
+                document.getElementById('metric-review-count').innerText = reviewCount;
+                document.getElementById('metric-resolved-count').innerText = resolvedCount;
+            }
+
+            function renderTableRows(inspections) {
+                tableBody.innerHTML = '';
+                inspections.forEach((item, idx) => {
+                    const domain = (item.inspection_type || item.domain || 'road').toUpperCase();
+                    const status = (item.status || 'Open').toUpperCase();
+                    const defects = item.defect_count !== undefined ? item.defect_count : (item.detections ? item.detections.length : 0);
+                    
+                    const dateStr = item.created_at ? item.created_at.slice(0, 10) : '2025-10-24';
+                    const timeStr = item.created_at ? item.created_at.slice(11, 16) : '12:00';
+                    const location = item.road_name || item.area || 'Civil Asset Corridor';
+                    const city = item.city || 'Mumbai';
+
+                    let statusBadgeClass = 'bg-amber-100 text-amber-800';
+                    let statusDot = 'bg-amber-600';
+                    if (status === 'RESOLVED') {
+                        statusBadgeClass = 'bg-emerald-100 text-emerald-800';
+                        statusDot = 'bg-emerald-600';
+                    } else if (status === 'UNDER REVIEW' || status === 'REVIEW' || status === 'IN PROGRESS' || status === 'ASSIGNED') {
+                        statusBadgeClass = 'bg-blue-100 text-blue-800';
+                        statusDot = 'bg-blue-600';
+                    }
+
+                    const row = document.createElement('tr');
+                    row.className = 'hover:bg-slate-50/80 transition-colors group';
+                    row.setAttribute('data-domain', domain === 'HOME' ? 'BUILDING' : domain);
+                    row.setAttribute('data-status', status);
+                    row.setAttribute('data-text', `${location} ${city} ${item.id} ${domain} ${status}`);
+
+                    row.innerHTML = `
+                        <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap font-medium text-slate-800">
+                            ${dateStr} <span class="text-slate-400">•</span> ${timeStr}
+                        </td>
+                        <td class="py-3.5 px-4 lg:px-5 font-semibold text-slate-900">
+                            ${location}, ${city}
+                            <span class="block text-[11px] font-normal text-slate-400">Record #VG-${item.id} • Lat: ${parseFloat(item.latitude || 19.076).toFixed(4)}, Lng: ${parseFloat(item.longitude || 72.877).toFixed(4)}</span>
+                        </td>
+                        <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold ${defects > 0 ? 'bg-rose-50 text-rose-700 border border-rose-100' : 'bg-emerald-50 text-emerald-700 border border-emerald-100'}">
+                                ${defects} defect${defects === 1 ? '' : 's'}
+                            </span>
+                        </td>
+                        <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap">
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold ${domain === 'HOME' || domain === 'BUILDING' ? 'bg-indigo-50 text-indigo-800 border border-indigo-200/50' : 'bg-amber-50 text-amber-800 border border-amber-200/50'}">
+                                <span class="material-symbols-outlined text-[13px]">${domain === 'HOME' || domain === 'BUILDING' ? 'domain' : 'add_road'}</span>
+                                ${domain === 'HOME' || domain === 'BUILDING' ? 'Building Defect' : 'Road Surface Distress'}
+                            </span>
+                        </td>
+                        <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap text-slate-500 font-mono text-[11px]">
+                            ${item.inspection_mode || 'Standard (Fast)'}
+                        </td>
+                        <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap text-right">
+                            <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-semibold ${statusBadgeClass}">
+                                <span class="w-1.5 h-1.5 rounded-full ${statusDot}"></span>
+                                ${item.status || 'Open'}
+                            </span>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+
+                filterTable();
+            }
+
+            // Refresh interaction
             refreshBtn.addEventListener('click', () => {
                 refreshIcon.classList.add('animate-spin');
                 refreshBtn.setAttribute('disabled', 'true');
-                setTimeout(() => {
-                    refreshIcon.classList.remove('animate-spin');
-                    refreshBtn.removeAttribute('disabled');
-                }, 650);
+                Promise.all([loadLiveInspections(), loadStats()]).finally(() => {
+                    setTimeout(() => {
+                        refreshIcon.classList.remove('animate-spin');
+                        refreshBtn.removeAttribute('disabled');
+                    }, 500);
+                });
             });
 
-            // Export CSV Feedback
-            exportBtn.addEventListener('click', () => {
+            // Export CSV Download Trigger
+            exportBtn.addEventListener('click', async () => {
                 const spanText = exportBtn.querySelector('span:last-child');
                 const originalText = spanText.textContent;
-                spanText.textContent = 'Exported!';
+                spanText.textContent = 'Generating CSV...';
+                
+                try {
+                    const res = await fetch('/api/reports/export/csv');
+                    if (res.ok) {
+                        const blob = await res.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `visionguard_inspections_${Date.now()}.csv`;
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        window.URL.revokeObjectURL(url);
+                        spanText.textContent = 'Downloaded ✓';
+                    } else if (res.status === 403) {
+                        spanText.textContent = 'Restricted';
+                        alert('Full municipal fleet export requires Inspector or Authority credentials. Contact Municipal Dispatch.');
+                    } else {
+                        // Fallback client-side CSV generation from active table rows
+                        exportClientTableAsCsv();
+                        spanText.textContent = 'Downloaded ✓';
+                    }
+                } catch (e) {
+                    exportClientTableAsCsv();
+                    spanText.textContent = 'Downloaded ✓';
+                }
+
                 setTimeout(() => {
                     spanText.textContent = originalText;
-                }, 1500);
+                }, 2000);
             });
+
+            function exportClientTableAsCsv() {
+                const rows = tableBody.querySelectorAll('tr');
+                let csv = 'Date,Time,Location,City,Defects,Domain,Mode,Status\n';
+                rows.forEach(r => {
+                    if (r.style.display !== 'none') {
+                        const cells = r.querySelectorAll('td');
+                        if (cells.length >= 6) {
+                            const date = cells[0].innerText.replace(/\n/g, ' ').replace(/,/g, '');
+                            const loc = cells[1].innerText.replace(/\n/g, ' ').replace(/,/g, ' ');
+                            const defects = cells[2].innerText.trim();
+                            const domain = cells[3].innerText.trim();
+                            const mode = cells[4].innerText.trim();
+                            const status = cells[5].innerText.trim();
+                            csv += `"${date}","","${loc}","Mumbai","${defects}","${domain}","${mode}","${status}"\n`;
+                        }
+                    }
+                });
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `visionguard_records_${Date.now()}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+            }
+
+            // Sync user auth status in header
+            fetch('/api/auth/status')
+                .then(r => r.json())
+                .then(data => {
+                    if (data && data.authenticated && data.user) {
+                        const nameEl = document.getElementById('report-username');
+                        const roleEl = document.getElementById('report-role');
+                        if (nameEl) nameEl.innerText = data.user.username;
+                        if (roleEl) roleEl.innerText = data.user.role.toUpperCase();
+                    }
+                })
+                .catch(() => {});
+
+            // Initialize
+            loadLiveInspections();
+            loadStats();
         })();
     </script>
 </body>
