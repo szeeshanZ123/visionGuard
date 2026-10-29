@@ -33,10 +33,19 @@ import threading
 import gc
 from functools import wraps
 
+import collections
+import copy
+import hashlib
+import base64
+
 # Process-level inference lock ensuring single-flight YOLO forward passes on CPU
 INFERENCE_LOCK = threading.Lock()
 # Process-level concurrency gate ensuring at most 1 heavy inspection is in-flight simultaneously
 INSPECTION_SEMAPHORE = threading.Semaphore(1)
+# Bounded thread-safe LRU cache for recent inspection results to eliminate duplicate inference
+INSPECTION_LRU_CACHE = collections.OrderedDict()
+INSPECTION_CACHE_LOCK = threading.Lock()
+MAX_INSPECTION_CACHE_SIZE = 32
 
 
 def make_json_safe(obj: Any) -> Any:
@@ -66,7 +75,7 @@ except Exception:
     cv2 = None
 from werkzeug.utils import secure_filename
 from werkzeug.exceptions import HTTPException
-from flask import Flask, request, jsonify, render_template, send_file, session
+from flask import Flask, request, jsonify, render_template, send_file, session, redirect
 
 from database.db import (
     init_db,
@@ -289,13 +298,18 @@ def create_app(
     if test_config and "detector" in test_config:
         app.detector = test_config["detector"]
     else:
-        app.detector = detector or DefectDetectionService(domain="road", lazy=True)
+        # For tests, default to lazy to keep test suite fast
+        # For live servers, pre-warm road detector so first citizen request executes in ~140ms
+        is_test = bool(test_config and test_config.get("TESTING"))
+        lazy_road = True if is_test else (os.environ.get("VISIONGUARD_LAZY_MODEL", "0") == "1")
+        app.detector = detector or DefectDetectionService(domain="road", lazy=lazy_road)
 
     app.road_detector = app.detector
 
     if test_config and "home_detector" in test_config:
         app.home_detector = test_config["home_detector"]
     else:
+        # Keep home detector on-demand lazy to stay within 512MB RAM budget
         app.home_detector = home_detector or DefectDetectionService(domain="home", lazy=True)
 
     # -------------------------------------------------------------------------
@@ -442,7 +456,7 @@ def create_app(
         if request.path in exempt_paths:
             return None
 
-        client_token = request.headers.get("X-CSRF-Token")
+        client_token = request.headers.get("X-CSRF-Token") or request.headers.get("X-CSRFToken")
         if not client_token:
             if request.is_json and isinstance(request.json, dict):
                 client_token = request.json.get("csrf_token")
@@ -617,6 +631,13 @@ def create_app(
     @app.route("/classic", methods=["GET"])
     def page_classic_app():
         """Serves the classic authority operations dashboard (SPA)."""
+        if is_auth_enforced():
+            curr_user = get_current_user_record()
+            if not curr_user:
+                return redirect("/login?return=/app")
+            if curr_user.get("role") == ROLE_CITIZEN:
+                # Citizens must not access internal administrative telemetry
+                return redirect("/report?restricted=1")
         return render_template("index.html", csrf_token=get_or_create_csrf_token())
 
     # -------------------------------------------------------------------------
@@ -1358,7 +1379,7 @@ def create_app(
         """
         t_req_start = time.perf_counter()
 
-        acquired = INSPECTION_SEMAPHORE.acquire(blocking=True, timeout=20.0)
+        acquired = INSPECTION_SEMAPHORE.acquire(blocking=True, timeout=30.0)
         if not acquired:
             return (
                 jsonify({
@@ -1522,6 +1543,22 @@ def create_app(
             inspection_mode = "standard"
         t_prep_ms = (time.perf_counter() - t_prep_start) * 1000
 
+        # Hash image raw bytes for deduplication and instant caching (active in non-testing environments)
+        img_hash = hashlib.sha256(raw_bytes).hexdigest()
+        cache_key = (img_hash, domain, inspection_mode, round(conf_thresh, 2))
+        if not app.config.get("TESTING"):
+            with INSPECTION_CACHE_LOCK:
+                if cache_key in INSPECTION_LRU_CACHE:
+                    cached_res = copy.deepcopy(INSPECTION_LRU_CACHE[cache_key])
+                    INSPECTION_LRU_CACHE.move_to_end(cache_key)
+                    cached_res["cached"] = True
+                    cached_res["timings"]["total_ms"] = round((time.perf_counter() - t_req_start) * 1000, 1)
+                    logger.info(
+                        "Serving cached inspection for '%s' [%s] in %.1fms (domain=%s, mode=%s, conf=%.2f)",
+                        filename, img_hash[:10], cached_res["timings"]["total_ms"], domain, inspection_mode, conf_thresh
+                    )
+                    return jsonify(cached_res), 200
+
         # 6. Execute genuine detection (serialized under lock to prevent peak memory stacking)
         t_inf_start = time.perf_counter()
         try:
@@ -1550,7 +1587,7 @@ def create_app(
             )
         t_inf_ms = (time.perf_counter() - t_inf_start) * 1000
 
-        # 7. Generate genuine visual overlay
+        # 7. Generate genuine visual overlay and single-pass JPEG encoding
         t_post_start = time.perf_counter()
         try:
             annotated_bgr = active_detector.draw_annotations(cv_img, detections, domain=domain)
@@ -1558,14 +1595,20 @@ def create_app(
             logger.warning(f"Failed to draw visual annotations: {e_draw}")
             annotated_bgr = cv_img.copy() if cv_img is not None else None
 
-        try:
-            annotated_b64 = active_detector.encode_image_to_base64(annotated_bgr) if annotated_bgr is not None else ""
-        except Exception as e_enc:
-            logger.warning(f"Failed to encode annotated image to base64: {e_enc}")
-            annotated_b64 = ""
+        annotated_b64 = ""
+        annotated_jpeg_bytes = None
+        if annotated_bgr is not None and cv2 is not None:
+            try:
+                success, buffer = cv2.imencode(".jpg", annotated_bgr, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                if success:
+                    annotated_jpeg_bytes = buffer.tobytes()
+                    annotated_b64 = f"data:image/jpeg;base64,{base64.b64encode(annotated_jpeg_bytes).decode('ascii')}"
+            except Exception as e_enc:
+                logger.warning(f"Failed to encode annotated image to base64: {e_enc}")
+                annotated_b64 = ""
         t_post_ms = (time.perf_counter() - t_post_start) * 1000
 
-        # 8. Persist images via configured storage backend
+        # 8. Persist images via configured storage backend using the single-pass JPEG buffer
         t_stor_start = time.perf_counter()
         orig_filename = f"orig_{uuid.uuid4().hex[:8]}_{filename}"
         orig_key = f"uploads/{orig_filename}"
@@ -1581,11 +1624,9 @@ def create_app(
         saved_filename = f"annotated_{uuid.uuid4().hex[:8]}_{filename}"
         saved_key = f"processed/{saved_filename}"
         saved_path = None
-        if storage is not None and annotated_bgr is not None and cv2 is not None:
+        if storage is not None and annotated_jpeg_bytes is not None:
             try:
-                success, buffer = cv2.imencode(".jpg", annotated_bgr, [cv2.IMWRITE_JPEG_QUALITY, 85])
-                if success:
-                    saved_path = storage.save(saved_key, buffer.tobytes(), content_type="image/jpeg")
+                saved_path = storage.save(saved_key, annotated_jpeg_bytes, content_type="image/jpeg")
             except Exception as e:
                 logger.warning(f"Failed to persist annotated image: {e}")
                 saved_path = None
@@ -1670,7 +1711,14 @@ def create_app(
             "safety_disclaimer": disclaimer,
         }
 
-        return jsonify(make_json_safe(response_payload)), 200
+        safe_payload = make_json_safe(response_payload)
+        if not app.config.get("TESTING"):
+            with INSPECTION_CACHE_LOCK:
+                if len(INSPECTION_LRU_CACHE) >= MAX_INSPECTION_CACHE_SIZE:
+                    INSPECTION_LRU_CACHE.popitem(last=False)
+                INSPECTION_LRU_CACHE[cache_key] = copy.deepcopy(safe_payload)
+
+        return jsonify(safe_payload), 200
 
     # -------------------------------------------------------------------------
     # Inspection Records API Routes
@@ -1742,19 +1790,21 @@ def create_app(
         my_reports = request.args.get("my_reports") or request.args.get("created_by_me")
         created_by_filter = None
         created_by_username_filter = None
-        if my_reports and my_reports.lower() in ["1", "true", "yes"] and curr_user:
-            created_by_filter = curr_user["id"]
-            created_by_username_filter = curr_user.get("username")
-        elif curr_user and curr_user.get("role") == ROLE_CITIZEN:
-            # If citizen is exploring the Defect Map (has_coords=true or all_civic=true) without my_reports,
-            # allow them to view all civic geotagged map records across the city.
-            if has_coords or request.args.get("all_civic") in ["1", "true", "yes"]:
+        is_map_query = bool(has_coords or request.args.get("all_civic") in ["1", "true", "yes"])
+
+        if curr_user and curr_user.get("role") == ROLE_CITIZEN:
+            # Citizens can only view civic geotagged pins for the map, or their own personal reports
+            if is_map_query:
+                # Defect Map exploration: allow geotagged records, but sanitize non-owned rows below
                 created_by_filter = None
                 created_by_username_filter = None
             else:
-                # By default, citizens viewing their personal records list see only their own reports
+                # On all list/table/record views, citizen is strictly locked to their own reports
                 created_by_filter = curr_user["id"]
                 created_by_username_filter = curr_user.get("username")
+        elif my_reports and my_reports.lower() in ["1", "true", "yes"] and curr_user:
+            created_by_filter = curr_user["id"]
+            created_by_username_filter = curr_user.get("username")
         elif request.args.get("created_by_user_id"):
             try:
                 created_by_filter = int(request.args.get("created_by_user_id"))
@@ -1798,6 +1848,19 @@ def create_app(
         for r in inspections:
             r["original_image_url"] = f"/api/inspections/{r['id']}/image/original"
             r["annotated_image_url"] = f"/api/inspections/{r['id']}/image/annotated"
+            # Privacy Guardrail: If citizen is viewing public map data, strip private citizen and internal dispatch data
+            if curr_user and curr_user.get("role") == ROLE_CITIZEN:
+                is_owner = check_citizen_inspection_access(r, curr_user, db_path=db_path)
+                if not is_owner:
+                    r["created_by_user_id"] = None
+                    r["created_by_username"] = "Citizen Report"
+                    r["assigned_to_user_id"] = None
+                    r["assigned_to_username"] = "Operations Team" if r.get("assigned_to_username") else None
+                    r["assigned_by_user_id"] = None
+                    r["assigned_by_username"] = None
+                    r["assignment_instructions"] = ""
+                    r["assignments"] = []
+                    r["notes"] = ""
 
         resp_data = {
             "status": "success",
