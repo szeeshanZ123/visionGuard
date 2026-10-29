@@ -4,6 +4,7 @@ timeout safeguards, timing telemetry, and JSON API error responses.
 """
 
 import io
+import os
 import time
 import cv2
 import numpy as np
@@ -23,6 +24,8 @@ def loaded_app_client(tmp_path):
         "AUTH_ENABLED": False,
         "ENFORCE_CSRF": False,
     })
+    # Warm up detector so benchmarks measure real inference latency rather than one-time cold PyTorch import
+    app.detector.load_model()
     with app.test_client() as client:
         yield client, app
 
@@ -193,3 +196,41 @@ class TestJsonApiErrorResponses:
         assert data["status"] == "error"
         assert data["error_code"] == "METHOD_NOT_ALLOWED"
 
+
+
+class TestHttp503ErrorContracts:
+    """Verifies that 503 error codes are clearly distinguished between overload and missing weights."""
+
+    def test_server_overloaded_does_not_contain_setup_instructions(self, tmp_path):
+        """Verifies SERVER_OVERLOADED returns 503 but does not masquerade as missing weights."""
+        test_db = str(tmp_path / "overload_test.db")
+        app = create_app(test_config={
+            "TESTING": True,
+            "DATABASE_PATH": test_db,
+            "AUTH_ENABLED": False,
+            "ENFORCE_CSRF": False,
+        })
+        with app.test_client() as client:
+            from unittest.mock import patch
+            from app.server import INSPECTION_SEMAPHORE
+            with patch.object(INSPECTION_SEMAPHORE, "acquire", return_value=False):
+                res = client.post(
+                    "/api/inspect",
+                    data={"image": (create_synthetic_image_stream(320, 240), "test.jpg"), "domain": "road"},
+                    content_type="multipart/form-data",
+                )
+                assert res.status_code == 503
+                data = res.get_json()
+                assert data["error_code"] == "SERVER_OVERLOADED"
+                assert "setup_instructions" not in data
+                assert "processing another inspection" in data["message"]
+
+    def test_frontend_handle_api_error_does_not_conflate_503(self):
+        """Verifies app.js handleApiError only triggers checkpoint banner on genuine missing weights."""
+        from storage.backend import PROJECT_ROOT
+        app_js_path = os.path.join(PROJECT_ROOT, "app", "static", "js", "app.js")
+        with open(app_js_path, "r", encoding="utf-8") as f:
+            js = f.read()
+        assert "const isWeightsMissing = Boolean" in js
+        assert 'data.error_code === "SERVER_OVERLOADED"' in js
+        assert 'Server Busy (HTTP 503)' in js

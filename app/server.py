@@ -1408,7 +1408,11 @@ def create_app(
             cv_img = cv2.resize(cv_img, (new_w, new_h), interpolation=cv2.INTER_AREA)
             logger.info("Resized high-res image from %dx%d to %dx%d for 512MB RAM budget", w, h, new_w, new_h)
 
-        conf_param = request.form.get("confidence_threshold", "0.25")
+        conf_param = (
+            request.form.get("confidence_threshold")
+            or request.form.get("confidence")
+            or "0.25"
+        )
         try:
             conf_thresh = float(conf_param)
             conf_thresh = max(0.05, min(0.95, conf_thresh))
