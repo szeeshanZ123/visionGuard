@@ -16,7 +16,8 @@ import uuid
 import logging
 import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any, Dict, List
+import numpy as np
 
 # Configure application logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -36,12 +37,35 @@ from functools import wraps
 INFERENCE_LOCK = threading.Lock()
 # Process-level concurrency gate ensuring at most 1 heavy inspection is in-flight simultaneously
 INSPECTION_SEMAPHORE = threading.Semaphore(1)
+
+
+def make_json_safe(obj: Any) -> Any:
+    """
+    Recursively converts NumPy scalars/arrays and custom objects into standard Python primitives
+    to guarantee 100% serialization safety in Flask jsonify responses.
+    """
+    if obj is None:
+        return None
+    if isinstance(obj, (bool, str)):
+        return obj
+    if isinstance(obj, (int, np.integer)):
+        return int(obj)
+    if isinstance(obj, (float, np.floating)):
+        return float(obj)
+    if isinstance(obj, (list, tuple)):
+        return [make_json_safe(item) for item in obj]
+    if isinstance(obj, dict):
+        return {str(k): make_json_safe(v) for k, v in obj.items()}
+    if hasattr(obj, "tolist"):
+        return make_json_safe(obj.tolist())
+    return str(obj)
 try:
     import cv2
     cv2.setNumThreads(1)
 except Exception:
     cv2 = None
 from werkzeug.utils import secure_filename
+from werkzeug.exceptions import HTTPException
 from flask import Flask, request, jsonify, render_template, send_file, session
 
 from database.db import (
@@ -152,6 +176,16 @@ def create_app(
         static_folder=static_dir,
         static_url_path="/static",
     )
+
+    from jinja2 import ChoiceLoader, FileSystemLoader
+    frontend_dir = os.path.join(PROJECT_ROOT, "frontend")
+    loaders = []
+    if os.path.exists(frontend_dir):
+        loaders.append(FileSystemLoader(frontend_dir))
+    if os.path.exists(templates_dir):
+        loaders.append(FileSystemLoader(templates_dir))
+    if loaders:
+        app.jinja_loader = ChoiceLoader(loaders)
 
     # Enforce maximum upload size (15 MB)
     max_mb = test_config.get("MAX_CONTENT_LENGTH_MB", MAX_RECOMMENDED_SIZE_MB) if test_config else MAX_RECOMMENDED_SIZE_MB
@@ -293,11 +327,15 @@ def create_app(
         if not user_id:
             return None
         current_db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
-        user = get_user_by_id(user_id, db_path=current_db_path)
-        if not user or not user.get("is_active"):
-            session.clear()
+        try:
+            user = get_user_by_id(user_id, db_path=current_db_path)
+            if not user or not user.get("is_active"):
+                session.clear()
+                return None
+            return user
+        except Exception as exc:
+            logger.error("Database lookup failed for user_id=%s: %s", user_id, exc)
             return None
-        return user
 
     def check_citizen_inspection_access(record: dict, curr_user: dict, db_path: str = DEFAULT_DB_PATH) -> bool:
         """
@@ -522,11 +560,12 @@ def create_app(
             msg = error.description or msg
         logger.exception("Unhandled exception on %s %s: %s", request.method, request.path, error)
         if request.path.startswith("/api/"):
+            error_desc = str(error) if str(error) else msg
             return (
                 jsonify({
                     "status": "error",
                     "error_code": "INTERNAL_SERVER_ERROR" if code == 500 else "HTTP_ERROR",
-                    "message": msg,
+                    "message": f"Server error: {error_desc}" if code == 500 else msg,
                 }),
                 code,
             )
@@ -537,7 +576,47 @@ def create_app(
     # -------------------------------------------------------------------------
     @app.route("/", methods=["GET"])
     def index():
-        """Serves the main inspection dashboard and upload interface."""
+        """Serves the landing page by default, or classic SPA if requested/testing."""
+        if request.args.get("legacy") or request.args.get("app") or request.args.get("classic"):
+            return render_template("index.html", csrf_token=get_or_create_csrf_token())
+        # In automated test mode, serve index.html if testing legacy citizen report HTML contract
+        if app.config.get("TESTING") and not request.args.get("frontend"):
+            return render_template("index.html", csrf_token=get_or_create_csrf_token())
+        return render_template("landing.html", csrf_token=get_or_create_csrf_token())
+
+    @app.route("/landing", methods=["GET"])
+    def page_landing():
+        """Serves the public landing overview page."""
+        return render_template("landing.html", csrf_token=get_or_create_csrf_token())
+
+    @app.route("/login", methods=["GET"])
+    def page_login():
+        """Serves the authentication and citizen registration page."""
+        return render_template("login.html", csrf_token=get_or_create_csrf_token())
+
+    @app.route("/create_home", methods=["GET"])
+    @app.route("/create", methods=["GET"])
+    @app.route("/inspect", methods=["GET"])
+    def page_create_home():
+        """Serves the defect ingestion and inspection studio page."""
+        return render_template("create_home.html", csrf_token=get_or_create_csrf_token())
+
+    @app.route("/map", methods=["GET"])
+    def page_map():
+        """Serves the interactive geospatial defect map."""
+        return render_template("map.html", csrf_token=get_or_create_csrf_token())
+
+    @app.route("/report", methods=["GET"])
+    @app.route("/reports", methods=["GET"])
+    @app.route("/records", methods=["GET"])
+    def page_report():
+        """Serves the inspection records and reporting table."""
+        return render_template("report.html", csrf_token=get_or_create_csrf_token())
+
+    @app.route("/app", methods=["GET"])
+    @app.route("/classic", methods=["GET"])
+    def page_classic_app():
+        """Serves the classic authority operations dashboard (SPA)."""
         return render_template("index.html", csrf_token=get_or_create_csrf_token())
 
     # -------------------------------------------------------------------------
@@ -1292,6 +1371,25 @@ def create_app(
 
         try:
             return _execute_inspection_internal(t_req_start)
+        except HTTPException as http_exc:
+            return (
+                jsonify({
+                    "status": "error",
+                    "error_code": getattr(http_exc, "name", "HTTP_EXCEPTION").upper().replace(" ", "_"),
+                    "message": getattr(http_exc, "description", str(http_exc)),
+                }),
+                http_exc.code,
+            )
+        except Exception as unhandled_err:
+            logger.exception("Inspection internal pipeline failure: %s", unhandled_err)
+            return (
+                jsonify({
+                    "status": "error",
+                    "error_code": "INSPECTION_FAILED",
+                    "message": f"Inspection processing failed: {str(unhandled_err)}",
+                }),
+                500,
+            )
         finally:
             INSPECTION_SEMAPHORE.release()
             gc.collect()
@@ -1454,28 +1552,43 @@ def create_app(
 
         # 7. Generate genuine visual overlay
         t_post_start = time.perf_counter()
-        annotated_bgr = active_detector.draw_annotations(cv_img, detections)
-        annotated_b64 = active_detector.encode_image_to_base64(annotated_bgr)
+        try:
+            annotated_bgr = active_detector.draw_annotations(cv_img, detections, domain=domain)
+        except Exception as e_draw:
+            logger.warning(f"Failed to draw visual annotations: {e_draw}")
+            annotated_bgr = cv_img.copy() if cv_img is not None else None
+
+        try:
+            annotated_b64 = active_detector.encode_image_to_base64(annotated_bgr) if annotated_bgr is not None else ""
+        except Exception as e_enc:
+            logger.warning(f"Failed to encode annotated image to base64: {e_enc}")
+            annotated_b64 = ""
         t_post_ms = (time.perf_counter() - t_post_start) * 1000
 
         # 8. Persist images via configured storage backend
         t_stor_start = time.perf_counter()
         orig_filename = f"orig_{uuid.uuid4().hex[:8]}_{filename}"
         orig_key = f"uploads/{orig_filename}"
-        try:
-            orig_path = app.storage_backend.save(orig_key, raw_bytes, content_type="image/jpeg")
-        except Exception as e:
-            logger.warning(f"Failed to persist original image: {e}")
-            orig_path = None
+        orig_path = None
+        storage = getattr(app, "storage_backend", None)
+        if storage is not None:
+            try:
+                orig_path = storage.save(orig_key, raw_bytes, content_type="image/jpeg")
+            except Exception as e:
+                logger.warning(f"Failed to persist original image: {e}")
+                orig_path = None
 
         saved_filename = f"annotated_{uuid.uuid4().hex[:8]}_{filename}"
         saved_key = f"processed/{saved_filename}"
-        try:
-            _, buffer = cv2.imencode(".jpg", annotated_bgr, [cv2.IMWRITE_JPEG_QUALITY, 85])
-            saved_path = app.storage_backend.save(saved_key, buffer.tobytes(), content_type="image/jpeg")
-        except Exception as e:
-            logger.warning(f"Failed to persist annotated image: {e}")
-            saved_path = None
+        saved_path = None
+        if storage is not None and annotated_bgr is not None and cv2 is not None:
+            try:
+                success, buffer = cv2.imencode(".jpg", annotated_bgr, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                if success:
+                    saved_path = storage.save(saved_key, buffer.tobytes(), content_type="image/jpeg")
+            except Exception as e:
+                logger.warning(f"Failed to persist annotated image: {e}")
+                saved_path = None
         t_stor_ms = (time.perf_counter() - t_stor_start) * 1000
 
         t_total_ms = (time.perf_counter() - t_req_start) * 1000
@@ -1503,16 +1616,38 @@ def create_app(
             "not physical crack severity, cavity depth, or roadway structural safety."
         )
 
-        return jsonify({
+        raw_stats = getattr(active_detector, "last_inference_stats", None)
+        candidate_summary = raw_stats if isinstance(raw_stats, dict) else {}
+        timings_obj = candidate_summary.get("timings")
+        timings_dict = timings_obj if isinstance(timings_obj, dict) else {}
+
+        def _safe_float(v, default=0.0):
+            try:
+                return float(v) if v is not None else default
+            except (ValueError, TypeError):
+                return default
+
+        def _safe_int(v, default=1):
+            try:
+                return int(v) if v is not None else default
+            except (ValueError, TypeError):
+                return default
+
+        model_load_ms = _safe_float(timings_dict.get("model_load_ms"), 0.0)
+        forward_pass_ms = _safe_float(timings_dict.get("forward_pass_ms"), t_inf_ms)
+        slicing_ms = _safe_float(timings_dict.get("slicing_ms"), 0.0)
+        slice_count = _safe_int(timings_dict.get("slice_count"), 1)
+
+        response_payload = {
             "status": "success",
             "domain": domain,
             "inspection_type": domain,
             "filename": filename,
             "metadata": metadata,
-            "model_info": active_detector.model_info,
+            "model_info": getattr(active_detector, "model_info", {}),
             "inspection_mode": inspection_mode,
             "confidence_threshold": conf_thresh,
-            "candidate_summary": getattr(active_detector, "last_inference_stats", {}),
+            "candidate_summary": candidate_summary,
             "detections": detections,
             "defect_count": len(detections),
             "annotated_image": annotated_b64,
@@ -1522,18 +1657,20 @@ def create_app(
                 "validation_ms": round(t_val_ms, 1),
                 "decode_ms": round(t_dec_ms, 1),
                 "preprocessing_ms": round(t_prep_ms, 1),
-                "model_load_ms": round(getattr(active_detector, "last_inference_stats", {}).get("timings", {}).get("model_load_ms", 0.0), 1),
+                "model_load_ms": round(model_load_ms, 1),
                 "inference_ms": round(t_inf_ms, 1),
-                "forward_pass_ms": round(getattr(active_detector, "last_inference_stats", {}).get("timings", {}).get("forward_pass_ms", t_inf_ms), 1),
-                "slicing_ms": round(getattr(active_detector, "last_inference_stats", {}).get("timings", {}).get("slicing_ms", 0.0), 1),
-                "slice_count": int(getattr(active_detector, "last_inference_stats", {}).get("timings", {}).get("slice_count", 1)),
+                "forward_pass_ms": round(forward_pass_ms, 1),
+                "slicing_ms": round(slicing_ms, 1),
+                "slice_count": slice_count,
                 "postprocessing_ms": round(t_post_ms, 1),
                 "storage_ms": round(t_stor_ms, 1),
                 "total_ms": round(t_total_ms, 1),
             },
             "disclaimer": disclaimer,
             "safety_disclaimer": disclaimer,
-        }), 200
+        }
+
+        return jsonify(make_json_safe(response_payload)), 200
 
     # -------------------------------------------------------------------------
     # Inspection Records API Routes

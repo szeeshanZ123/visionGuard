@@ -234,3 +234,123 @@ class TestHttp503ErrorContracts:
         assert "const isWeightsMissing = Boolean" in js
         assert 'data.error_code === "SERVER_OVERLOADED"' in js
         assert 'Server Busy (HTTP 503)' in js
+
+
+class TestHttp500FixAndErrorResilience:
+    """Verifies that unexpected errors in the pipeline are safely caught and return structured JSON."""
+
+    def test_post_inference_overlay_failure_graceful_recovery(self, loaded_app_client):
+        """If OpenCV draw_annotations fails, /api/inspect must gracefully return 200 with fallback image."""
+        client, app = loaded_app_client
+        from unittest.mock import patch
+
+        img = create_synthetic_image_stream(width=320, height=240)
+        with patch.object(app.detector, "draw_annotations", side_effect=RuntimeError("OpenCV drawing error")):
+            res = client.post(
+                "/api/inspect",
+                data={"image": (img, "road.jpg"), "domain": "road"},
+                content_type="multipart/form-data",
+            )
+            assert res.status_code == 200
+            data = res.get_json()
+            assert data["status"] == "success"
+            assert "annotated_image" in data
+
+    def test_numpy_types_in_detections_json_serializable(self, loaded_app_client):
+        """NumPy float32/int64 objects in detections must not cause TypeError in jsonify."""
+        client, app = loaded_app_client
+        from unittest.mock import patch
+        import numpy as np
+
+        mock_detection = [{
+            "domain": "road",
+            "class_id": np.int64(0),
+            "class_name": "D00_longitudinal_crack",
+            "distress_category": "Longitudinal Crack",
+            "confidence": np.float32(0.8523),
+            "bbox": {
+                "x1": np.float32(10.5),
+                "y1": np.float32(20.3),
+                "x2": np.float32(100.2),
+                "y2": np.float32(200.1),
+                "width": np.float32(89.7),
+                "height": np.float32(179.8),
+                "aspect_ratio": np.float32(0.499),
+                "pixel_area": np.float32(16128.06),
+            },
+            "disclaimer": "Test disclaimer",
+        }]
+
+        img = create_synthetic_image_stream(width=320, height=240)
+        with patch.object(app.detector, "detect", return_value=mock_detection):
+            res = client.post(
+                "/api/inspect",
+                data={"image": (img, "road.jpg"), "domain": "road"},
+                content_type="multipart/form-data",
+            )
+            assert res.status_code == 200
+            data = res.get_json()
+            assert data["status"] == "success"
+            assert data["defect_count"] == 1
+            assert isinstance(data["detections"][0]["confidence"], float)
+
+    def test_none_stats_and_timings_resilience(self, loaded_app_client):
+        """If last_inference_stats is None or contains None timings, response must not crash."""
+        client, app = loaded_app_client
+        from unittest.mock import patch
+
+        img = create_synthetic_image_stream(width=320, height=240)
+        with patch.object(app.detector, "last_inference_stats", None):
+            res = client.post(
+                "/api/inspect",
+                data={"image": (img, "road.jpg"), "domain": "road"},
+                content_type="multipart/form-data",
+            )
+            assert res.status_code == 200
+            data = res.get_json()
+            assert data["status"] == "success"
+            assert data["timings"]["model_load_ms"] == 0.0
+
+    def test_db_error_during_auth_does_not_crash_api_inspect(self, tmp_path):
+        """Database error in get_current_user_record returns 401 instead of unhandled 500."""
+        test_db = str(tmp_path / "auth_db_err.db")
+        app = create_app(test_config={
+            "TESTING": False,
+            "DATABASE_PATH": test_db,
+            "AUTH_ENABLED": True,
+            "ENFORCE_CSRF": False,
+        })
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess["user_id"] = 12345
+
+            from unittest.mock import patch
+            with patch("database.auth.get_user_by_id", side_effect=RuntimeError("Database connection lost")):
+                img = create_synthetic_image_stream(width=320, height=240)
+                res = client.post(
+                    "/api/inspect",
+                    data={"image": (img, "road.jpg"), "domain": "road"},
+                    content_type="multipart/form-data",
+                )
+                # Auth fails gracefully with 401 instead of unhandled 500
+                assert res.status_code == 401
+                data = res.get_json()
+                assert data["error_code"] == "UNAUTHORIZED"
+
+    def test_unhandled_exception_in_inspection_returns_structured_json_error(self, loaded_app_client):
+        """Any internal exception inside _execute_inspection_internal returns structured JSON."""
+        client, _ = loaded_app_client
+        from unittest.mock import patch
+
+        img = create_synthetic_image_stream(width=320, height=240)
+        with patch("app.server.load_image_as_opencv", side_effect=RuntimeError("Corrupt OpenCV tensor")):
+            res = client.post(
+                "/api/inspect",
+                data={"image": (img, "road.jpg"), "domain": "road"},
+                content_type="multipart/form-data",
+            )
+            assert res.status_code == 500
+            data = res.get_json()
+            assert data["status"] == "error"
+            assert data["error_code"] == "INSPECTION_FAILED"
+            assert "Corrupt OpenCV tensor" in data["message"]

@@ -1,0 +1,36 @@
+{
+  "dataset_name": "Road Damage Dataset 2022 (RDD2022) - Japan Subset",
+  "official_source": "https://api.figshare.com/v2/articles/21431547",
+  "article_id": 21431547,
+  "archive_name": "RDD2022_released_through_CRDDC2022.zip",
+  "sub_archive": "Japan.zip",
+  "doi": "10.6084/m9.figshare.21431547",
+  "license": "Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)",
+  "foundational_paper": "Arya, D., Maeda, H., Ghosh, S. K., Toshniwal, D., & Sekimoto, Y. (2022). RDD2022: A multi-national image dataset for automatic Road Damage Detection. IEEE BigData 2022 / Geoscience Data Journal (2024).",
+  "github_repository": "https://github.com/sekilab/RoadDamageDetector",
+  "purpose": "Supplementary training and validation data to resolve D10 (transverse crack) class collapse and improve thin D00 (longitudinal crack) feature sensitivity in VisionGuard AI road defect detector.",
+  "target_class_taxonomy": {
+    "D00": 0,
+    "D10": 1,
+    "D20": 2,
+    "D40": 3
+  },
+  "canonical_class_names": {
+    "0": "D00_longitudinal_crack",
+    "1": "D10_transverse_crack",
+    "2": "D20_alligator_crack",
+    "3": "D40_pothole"
+  },
+  "non_target_classes_filtered": [
+    "D43",
+    "D44",
+    "D50"
+  ],
+  "quarantine_protocol": {
+    "quarantined_test_split": "RDD2022 India Held-Out Test Set (1,200 images)",
+    "local_evaluation_benchmark": "VisionGuard 16-Image Curated Benchmark (data/evaluation_benchmark/)",
+    "supplementary_japan_allocation": "80% Train, 20% Val (0% in test set)",
+    "sequence_splitting_method": "Contiguous sequence blocks of 50 frames with deterministic seed 42"
+  }
+}
+

@@ -853,6 +853,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // Inspection Form Locking & In-Flight Request Telemetry (Bug 1 Fix)
     let isInspecting = false;
     let activeInspectionRequestId = 0;
+    let inspectionProgressTimer1 = null;
+    let inspectionProgressTimer2 = null;
 
     function setInspectionFormLocked(locked) {
         isInspecting = Boolean(locked);
@@ -867,7 +869,27 @@ document.addEventListener("DOMContentLoaded", () => {
                         ? "Analyzing building photo..."
                         : "Analyzing road photo...";
                 }
+                clearTimeout(inspectionProgressTimer1);
+                clearTimeout(inspectionProgressTimer2);
+                inspectionProgressTimer1 = setTimeout(() => {
+                    if (isInspecting) {
+                        const bt = inspectBtn.querySelector(".btn-text");
+                        if (bt) bt.textContent = "Warming up AI engine...";
+                    }
+                }, 10000);
+                inspectionProgressTimer2 = setTimeout(() => {
+                    if (isInspecting) {
+                        const bt = inspectBtn.querySelector(".btn-text");
+                        if (bt) {
+                            bt.textContent = selectedDomain === "home"
+                                ? "Analyzing building structures..."
+                                : "Analyzing roadway distress...";
+                        }
+                    }
+                }, 25000);
             } else {
+                clearTimeout(inspectionProgressTimer1);
+                clearTimeout(inspectionProgressTimer2);
                 if (inspectSpinner) inspectSpinner.style.display = "none";
                 const btnText = inspectBtn.querySelector(".btn-text");
                 if (btnText) btnText.textContent = "Detect Defect";
@@ -960,7 +982,7 @@ document.addEventListener("DOMContentLoaded", () => {
         formData.append("domain", selectedDomain);
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 90000); // 90s timeout (aligned with backend SLA)
+        const timeoutId = setTimeout(() => controller.abort(), 120000); // 120s timeout (aligned with backend Gunicorn SLA)
 
         try {
             let res;
@@ -978,7 +1000,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 console.error("Fetch communication failure:", fetchErr);
                 if (fetchErr.name === "AbortError") {
-                    alert("Request timed out: Inference took longer than 90 seconds. Please try again with a smaller image or higher confidence threshold.");
+                    alert("Request timed out: Inference took longer than 120 seconds. The server may be waking up from cold standby. Please retry with a standard image.");
                 } else {
                     alert(`Network connection error: Unable to reach the VisionGuard AI backend at ${window.location.origin}.\n\nDetails: ${fetchErr.message || "Connection refused"}\n\nPlease verify that 'python app/server.py' is running in your terminal.`);
                 }
