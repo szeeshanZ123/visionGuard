@@ -49,6 +49,31 @@
                 }
             }
         }
+
+        // On Page Load: Handle URL query params and check session
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const tab = urlParams.get('tab') || urlParams.get('mode');
+            if (tab === 'signin' || tab === 'login') {
+                switchTab('signin');
+            } else if (tab === 'register' || tab === 'signup') {
+                switchTab('register');
+            }
+
+            fetch('/api/auth/status')
+                .then(r => r.json())
+                .then(data => {
+                    if (data && data.authenticated && data.user) {
+                        showAlert(
+                            'info',
+                            'Active Session',
+                            'Signed in as ' + data.user.username + ' (' + (data.user.role || 'citizen') + '). '
+                            + '<a href="/create_home" class="font-bold underline ml-1">Go to Inspection Studio &rarr;</a>'
+                        );
+                    }
+                })
+                .catch(() => {});
+        });
     </script>
     <style>
         /* Smooth transitions */
@@ -85,7 +110,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between">
 
             <!-- Brand Logo & Identity -->
-            <a href="#"
+            <a href="/"
                 class="flex items-center gap-3 group focus:outline-none focus:ring-2 focus:ring-vgBlue rounded-lg p-1">
                 <div
                     class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-vgBlue flex items-center justify-center text-white shadow-sm shadow-blue-500/30 group-hover:scale-105 transition-transform">
@@ -116,7 +141,7 @@
 
 
                 <!-- Back to Home Action -->
-                <a href="#"
+                <a href="/"
                     class="inline-flex items-center justify-center gap-2 h-9 sm:h-10 px-4 rounded-full text-xs sm:text-sm font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all shadow-xs focus:outline-none focus:ring-2 focus:ring-vgBlue">
                     <svg class="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"
                         stroke-width="2">
@@ -684,16 +709,41 @@
             // Trigger Loading State
             setSignInLoading(true);
 
-            // Simulate backend API authentication response
-            setTimeout(() => {
+            fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: usernameInput.value.trim(),
+                    password: passwordInput.value
+                })
+            })
+            .then(async (res) => {
+                const data = await res.json().catch(() => ({}));
                 setSignInLoading(false);
-                // Show status
-                showAlert(
-                    'success',
-                    'Authentication Successful',
-                    'Welcome back, ' + usernameInput.value.trim() + '. Redirecting to Municipal Inspection Dashboard...'
-                );
-            }, 1200);
+                if (res.ok && data.status === 'success') {
+                    if (data.csrf_token) {
+                        try { sessionStorage.setItem('vg_csrf_token', data.csrf_token); } catch (e) {}
+                    }
+                    showAlert(
+                        'success',
+                        'Authentication Successful',
+                        'Welcome back, ' + (data.user?.username || usernameInput.value.trim()) + '. Redirecting to Inspection Studio...'
+                    );
+                    setTimeout(() => {
+                        window.location.href = '/create_home';
+                    }, 800);
+                } else {
+                    showAlert(
+                        'error',
+                        'Authentication Failed',
+                        data.message || 'Invalid username or password. Please verify your credentials.'
+                    );
+                }
+            })
+            .catch((err) => {
+                setSignInLoading(false);
+                showAlert('error', 'Network Error', 'Could not reach authentication service. Please check your connection.');
+            });
         }
 
         // Citizen Registration Submission
@@ -749,14 +799,41 @@
 
             setRegisterLoading(true);
 
-            setTimeout(() => {
+            fetch('/api/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: user.value.trim(),
+                    password: pass.value
+                })
+            })
+            .then(async (res) => {
+                const data = await res.json().catch(() => ({}));
                 setRegisterLoading(false);
-                showAlert(
-                    'success',
-                    'Citizen Account Created',
-                    'Your account has been verified. You may now submit and track road defect reports.'
-                );
-            }, 1400);
+                if ((res.status === 200 || res.status === 201) && data.status === 'success') {
+                    if (data.csrf_token) {
+                        try { sessionStorage.setItem('vg_csrf_token', data.csrf_token); } catch (e) {}
+                    }
+                    showAlert(
+                        'success',
+                        'Citizen Account Created',
+                        'Your citizen account has been created. Redirecting to Inspection Studio...'
+                    );
+                    setTimeout(() => {
+                        window.location.href = '/create_home';
+                    }, 800);
+                } else {
+                    showAlert(
+                        'error',
+                        'Registration Failed',
+                        data.message || 'Could not create account. Username may already be in use.'
+                    );
+                }
+            })
+            .catch((err) => {
+                setRegisterLoading(false);
+                showAlert('error', 'Network Error', 'Could not register account. Please check your connection.');
+            });
         }
 
         // Loading State Toggles
@@ -855,6 +932,31 @@
             e.preventDefault();
             showAlert('info', 'Inspector Access', 'Municipal and DoT field inspectors are provisioned through county GIS supervisors. Call extension 408-INFRA-OPS.');
         }
+
+        // On Page Load: Handle URL query params and check session
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const tab = urlParams.get('tab') || urlParams.get('mode');
+            if (tab === 'signin' || tab === 'login') {
+                switchTab('signin');
+            } else if (tab === 'register' || tab === 'signup') {
+                switchTab('register');
+            }
+
+            fetch('/api/auth/status')
+                .then(r => r.json())
+                .then(data => {
+                    if (data && data.authenticated && data.user) {
+                        showAlert(
+                            'info',
+                            'Active Session',
+                            'Signed in as ' + data.user.username + ' (' + (data.user.role || 'citizen') + '). '
+                            + '<a href="/create_home" class="font-bold underline ml-1">Go to Inspection Studio &rarr;</a>'
+                        );
+                    }
+                })
+                .catch(() => {});
+        });
     </script>
 
 
