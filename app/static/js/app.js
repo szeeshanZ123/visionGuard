@@ -442,22 +442,20 @@ document.addEventListener("DOMContentLoaded", () => {
         if (uploadPromptIcon) uploadPromptIcon.textContent = isHome ? "🏠" : "🛣️";
         if (uploadPromptHeading) {
             uploadPromptHeading.textContent = isHome
-                ? "Drag & Drop home or building image here, or choose an option:"
-                : "Drag & Drop road image here, or choose an option:";
+                ? "Upload a clear photo of the damaged building or property surface"
+                : "Upload a clear photo of the damaged road or surface";
         }
         if (uploadPromptSubtext) {
-            uploadPromptSubtext.textContent = isHome
-                ? "Supported: JPG, PNG, WEBP • Max Size: 15 MB • Routing to Home Model"
-                : "Supported: JPG, PNG, WEBP • Max Size: 15 MB • Routing to Road Model";
+            uploadPromptSubtext.textContent = "Supported: JPG, PNG, WEBP • Max Size: 15 MB";
         }
 
         if (guidelinesDistressHeading) {
-            guidelinesDistressHeading.textContent = isHome ? "Defect Classes (Home & Building)" : "Distress Classes (Road Surface)";
+            guidelinesDistressHeading.textContent = isHome ? "What We Detect (Building)" : "What We Detect (Road)";
         }
         if (guidelinesDistressClasses) {
             guidelinesDistressClasses.textContent = isHome
-                ? "wall_crack, damp_or_water_damage, peeling_paint_or_plaster, spalling_or_surface_damage"
-                : "D00 (Longitudinal), D10 (Transverse), D20 (Alligator), D40 (Pothole)";
+                ? "Wall cracks, water damage, dampness, peeling paint, and plaster damage."
+                : "Potholes, surface cracks, transverse cracks, and alligator cracking.";
         }
 
         if (saveLocationLabel) {
@@ -866,15 +864,19 @@ document.addEventListener("DOMContentLoaded", () => {
                 const btnText = inspectBtn.querySelector(".btn-text");
                 if (btnText) {
                     btnText.textContent = selectedDomain === "home"
-                        ? "Analyzing Building Imagery..."
-                        : "Analyzing Road Imagery...";
+                        ? "Analyzing building photo..."
+                        : "Analyzing road photo...";
                 }
             } else {
                 if (inspectSpinner) inspectSpinner.style.display = "none";
                 const btnText = inspectBtn.querySelector(".btn-text");
-                if (btnText) btnText.textContent = "Run Defect Inspection";
+                if (btnText) btnText.textContent = "Detect Defect";
             }
         }
+
+        // Cancel report button
+        const cancelBtnEl = document.getElementById("cancelReportBtn");
+        if (cancelBtnEl) cancelBtnEl.disabled = isInspecting;
 
         // File and capture inputs
         if (browseBtn) browseBtn.disabled = isInspecting;
@@ -1052,6 +1054,128 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    // -------------------------------------------------------------------------
+    // Phase 5: Citizen-Facing Defect Reporting Helpers & Presentation
+    // -------------------------------------------------------------------------
+    function getCitizenFindingMeta(category, domain) {
+        const cat = (category || "").toLowerCase();
+        if (cat.includes("d40") || cat.includes("pothole")) {
+            return {
+                icon: "🚨",
+                title: "Road Pothole",
+                desc: "A cavity or depression in the asphalt surface that poses a hazard to vehicles, cyclists, and pedestrians."
+            };
+        }
+        if (cat.includes("d20") || cat.includes("alligator")) {
+            return {
+                icon: "⚠️",
+                title: "Alligator / Mesh Cracking",
+                desc: "Interconnected multi-directional surface cracking, indicating structural pavement fatigue or sub-base wear."
+            };
+        }
+        if (cat.includes("d00") || cat.includes("longitudinal")) {
+            return {
+                icon: "🛣️",
+                title: "Longitudinal Surface Crack",
+                desc: "A crack running parallel to the direction of traffic flow, commonly caused by joint settlement or lane fatigue."
+            };
+        }
+        if (cat.includes("d10") || cat.includes("transverse")) {
+            return {
+                icon: "🛣️",
+                title: "Transverse Road Crack",
+                desc: "A crack extending across the road width, commonly caused by thermal expansion, contraction, or shrinkage."
+            };
+        }
+        if (cat.includes("wall_crack") || cat.includes("wall crack")) {
+            return {
+                icon: "🧱",
+                title: "Wall Crack",
+                desc: "A visible fissure on interior or exterior plaster or brickwork."
+            };
+        }
+        if (cat.includes("damp") || cat.includes("water")) {
+            return {
+                icon: "💧",
+                title: "Water Damage / Dampness",
+                desc: "Moisture seepage, water staining, or damp patches on walls or ceilings."
+            };
+        }
+        if (cat.includes("peeling") || cat.includes("plaster")) {
+            return {
+                icon: "🏚️",
+                title: "Peeling Surface Paint or Plaster",
+                desc: "Flaking, bubbled, or loosened paint and plaster coats exposing masonry."
+            };
+        }
+        if (cat.includes("spalling") || cat.includes("surface_damage")) {
+            return {
+                icon: "⚠️",
+                title: "Surface Spalling / Concrete Breakage",
+                desc: "Chipped, flaked, or crumbling surface concrete or masonry."
+            };
+        }
+        const cleanName = category ? category.replace(/[_-]/g, " ") : "Surface Defect";
+        return {
+            icon: domain === "home" ? "🏠" : "🛣️",
+            title: cleanName.charAt(0).toUpperCase() + cleanName.slice(1),
+            desc: "Identified surface defect requiring maintenance review."
+        };
+    }
+
+    function getCertaintyTier(confidence) {
+        const conf = typeof confidence === "number" ? confidence : 0;
+        if (conf >= 0.70) {
+            return {
+                label: "High Certainty",
+                badgeClass: "citizen-certainty-badge certainty-high",
+                icon: "🟢"
+            };
+        } else if (conf >= 0.40) {
+            return {
+                label: "Moderate Certainty",
+                badgeClass: "citizen-certainty-badge certainty-moderate",
+                icon: "🔵"
+            };
+        } else {
+            return {
+                label: "Low Certainty",
+                badgeClass: "citizen-certainty-badge certainty-low",
+                icon: "🟡"
+            };
+        }
+    }
+
+    function resetCitizenInspectionForm() {
+        currentFile = null;
+        if (fileInput) fileInput.value = "";
+        if (cameraFileInput) cameraFileInput.value = "";
+        if (clientPreviewImg) clientPreviewImg.src = "";
+        if (previewStrip) previewStrip.style.display = "none";
+        if (uploadPrompt) uploadPrompt.style.display = "flex";
+        if (inspectBtn) inspectBtn.disabled = true;
+        if (resultsContainer) resultsContainer.style.display = "none";
+        lastInspectionResult = null;
+        isSaving = false;
+        const saveInspectionBtn = document.getElementById("saveInspectionBtn");
+        const saveSpinner = document.getElementById("saveSpinner");
+        const saveFeedback = document.getElementById("saveFeedback");
+        if (saveInspectionBtn) {
+            saveInspectionBtn.disabled = false;
+            const btnText = saveInspectionBtn.querySelector(".btn-text");
+            if (btnText) btnText.textContent = "Submit Report";
+        }
+        if (saveSpinner) saveSpinner.style.display = "none";
+        if (saveFeedback) {
+            saveFeedback.style.display = "none";
+            saveFeedback.innerHTML = "";
+        }
+        const dropZoneEl = document.getElementById("dropZone");
+        if (dropZoneEl) {
+            dropZoneEl.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+    }
+
     function renderResults(data) {
         // Set images
         originalDisplayImg.src = clientPreviewImg.src;
@@ -1122,6 +1246,82 @@ document.addEventListener("DOMContentLoaded", () => {
         resultsCountBadge.className = defectCount > 0 ? "badge badge-warning" : "badge badge-success";
 
         metricDefectCount.textContent = defectCount;
+
+        // Human-Centered Citizen Findings Presentation
+        const citizenFindingsSummary = document.getElementById("citizenFindingsSummary");
+        const citizenFindingsBadge = document.getElementById("citizenFindingsBadge");
+        const citizenFindingsTitle = document.getElementById("citizenFindingsTitle");
+
+        if (citizenFindingsSummary) {
+            if (defectCount > 0) {
+                if (citizenFindingsTitle) citizenFindingsTitle.textContent = `${defectCount} Defect${defectCount === 1 ? "" : "s"} Identified`;
+                if (citizenFindingsBadge) {
+                    citizenFindingsBadge.textContent = "Defects Detected";
+                    citizenFindingsBadge.className = "badge badge-warning";
+                }
+
+                let itemsHtml = "";
+                detections.forEach((d) => {
+                    const meta = getCitizenFindingMeta(d.distress_category || d.class_name, isHome ? "home" : "road");
+                    const tier = getCertaintyTier(d.confidence);
+                    itemsHtml += `
+                        <div class="citizen-finding-item">
+                            <span class="citizen-finding-icon">${meta.icon}</span>
+                            <div class="citizen-finding-info">
+                                <div class="citizen-finding-title-row">
+                                    <span class="citizen-finding-title">${escapeHtml(meta.title)}</span>
+                                    <span class="${tier.badgeClass}">${tier.icon} ${tier.label}</span>
+                                </div>
+                                <p class="citizen-finding-desc">${escapeHtml(meta.desc)}</p>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                citizenFindingsSummary.innerHTML = `
+                    <p style="margin: 0 0 0.85rem 0; font-size: 0.92rem; color: var(--text-secondary);">
+                        Our AI analyzed your photo and highlighted the detected defect${defectCount === 1 ? "" : "s"}. Review the findings below and click <strong>Submit Report</strong> to log this issue for maintenance review.
+                    </p>
+                    <div class="citizen-findings-list">
+                        ${itemsHtml}
+                    </div>
+                `;
+            } else {
+                if (citizenFindingsTitle) citizenFindingsTitle.textContent = "No Defects Detected";
+                if (citizenFindingsBadge) {
+                    citizenFindingsBadge.textContent = "Surface Clear";
+                    citizenFindingsBadge.className = "badge badge-success";
+                }
+
+                citizenFindingsSummary.innerHTML = `
+                    <div class="citizen-zero-defects-box">
+                        <div class="citizen-zero-defects-title">
+                            <span>✅</span> No Clear Defects Detected
+                        </div>
+                        <p class="citizen-zero-defects-guidance">
+                            Our AI did not detect significant potholes, cracks, or surface distress in this photo. If a defect is present, it may be due to lighting, angle, or distance.
+                        </p>
+                        <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+                            <strong>Tips for a better photo:</strong> Stand 1–2 meters away, hold the camera steady in clear daylight, and avoid heavy shadows or glare.
+                        </div>
+                        <div style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
+                            <button type="button" class="btn btn-secondary btn-sm" id="btnRetryPhoto">
+                                📷 Try Another Photo
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                const btnRetry = document.getElementById("btnRetryPhoto");
+                if (btnRetry) {
+                    btnRetry.addEventListener("click", () => {
+                        resetCitizenInspectionForm();
+                        if (browseBtn) browseBtn.click();
+                    });
+                }
+            }
+        }
+
 
         if (defectCount > 0) {
             const types = Array.from(new Set(detections.map(d => d.distress_category)));
@@ -1227,7 +1427,11 @@ document.addEventListener("DOMContentLoaded", () => {
         if (saveStatusSelect) saveStatusSelect.value = "Open";
         if (saveInspectionBtn) {
             saveInspectionBtn.disabled = false;
-            saveInspectionBtn.querySelector(".btn-text").textContent = "Save Inspection Record";
+            saveInspectionBtn.querySelector(".btn-text").textContent = "Submit Report";
+        }
+        const cancelReportBtn = document.getElementById("cancelReportBtn");
+        if (cancelReportBtn) {
+            cancelReportBtn.disabled = false;
         }
         if (saveSpinner) saveSpinner.style.display = "none";
         if (saveFeedback) saveFeedback.style.display = "none";
@@ -2395,6 +2599,14 @@ document.addEventListener("DOMContentLoaded", () => {
         loadMapHeaderCount();
     }
 
+    // Post-Detection Citizen Cancel Action
+    const cancelReportBtn = document.getElementById("cancelReportBtn");
+    if (cancelReportBtn) {
+        cancelReportBtn.addEventListener("click", () => {
+            resetCitizenInspectionForm();
+        });
+    }
+
     // Save Inspection Action (with duplicate protection)
     if (saveInspectionBtn) {
         saveInspectionBtn.addEventListener("click", async () => {
@@ -2407,7 +2619,7 @@ document.addEventListener("DOMContentLoaded", () => {
             isSaving = true;
             saveInspectionBtn.disabled = true;
             saveSpinner.style.display = "inline-block";
-            saveInspectionBtn.querySelector(".btn-text").textContent = "Saving to SQLite...";
+            saveInspectionBtn.querySelector(".btn-text").textContent = "Submitting Report...";
 
             const roadName = saveRoadNameInput ? saveRoadNameInput.value.trim() : "";
             const area = saveAreaInput ? saveAreaInput.value.trim() : "";
@@ -2425,7 +2637,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     isSaving = false;
                     saveInspectionBtn.disabled = false;
                     saveSpinner.style.display = "none";
-                    saveInspectionBtn.querySelector(".btn-text").textContent = "Save Inspection Record";
+                    saveInspectionBtn.querySelector(".btn-text").textContent = "Submit Report";
                     return;
                 }
             }
@@ -2438,7 +2650,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     isSaving = false;
                     saveInspectionBtn.disabled = false;
                     saveSpinner.style.display = "none";
-                    saveInspectionBtn.querySelector(".btn-text").textContent = "Save Inspection Record";
+                    saveInspectionBtn.querySelector(".btn-text").textContent = "Submit Report";
                     return;
                 }
             }
@@ -2473,7 +2685,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 if (res.status === 409 && data.inspection) {
                     const savedRecord = data.inspection;
-                    saveInspectionBtn.querySelector(".btn-text").textContent = `Already Saved as Record #${savedRecord.id}`;
+                    saveInspectionBtn.querySelector(".btn-text").textContent = `Already Submitted (Report #${savedRecord.id})`;
                     saveCardStatusBadge.textContent = `Saved (#${savedRecord.id})`;
                     saveCardStatusBadge.className = "badge badge-info";
 
@@ -2513,18 +2725,18 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
 
                 const savedRecord = data.inspection;
-                saveInspectionBtn.querySelector(".btn-text").textContent = `✅ Saved as Record #${savedRecord.id}`;
+                saveInspectionBtn.querySelector(".btn-text").textContent = `✅ Submitted (Report #${savedRecord.id})`;
                 saveCardStatusBadge.textContent = `Saved (#${savedRecord.id})`;
                 saveCardStatusBadge.className = "badge badge-success";
 
                 saveFeedback.innerHTML = `
-                    <span style="color: var(--success); display: inline-flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
-                        <span>✓</span> Successfully persisted to database.
+                    <span style="color: var(--success); display: inline-flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                        <span>✓</span> Report #${savedRecord.id} successfully submitted!
                         <button type="button" class="btn btn-secondary btn-sm" id="viewSavedRecordBtn" style="margin-left: 0.5rem; padding: 0.25rem 0.65rem; font-size: 0.8rem;">
-                            View in Records History →
+                            📋 View in My Reports →
                         </button>
                         <button type="button" class="btn btn-outline-warning btn-sm" id="draftComplaintFromSaveBtn" style="margin-left: 0.25rem; padding: 0.25rem 0.65rem; font-size: 0.8rem;">
-                            📝 Draft Complaint Notice
+                            📝 Draft Formal Notice
                         </button>
                     </span>
                 `;
@@ -2533,8 +2745,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 const viewBtn = document.getElementById("viewSavedRecordBtn");
                 if (viewBtn) {
                     viewBtn.addEventListener("click", () => {
-                        switchView("records");
-                        openRecordDetail(savedRecord.id);
+                        if (currentUser && currentUser.role === "citizen") {
+                            switchView("dashboard");
+                        } else {
+                            switchView("records");
+                            openRecordDetail(savedRecord.id);
+                        }
                     });
                 }
                 const draftBtn = document.getElementById("draftComplaintFromSaveBtn");
@@ -2549,7 +2765,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 console.error("Save inspection failed:", err);
                 alert(`Error saving inspection record:\n${err.message}`);
                 saveInspectionBtn.disabled = false;
-                saveInspectionBtn.querySelector(".btn-text").textContent = "Retry Save";
+                saveInspectionBtn.querySelector(".btn-text").textContent = "Retry Submission";
                 isSaving = false;
             } finally {
                 saveSpinner.style.display = "none";
