@@ -945,6 +945,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const thisRequestId = ++activeInspectionRequestId;
         setInspectionFormLocked(true);
+        if (systemNoticeBanner) {
+            systemNoticeBanner.style.display = "none";
+        }
 
         const activeThreshold = parseFloat(confSlider.value) || 0.15;
         const modeRadio = document.querySelector('input[name="inspectionMode"]:checked');
@@ -1040,7 +1043,15 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     function handleApiError(status, data, message) {
-        if (status === 503 || (data && (data.error_code === "MODEL_WEIGHTS_MISSING" || data.error_code === "HOME_MODEL_WEIGHTS_MISSING" || data.error_code === "ROAD_MODEL_WEIGHTS_MISSING"))) {
+        const isWeightsMissing = Boolean(
+            data && (
+                data.error_code === "MODEL_WEIGHTS_MISSING" ||
+                data.error_code === "HOME_MODEL_WEIGHTS_MISSING" ||
+                data.error_code === "ROAD_MODEL_WEIGHTS_MISSING"
+            )
+        );
+
+        if (isWeightsMissing) {
             systemNoticeTitle.textContent = (data && data.error_code === "HOME_MODEL_WEIGHTS_MISSING")
                 ? "Home Model Checkpoint Required (HTTP 503)"
                 : "Model Weights Checkpoint Required (HTTP 503)";
@@ -1049,7 +1060,14 @@ document.addEventListener("DOMContentLoaded", () => {
             systemNoticeInstructions.style.display = "block";
             systemNoticeBanner.style.display = "flex";
             window.scrollTo({ top: 0, behavior: "smooth" });
+        } else if (data && data.error_code === "SERVER_OVERLOADED") {
+            if (systemNoticeBanner) systemNoticeBanner.style.display = "none";
+            alert(`Server Busy (HTTP 503):\n${data.message || "VisionGuard AI server is currently processing another inspection. Please wait a few seconds and try again."}`);
+        } else if (status === 502 || status === 503 || status === 504) {
+            if (systemNoticeBanner) systemNoticeBanner.style.display = "none";
+            alert(`Service Temporarily Unavailable (HTTP ${status}):\n${message || "The VisionGuard AI server is currently busy, restarting, or warming up. Please wait a moment and try again."}`);
         } else {
+            if (systemNoticeBanner) systemNoticeBanner.style.display = "none";
             alert(`Inspection Failed (HTTP ${status}):\n${message}`);
         }
     }
