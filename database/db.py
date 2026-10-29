@@ -65,7 +65,6 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
         raw_conn = getattr(conn, "_raw_conn", conn)
         init_postgres_db(raw_conn)
         conn.close()
-        migrate_historical_report_ownership(db_path)
         return
 
     conn = get_db_connection(db_path)
@@ -260,7 +259,6 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
 
     conn.commit()
     conn.close()
-    migrate_historical_report_ownership(db_path)
 
 
 

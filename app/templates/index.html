@@ -717,412 +717,410 @@
 
         <!-- New Inspection Section Wrapper -->
         <div id="newInspectionSection" style="display: none;">
-            <!-- Ingestion Guidelines Callout -->
-            <section class="guidelines-card">
-            <div class="guidelines-header" id="guidelinesToggle">
-                <span class="icon">ℹ️</span>
-                <strong>Capture & Ingestion Guidelines</strong>
-                <span class="toggle-indicator">▼</span>
-            </div>
-            <div class="guidelines-body" id="guidelinesBody">
-                <div class="guidelines-grid">
-                    <div class="guideline-item">
-                        <span class="guideline-icon">☀️</span>
-                        <div>
-                            <strong>Lighting</strong>
-                            <p id="guidelinesLightingText">Clear natural daylight; avoid deep shadow cast or blinding lens flare.</p>
+            <!-- Concise Photo Capture Guidelines -->
+            <section class="guidelines-card citizen-guidelines-card">
+                <div class="guidelines-header" id="guidelinesToggle">
+                    <span class="icon">📸</span>
+                    <strong>Photo Guidelines for Defect Reporting</strong>
+                    <span class="toggle-indicator">▼</span>
+                </div>
+                <div class="guidelines-body" id="guidelinesBody">
+                    <div class="guidelines-grid">
+                        <div class="guideline-item">
+                            <span class="guideline-icon">☀️</span>
+                            <div>
+                                <strong>Good Lighting</strong>
+                                <p id="guidelinesLightingText">Take photos in clear natural daylight. Avoid deep shadows, blur, or blinding glare.</p>
+                            </div>
                         </div>
-                    </div>
-                    <div class="guideline-item">
-                        <span class="guideline-icon">📐</span>
-                        <div>
-                            <strong id="guidelinesOrientationHeading">Orientation</strong>
-                            <p id="guidelinesOrientationText">Top-down overhead or ~45-degree angle capturing asphalt texture clearly.</p>
+                        <div class="guideline-item">
+                            <span class="guideline-icon">📐</span>
+                            <div>
+                                <strong id="guidelinesOrientationHeading">Angle & Distance</strong>
+                                <p id="guidelinesOrientationText">Stand 1–2 meters back. Frame the damaged surface clearly facing the camera.</p>
+                            </div>
                         </div>
-                    </div>
-                    <div class="guideline-item">
-                        <span class="guideline-icon">🖼️</span>
-                        <div>
-                            <strong>Supported Formats</strong>
-                            <p>JPG, JPEG, PNG, BMP, WEBP (Maximum size: 15 MB).</p>
+                        <div class="guideline-item">
+                            <span class="guideline-icon">🖼️</span>
+                            <div>
+                                <strong>Supported Formats</strong>
+                                <p>JPG, JPEG, PNG, BMP, WEBP (Maximum size: 15 MB).</p>
+                            </div>
                         </div>
-                    </div>
-                    <div class="guideline-item">
-                        <span class="guideline-icon">🎯</span>
-                        <div>
-                            <strong id="guidelinesDistressHeading">Distress Classes (Road)</strong>
-                            <p id="guidelinesDistressClasses">D00 (Longitudinal), D10 (Transverse), D20 (Alligator), D40 (Pothole).</p>
+                        <div class="guideline-item">
+                            <span class="guideline-icon">🎯</span>
+                            <div>
+                                <strong id="guidelinesDistressHeading">What We Detect</strong>
+                                <p id="guidelinesDistressClasses">Potholes, surface cracks, wall cracks, water damage, and peeling plaster.</p>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </section>
+            </section>
 
-        <!-- Image Upload & Controls Section -->
-        <section class="inspection-input-card">
-            <div class="card-header">
-                <h2>📷 Defect Ingestion & Inspection</h2>
-                <p>Upload or capture a road or building surface photograph for genuine computer-vision inference.</p>
-            </div>
-
-            <!-- Inspection Workflow / Model Selection -->
-            <div class="domain-selector-wrapper">
-                <label class="domain-selector-label">Target Inspection Workflow & Model:</label>
-                <div class="domain-toggle-group" id="domainToggleGroup" role="radiogroup" aria-label="Inspection Target">
-                    <button type="button" class="domain-toggle-btn active" id="domainRoadBtn" data-domain="road" aria-pressed="true">
-                        <span class="domain-icon">🛣️</span>
-                        <div class="domain-btn-meta">
-                            <strong>Road Surface Distress</strong>
-                            <span>YOLOv8 Nano (RDD2022 India) • Cracks & Potholes</span>
-                        </div>
-                    </button>
-                    <button type="button" class="domain-toggle-btn" id="domainHomeBtn" data-domain="home" aria-pressed="false">
-                        <span class="domain-icon">🏠</span>
-                        <div class="domain-btn-meta">
-                            <strong>Home & Building Defect</strong>
-                            <span>YOLOv8 Home Model • Cracks, Dampness, Peeling, Spalling</span>
-                        </div>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Defect Location & Geospatial Context Card (Phase 2) -->
-            <div class="card location-context-card" id="inspectionLocationCard">
-                <div class="location-header-row">
-                    <div class="location-header-meta">
-                        <span class="location-card-icon">📍</span>
-                        <div>
-                            <h3 id="locationCardTitle" style="margin: 0; font-size: 1.12rem;">Defect Location & Geospatial Context</h3>
-                            <p id="locationCardSubtitle" class="card-subtitle" style="margin: 0.25rem 0 0 0;">
-                                Pinpoint where this defect was observed so repair teams can navigate to the exact hazard.
-                            </p>
-                        </div>
-                    </div>
-                    <div class="location-privacy-badge" title="Location is strictly scoped to your report and authorized staff">
-                        <span>🔒 Confidential Civic Data</span>
-                    </div>
+            <!-- Image Upload & Defect Reporting Card -->
+            <section class="inspection-input-card citizen-inspection-card">
+                <div class="card-header">
+                    <h2>📷 Report a Defect</h2>
+                    <p class="section-lead-text">Upload or capture a photo of the damaged road or building. Our AI will automatically identify the defect for you.</p>
                 </div>
 
-                <!-- Educational Callout: Why Location is Useful -->
-                <div class="location-why-callout">
-                    <div class="callout-icon">💡</div>
-                    <div class="callout-content">
-                        <strong>Why provide location?</strong>
-                        <p>
-                            Adding a street address or GPS pin allows municipal road crews or building management to immediately locate and remediate the hazard, plots the defect on the civic Defect Map, and automatically formats location telemetry in your formal complaint letters.
-                        </p>
-                        <small class="text-muted">
-                            🛡️ <em>Privacy Guarantee:</em> Location data remains private, is never shared with third parties, and is accessible only to you and authorized maintenance personnel. Location is optional and will never block analysis.
-                        </small>
-                    </div>
-                </div>
-
-                <!-- Geolocation Trigger & Actions -->
-                <div class="location-actions-row">
-                    <button type="button" class="btn btn-outline-primary" id="btnUseCurrentLocation">
-                        <span class="location-btn-icon">📍</span>
-                        <span id="btnUseCurrentLocationText">Use My Current Location</span>
-                        <span class="spinner spinner-sm" id="locationSpinner" style="display: none; margin-left: 0.5rem;"></span>
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm" id="btnClearLocation" style="display: none;">
-                        ✕ Clear Location
-                    </button>
-                </div>
-
-                <!-- Geolocation Feedback Banner (Dynamic States: Granted, Denied, Unavailable, Timeout, Unsupported) -->
-                <div class="location-status-banner" id="locationStatusBanner" style="display: none;" role="status">
-                    <span class="status-icon" id="locationStatusIcon">ℹ️</span>
-                    <div class="status-text" id="locationStatusText"></div>
-                </div>
-
-                <!-- Manual Address & Coordinate Fallback Form -->
-                <div class="location-form-grid">
-                    <div class="form-group">
-                        <label for="inspLocationRoad" id="inspLocationRoadLabel">
-                            Road / Street / Corridor <span class="text-muted">(Optional)</span>:
-                        </label>
-                        <input type="text" id="inspLocationRoad" class="form-control" placeholder="e.g. Western Express Highway, KM 14" maxlength="150">
-                    </div>
-                    <div class="form-group">
-                        <label for="inspLocationArea" id="inspLocationAreaLabel">
-                            Area / Neighborhood / Landmark <span class="text-muted">(Optional)</span>:
-                        </label>
-                        <input type="text" id="inspLocationArea" class="form-control" placeholder="e.g. Bandra West / Sector 4" maxlength="100">
-                    </div>
-                    <div class="form-group">
-                        <label for="inspLocationCity">
-                            City / Region <span class="text-muted">(Optional)</span>:
-                        </label>
-                        <input type="text" id="inspLocationCity" class="form-control" placeholder="e.g. Mumbai" maxlength="100">
-                    </div>
-                    <div class="form-group">
-                        <label for="inspLocationLat">
-                            Latitude <span class="text-muted">(GPS -90° to +90°, Optional)</span>:
-                        </label>
-                        <input type="number" id="inspLocationLat" class="form-control" placeholder="e.g. 19.0760" step="any" min="-90" max="90">
-                    </div>
-                    <div class="form-group">
-                        <label for="inspLocationLon">
-                            Longitude <span class="text-muted">(GPS -180° to +180°, Optional)</span>:
-                        </label>
-                        <input type="number" id="inspLocationLon" class="form-control" placeholder="e.g. 72.8777" step="any" min="-180" max="180">
-                    </div>
-                    <div class="form-group full-width">
-                        <label for="inspLocationNotes">
-                            Location Notes / Specific Landmarks <span class="text-muted">(Optional)</span>:
-                        </label>
-                        <input type="text" id="inspLocationNotes" class="form-control" placeholder="e.g. Opposite pillar 42, outside north entrance, 2nd floor corridor" maxlength="250">
-                    </div>
-                </div>
-
-                <!-- Confirmed Location Summary Bar (Confirmed / Editable Preview) -->
-                <div class="confirmed-location-bar" id="confirmedLocationBar">
-                    <div class="confirmed-location-meta">
-                        <span class="confirmed-status-indicator" id="confirmedLocationIndicator">⚪</span>
-                        <div class="confirmed-location-details">
-                            <span class="confirmed-label">Selected Report Location:</span>
-                            <strong id="confirmedLocationDisplay" class="confirmed-val">No location specified (Inspection will proceed without geotagging)</strong>
-                        </div>
-                    </div>
-                    <div class="confirmed-location-actions">
-                        <button type="button" class="btn btn-sm btn-outline-success" id="btnConfirmLocation">
-                            ✓ Confirm Location
+                <!-- Simple Nontechnical Defect Category Selection (Road vs. Building) -->
+                <div class="domain-selector-wrapper">
+                    <label class="domain-selector-label" style="font-weight: 600; font-size: 0.95rem; margin-bottom: 0.5rem; display: block;">
+                        What type of defect are you reporting?
+                    </label>
+                    <div class="domain-toggle-group" id="domainToggleGroup" role="radiogroup" aria-label="Inspection Target">
+                        <button type="button" class="domain-toggle-btn active" id="domainRoadBtn" data-domain="road" aria-pressed="true">
+                            <span class="domain-icon">🛣️</span>
+                            <div class="domain-btn-meta">
+                                <strong>Road / Street</strong>
+                                <span>Potholes, cracks, and surface damage</span>
+                            </div>
+                        </button>
+                        <button type="button" class="domain-toggle-btn" id="domainHomeBtn" data-domain="home" aria-pressed="false">
+                            <span class="domain-icon">🏠</span>
+                            <div class="domain-btn-meta">
+                                <strong>Building / Property</strong>
+                                <span>Wall cracks, dampness, and peeling plaster</span>
+                            </div>
                         </button>
                     </div>
                 </div>
-            </div>
 
-            <div class="upload-area" id="dropZone">
-                <input type="file" id="imageFileInput" accept=".jpg,.jpeg,.png,.bmp,.webp" style="display: none;">
-                <input type="file" id="cameraFileInput" accept="image/*" capture="environment" style="display: none;">
-                <div class="upload-prompt" id="uploadPrompt">
-                    <div class="upload-icon" id="uploadPromptIcon">🛣️</div>
-                    <h3 id="uploadPromptHeading">Drag & Drop road image here, or choose an option:</h3>
-                    <div class="upload-actions-row">
-                        <button type="button" class="btn btn-secondary" id="browseBtn">📁 Browse Files</button>
-                        <button type="button" class="btn btn-outline" id="cameraBtn">📷 Capture Photo</button>
+                <!-- Photo Upload & Camera Dropzone -->
+                <div class="upload-area citizen-upload-area" id="dropZone">
+                    <input type="file" id="imageFileInput" accept=".jpg,.jpeg,.png,.bmp,.webp" style="display: none;">
+                    <input type="file" id="cameraFileInput" accept="image/*" capture="environment" style="display: none;">
+                    <div class="upload-prompt" id="uploadPrompt">
+                        <div class="upload-icon" id="uploadPromptIcon">🛣️</div>
+                        <h3 id="uploadPromptHeading">Upload a clear photo of the damaged road or surface</h3>
+                        <p class="upload-hint-text" style="color: var(--text-secondary); margin: 0.35rem 0 1rem 0; font-size: 0.9rem;">
+                            Drag and drop your image here, browse your device, or capture directly with your camera.
+                        </p>
+                        <div class="upload-actions-row">
+                            <button type="button" class="btn btn-secondary" id="browseBtn">📁 Choose Photo</button>
+                            <button type="button" class="btn btn-outline" id="cameraBtn">📷 Take Photo</button>
+                        </div>
+                        <p class="upload-subtext" id="uploadPromptSubtext">Supported: JPG, PNG, WEBP • Max Size: 15 MB</p>
                     </div>
-                    <p class="upload-subtext" id="uploadPromptSubtext">Supported: JPG, PNG, WEBP • Max Size: 15 MB • Routing to Road Model</p>
-                </div>
-                <div class="preview-strip" id="previewStrip" style="display: none;">
-                    <img id="clientPreviewImg" src="" alt="Client Preview" class="preview-thumbnail">
-                    <div class="file-details">
-                        <strong id="selectedFileName">filename.jpg</strong>
-                        <span id="selectedFileSize">0 KB</span>
+                    <div class="preview-strip" id="previewStrip" style="display: none;">
+                        <img id="clientPreviewImg" src="" alt="Client Preview" class="preview-thumbnail">
+                        <div class="file-details">
+                            <strong id="selectedFileName">filename.jpg</strong>
+                            <span id="selectedFileSize">0 KB</span>
+                        </div>
+                        <button type="button" class="btn btn-outline" id="removeFileBtn">Remove Photo</button>
                     </div>
-                    <button type="button" class="btn btn-outline" id="removeFileBtn">Remove</button>
                 </div>
-            </div>
 
-            <!-- Parameters and Action -->
-            <div class="inspection-controls">
-                <div class="control-group">
-                    <label for="confSlider">
-                        Detection Confidence Threshold: 
-                        <strong id="confValDisplay">0.25</strong>
-                    </label>
+                <!-- Optional / Secondary Collapsible Location Details Card -->
+                <details class="card location-context-card secondary-location-card" id="inspectionLocationDetails" style="margin-top: 1rem;">
+                    <summary class="secondary-location-summary" style="cursor: pointer; padding: 0.65rem 0.5rem; display: flex; align-items: center; justify-content: space-between; font-size: 0.92rem; color: var(--text-secondary);">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <span>📍</span>
+                            <strong style="color: var(--text-primary);">Add Location Details</strong>
+                            <span class="text-muted">(Optional — helps maintenance teams pinpoint the hazard)</span>
+                        </div>
+                        <span class="toggle-indicator">▼</span>
+                    </summary>
+
+                    <div class="location-context-inner" id="inspectionLocationCard" style="margin-top: 0.85rem; padding-top: 0.85rem; border-top: 1px solid var(--border-color);">
+                        <div class="location-header-row" style="margin-bottom: 0.75rem;">
+                            <div class="location-header-meta">
+                                <h3 id="locationCardTitle" style="display: none;">Location</h3>
+                                <p id="locationCardSubtitle" class="card-subtitle" style="margin: 0;">
+                                    Pinpoint where this defect was observed so repair teams can navigate directly to the hazard.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Geolocation Actions -->
+                        <div class="location-actions-row" style="margin-bottom: 0.75rem;">
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="btnUseCurrentLocation">
+                                <span class="location-btn-icon">📍</span>
+                                <span id="btnUseCurrentLocationText">Use My Current Location</span>
+                                <span class="spinner spinner-sm" id="locationSpinner" style="display: none; margin-left: 0.5rem;"></span>
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="btnClearLocation" style="display: none;">
+                                ✕ Clear Location
+                            </button>
+                        </div>
+
+                        <!-- Status Banner -->
+                        <div class="location-status-banner" id="locationStatusBanner" style="display: none;" role="status">
+                            <span class="status-icon" id="locationStatusIcon">ℹ️</span>
+                            <div class="status-text" id="locationStatusText"></div>
+                        </div>
+
+                        <!-- Manual Address Form -->
+                        <div class="location-form-grid">
+                            <div class="form-group">
+                                <label for="inspLocationRoad" id="inspLocationRoadLabel">
+                                    Road / Street / Corridor <span class="text-muted">(Optional)</span>:
+                                </label>
+                                <input type="text" id="inspLocationRoad" class="form-control" placeholder="e.g. Western Express Highway, KM 14" maxlength="150">
+                            </div>
+                            <div class="form-group">
+                                <label for="inspLocationArea" id="inspLocationAreaLabel">
+                                    Area / Neighborhood / Landmark <span class="text-muted">(Optional)</span>:
+                                </label>
+                                <input type="text" id="inspLocationArea" class="form-control" placeholder="e.g. Bandra West / Sector 4" maxlength="100">
+                            </div>
+                            <div class="form-group">
+                                <label for="inspLocationCity">
+                                    City / Region <span class="text-muted">(Optional)</span>:
+                                </label>
+                                <input type="text" id="inspLocationCity" class="form-control" placeholder="e.g. Mumbai" maxlength="100">
+                            </div>
+                            <div class="form-group">
+                                <label for="inspLocationLat">
+                                    Latitude <span class="text-muted">(GPS, Optional)</span>:
+                                </label>
+                                <input type="number" id="inspLocationLat" class="form-control" placeholder="e.g. 19.0760" step="any" min="-90" max="90">
+                            </div>
+                            <div class="form-group">
+                                <label for="inspLocationLon">
+                                    Longitude <span class="text-muted">(GPS, Optional)</span>:
+                                </label>
+                                <input type="number" id="inspLocationLon" class="form-control" placeholder="e.g. 72.8777" step="any" min="-180" max="180">
+                            </div>
+                            <div class="form-group full-width">
+                                <label for="inspLocationNotes">
+                                    Landmark Notes / Observations <span class="text-muted">(Optional)</span>:
+                                </label>
+                                <input type="text" id="inspLocationNotes" class="form-control" placeholder="e.g. Near bus stop, opposite pillar 42" maxlength="250">
+                            </div>
+                        </div>
+
+                        <!-- Confirmed Location Summary Bar -->
+                        <div class="confirmed-location-bar" id="confirmedLocationBar" style="margin-top: 0.75rem;">
+                            <div class="confirmed-location-meta">
+                                <span class="confirmed-status-indicator" id="confirmedLocationIndicator">⚪</span>
+                                <div class="confirmed-location-details">
+                                    <span class="confirmed-label">Selected Location:</span>
+                                    <strong id="confirmedLocationDisplay" class="confirmed-val">No location specified</strong>
+                                </div>
+                            </div>
+                            <div class="confirmed-location-actions">
+                                <button type="button" class="btn btn-sm btn-outline-success" id="btnConfirmLocation">
+                                    ✓ Confirm Location
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+
+                <!-- Automated / Hidden Technical AI Parameters (Threshold & Mode) -->
+                <div id="technicalAiControls" style="display: none;" aria-hidden="true">
+                    <label for="confSlider">Detection Confidence Threshold: <strong id="confValDisplay">0.25</strong></label>
                     <input type="range" id="confSlider" min="0.05" max="0.95" step="0.05" value="0.25">
-                    <span class="control-hint">Minimum statistical probability to register a distress bounding box.</span>
-                </div>
-
-                <div class="control-group">
-                    <label>Inspection Mode:</label>
                     <div class="segmented-control" id="inspectionModeGroup">
-                        <label class="segmented-option">
-                            <input type="radio" name="inspectionMode" value="standard" checked>
-                            <span class="segmented-label">
-                                <span class="mode-icon">⚡</span> Standard (Fast)
-                            </span>
-                        </label>
-                        <label class="segmented-option">
-                            <input type="radio" name="inspectionMode" value="tiled">
-                            <span class="segmented-label">
-                                <span class="mode-icon">🔬</span> Tiled Slicing (Deep Crack Coverage)
-                            </span>
-                        </label>
+                        <label><input type="radio" name="inspectionMode" value="standard" checked> Standard</label>
+                        <label><input type="radio" name="inspectionMode" value="tiled"> Tiled</label>
                     </div>
-                    <span class="control-hint">Tiled slicing scans native resolution sub-windows to preserve continuous crack geometry.</span>
                 </div>
 
-                <div class="action-buttons">
-                    <button type="button" class="btn btn-primary" id="inspectBtn" disabled>
-                        <span class="btn-text" id="inspectBtnText">Run Defect Inspection</span>
+                <!-- Primary Action: Detect Defect -->
+                <div class="action-buttons citizen-action-buttons" style="margin-top: 1.25rem;">
+                    <button type="button" class="btn btn-primary btn-lg" id="inspectBtn" disabled style="min-width: 220px; font-size: 1.05rem; padding: 0.75rem 1.75rem;">
+                        <span class="btn-text" id="inspectBtnText">Detect Defect</span>
                         <span class="spinner" id="inspectSpinner" style="display: none;"></span>
                     </button>
                 </div>
-            </div>
-        </section>
+            </section>
 
-        <!-- Results Section (Populated Dynamically) -->
-        <section class="results-container" id="resultsContainer" style="display: none;">
-            <div class="results-header">
-                <div style="display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap;">
-                    <h2>🔍 Inspection Findings</h2>
-                    <span class="badge badge-info" id="resultsDomainBadge">🛣️ Road Inspection</span>
-                </div>
-                <span class="badge" id="resultsCountBadge">0 Defects Found</span>
-            </div>
-
-            <!-- Side-by-Side Visual Comparison -->
-            <div class="comparison-grid">
-                <div class="image-column">
-                    <div class="image-column-header">
-                        <h3 id="originalImageTitle">Original Surface Image</h3>
-                        <span class="caption" id="origDimCaption">-- × -- px</span>
+            <!-- Results Section (Populated Dynamically) -->
+            <section class="results-container citizen-results-container" id="resultsContainer" style="display: none;">
+                <div class="results-header">
+                    <div style="display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap;">
+                        <h2>🔍 Detection Results</h2>
+                        <span class="badge badge-info" id="resultsDomainBadge">🛣️ Road Inspection</span>
                     </div>
-                    <div class="image-display-box">
-                        <img id="originalDisplayImg" src="" alt="Original Surface Image">
-                    </div>
+                    <span class="badge" id="resultsCountBadge">0 Defects Found</span>
                 </div>
 
-                <div class="image-column">
-                    <div class="image-column-header">
-                        <h3>Authentic AI Detection Overlay</h3>
-                        <span class="caption" id="modelCheckpointCaption">YOLOv8</span>
+                <!-- Human-Centered Citizen Findings Card -->
+                <div class="card citizen-findings-card" id="citizenFindingsCard">
+                    <div class="citizen-findings-header">
+                        <h3>
+                            <span>📋</span> <span id="citizenFindingsTitle">Detection Summary</span>
+                        </h3>
+                        <span class="badge badge-info" id="citizenFindingsBadge">Analyzed</span>
                     </div>
-                    <div class="image-display-box">
-                        <img id="annotatedDisplayImg" src="" alt="Annotated Detection Overlay">
+                    <div id="citizenFindingsSummary">
+                        <!-- Injected by JavaScript: clear, plain-language findings or friendly zero-defect guidance -->
                     </div>
                 </div>
-            </div>
 
-            <!-- Telemetry Metrics & Metadata Row -->
-            <div class="metrics-row">
-                <div class="metric-card">
-                    <span class="metric-label">Defects Detected</span>
-                    <strong class="metric-value" id="metricDefectCount">0</strong>
-                    <span class="metric-caption" id="metricDefectTypes">--</span>
-                </div>
-                <div class="metric-card">
-                    <span class="metric-label">Top Detection Confidence</span>
-                    <strong class="metric-value" id="metricTopConf">--%</strong>
-                    <span class="metric-caption">Statistical Likelihood</span>
-                </div>
-                <div class="metric-card">
-                    <span class="metric-label">Model Engine</span>
-                    <strong class="metric-value text-sm" id="metricModelName">YOLOv8</strong>
-                    <span class="metric-caption" id="metricModelCaption">Checkpoint Weights</span>
-                </div>
-                <div class="metric-card">
-                    <span class="metric-label">Inspection Mode</span>
-                    <strong class="metric-value text-sm" id="metricInspectionMode">Standard</strong>
-                    <span class="metric-caption" id="metricModeCaption">Full-Frame 640px</span>
-                </div>
-            </div>
+                <!-- Side-by-Side Visual Comparison -->
+                <div class="comparison-grid">
+                    <div class="image-column">
+                        <div class="image-column-header">
+                            <h3 id="originalImageTitle">Original Photo</h3>
+                            <span class="caption" id="origDimCaption" style="color: var(--text-muted); font-size: 0.78rem;">-- × -- px</span>
+                        </div>
+                        <div class="image-display-box">
+                            <img id="originalDisplayImg" src="" alt="Original Photo">
+                        </div>
+                    </div>
 
-            <!-- Technical Image Metadata Table -->
-            <div class="card meta-card">
-                <h3>Technical Image Metadata</h3>
-                <div class="table-responsive">
-                    <table class="data-table" id="metaTable">
-                        <tbody>
-                            <tr><th>File Name</th><td id="metaFilename">--</td></tr>
-                            <tr><th>Format</th><td id="metaFormat">--</td></tr>
-                            <tr><th>Dimensions</th><td id="metaDimensions">--</td></tr>
-                            <tr><th>Aspect Ratio</th><td id="metaAspectRatio">--</td></tr>
-                            <tr><th>Channels & Mode</th><td id="metaChannels">--</td></tr>
-                            <tr><th>File Size</th><td id="metaFileSize">--</td></tr>
-                        </tbody>
-                    </table>
+                    <div class="image-column">
+                        <div class="image-column-header">
+                            <h3>Detection Highlight</h3>
+                            <span class="caption" id="modelCheckpointCaption" style="color: var(--text-muted); font-size: 0.78rem;">AI Model</span>
+                        </div>
+                        <div class="image-display-box">
+                            <img id="annotatedDisplayImg" src="" alt="Detection Highlight">
+                        </div>
+                    </div>
                 </div>
-            </div>
 
-            <!-- Detailed Distress Annotations Table -->
-            <div class="card detections-card">
-                <h3 id="detectionsTableHeading">Detected Road Distresses (Authentic Model Coordinates)</h3>
-                <div class="table-responsive">
-                    <table class="data-table" id="detectionsTable">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Distress Category</th>
-                                <th>Class ID</th>
-                                <th>Statistical Confidence</th>
-                                <th>Source</th>
-                                <th>Bounding Box [x1, y1, x2, y2]</th>
-                                <th>Pixel Extent (W × H)</th>
-                            </tr>
-                        </thead>
-                        <tbody id="detectionsTableBody">
-                            <!-- Injected by JavaScript -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+                <!-- Post-Detection Action & Report Submission Card -->
+                <div class="card save-inspection-card citizen-submit-card" id="saveInspectionCard">
+                    <div class="card-header-row">
+                        <div>
+                            <h3 id="submitReportCardTitle">📝 Submit Defect Report</h3>
+                            <p class="card-subtitle">Submit this report so local maintenance teams can review and repair the issue.</p>
+                        </div>
+                        <span class="badge badge-info" id="saveCardStatusBadge">Ready to Submit</span>
+                    </div>
 
-            <!-- Save Inspection Record Section -->
-            <div class="card save-inspection-card" id="saveInspectionCard">
-                <div class="card-header-row">
-                    <div>
-                        <h3>💾 Save to Inspection Records</h3>
-                        <p class="card-subtitle">Log this inspection into SQLite database for infrastructure tracking and work order management.</p>
+                    <!-- Simple Report Fields -->
+                    <div class="save-form-grid citizen-save-grid">
+                        <div class="form-group">
+                            <label for="saveRoadNameInput" id="saveLocationLabel">Road / Street Name <span class="text-muted">(Optional)</span>:</label>
+                            <input type="text" id="saveRoadNameInput" class="form-control" placeholder="e.g. Western Express Highway, KM 14" maxlength="150">
+                        </div>
+                        <div class="form-group" style="display: none;">
+                            <label for="saveStatusSelect">Initial Status:</label>
+                            <select id="saveStatusSelect" class="form-control">
+                                <option value="Open" selected>🔵 Open</option>
+                                <option value="In Progress">🟠 In Progress</option>
+                                <option value="Under Review">🟡 Under Review</option>
+                                <option value="Resolved">🟢 Resolved</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="display: none;">
+                            <label for="saveTargetDateInput">Target Repair Date:</label>
+                            <input type="date" id="saveTargetDateInput" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="saveAreaInput">Area / Landmark <span class="text-muted">(Optional)</span>:</label>
+                            <input type="text" id="saveAreaInput" class="form-control" placeholder="e.g. Bandra West / Sector 4" maxlength="100">
+                        </div>
+                        <div class="form-group">
+                            <label for="saveCityInput">City <span class="text-muted">(Optional)</span>:</label>
+                            <input type="text" id="saveCityInput" class="form-control" placeholder="e.g. Mumbai" maxlength="100">
+                        </div>
+                        <div class="form-group" style="display: none;">
+                            <input type="number" id="saveLatInput" class="form-control">
+                            <input type="number" id="saveLonInput" class="form-control">
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="saveNotesInput">Additional Notes / Observations <span class="text-muted">(Optional)</span>:</label>
+                            <textarea id="saveNotesInput" class="form-control" rows="2" placeholder="e.g. Near bus stop, hazard for cyclists or pedestrians, getting worse after rain."></textarea>
+                        </div>
                     </div>
-                    <span class="badge badge-info" id="saveCardStatusBadge">Ready to Save</span>
-                </div>
-                <div class="save-form-grid">
-                    <div class="form-group">
-                        <label for="saveRoadNameInput" id="saveLocationLabel">Road / Highway / Corridor <span class="text-muted">(Optional)</span>:</label>
-                        <input type="text" id="saveRoadNameInput" class="form-control" placeholder="e.g. Western Express Highway, KM 14" maxlength="150">
-                    </div>
-                    <div class="form-group">
-                        <label for="saveStatusSelect">Initial Status:</label>
-                        <select id="saveStatusSelect" class="form-control">
-                            <option value="Open" selected>🔵 Open</option>
-                            <option value="In Progress">🟠 In Progress</option>
-                            <option value="Under Review">🟡 Under Review</option>
-                            <option value="Repair in Progress">🟠 Repair in Progress</option>
-                            <option value="Resolved">🟢 Resolved</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="saveTargetDateInput">Target Repair Date <span class="text-muted">(Optional)</span>:</label>
-                        <input type="date" id="saveTargetDateInput" class="form-control">
-                    </div>
-                    <div class="form-group">
-                        <label for="saveAreaInput">Area / Neighborhood / Landmark <span class="text-muted">(Optional)</span>:</label>
-                        <input type="text" id="saveAreaInput" class="form-control" placeholder="e.g. Bandra West / Sector 4" maxlength="100">
-                    </div>
-                    <div class="form-group">
-                        <label for="saveCityInput">City / Region <span class="text-muted">(Optional)</span>:</label>
-                        <input type="text" id="saveCityInput" class="form-control" placeholder="e.g. Mumbai" maxlength="100">
-                    </div>
-                    <div class="form-group">
-                        <label for="saveLatInput">Latitude <span class="text-muted">(GPS -90° to +90°, Optional)</span>:</label>
-                        <input type="number" id="saveLatInput" class="form-control" placeholder="e.g. 19.0760" step="any" min="-90" max="90">
-                    </div>
-                    <div class="form-group">
-                        <label for="saveLonInput">Longitude <span class="text-muted">(GPS -180° to +180°, Optional)</span>:</label>
-                        <input type="number" id="saveLonInput" class="form-control" placeholder="e.g. 72.8777" step="any" min="-180" max="180">
-                    </div>
-                    <div class="form-group full-width">
-                        <label for="saveNotesInput">Location Notes / Inspection Observations <span class="text-muted">(Optional)</span>:</label>
-                        <textarea id="saveNotesInput" class="form-control" rows="2" placeholder="e.g. Inspection observations, crack propagation notes, or environmental conditions."></textarea>
-                    </div>
-                </div>
-                <div class="save-actions">
-                    <button type="button" class="btn btn-primary" id="saveInspectionBtn">
-                        <span class="btn-text">Save Inspection Record</span>
-                        <span class="spinner" id="saveSpinner" style="display: none;"></span>
-                    </button>
-                    <span class="save-feedback" id="saveFeedback" style="display: none;"></span>
-                </div>
-            </div>
 
-            <!-- Strict Civil Engineering Disclaimer -->
-            <div class="alert alert-disclaimer">
-                <div class="alert-icon">🛡️</div>
-                <div class="alert-content">
-                    <strong id="disclaimerHeading">Civil Engineering Disclaimer & Safety Boundary:</strong>
-                    <p id="disclaimerText">
-                        VisionGuard AI detections and confidence ratings reflect <em>statistical model certainty</em>, 
-                        <strong>not physical pavement failure severity, cavity depth, or roadway structural safety</strong>. 
-                        A photograph alone cannot certify roadway load-bearing capacity, sub-base condition, or asphalt thickness. 
-                        Bounding boxes represent pixel localization and do not measure millimeter crack width without physical ground-plane calibration.
-                    </p>
+                    <!-- Clear Post-Detection Citizen Actions -->
+                    <div class="save-actions citizen-action-buttons" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+                        <button type="button" class="btn btn-primary btn-lg" id="saveInspectionBtn" style="min-width: 180px;">
+                            <span class="btn-text">Submit Report</span>
+                            <span class="spinner" id="saveSpinner" style="display: none;"></span>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-lg" id="cancelReportBtn">
+                            ✕ Cancel & Try Another Photo
+                        </button>
+                        <span class="save-feedback" id="saveFeedback" style="display: none;"></span>
+                    </div>
                 </div>
-            </div>
-        </section>
+
+                <!-- Collapsible Advanced Technical Section (Optional for Power Users / Inspectors) -->
+                <details class="card technical-telemetry-accordion" id="technicalTelemetryDetails" style="margin-top: 1rem;">
+                    <summary style="cursor: pointer; font-weight: 600; color: var(--text-secondary); padding: 0.5rem 0.25rem;">
+                        ⚙️ Technical AI Details & Coordinates (Advanced)
+                    </summary>
+                    <div style="margin-top: 1rem; display: flex; flex-direction: column; gap: 1.25rem;">
+                        <!-- Metrics Row -->
+                        <div class="metrics-row">
+                            <div class="metric-card">
+                                <span class="metric-label">Defects Detected</span>
+                                <strong class="metric-value" id="metricDefectCount">0</strong>
+                                <span class="metric-caption" id="metricDefectTypes">--</span>
+                            </div>
+                            <div class="metric-card">
+                                <span class="metric-label">Top Detection Confidence</span>
+                                <strong class="metric-value" id="metricTopConf">--%</strong>
+                                <span class="metric-caption">Statistical Likelihood</span>
+                            </div>
+                            <div class="metric-card">
+                                <span class="metric-label">Model Engine</span>
+                                <strong class="metric-value text-sm" id="metricModelName">YOLOv8</strong>
+                                <span class="metric-caption" id="metricModelCaption">Checkpoint Weights</span>
+                            </div>
+                            <div class="metric-card">
+                                <span class="metric-label">Inspection Mode</span>
+                                <strong class="metric-value text-sm" id="metricInspectionMode">Standard</strong>
+                                <span class="metric-caption" id="metricModeCaption">Full-Frame 640px</span>
+                            </div>
+                        </div>
+
+                        <!-- Technical Image Metadata Table -->
+                        <div class="card meta-card">
+                            <h3>Technical Image Metadata</h3>
+                            <div class="table-responsive">
+                                <table class="data-table" id="metaTable">
+                                    <tbody>
+                                        <tr><th>File Name</th><td id="metaFilename">--</td></tr>
+                                        <tr><th>Format</th><td id="metaFormat">--</td></tr>
+                                        <tr><th>Dimensions</th><td id="metaDimensions">--</td></tr>
+                                        <tr><th>Aspect Ratio</th><td id="metaAspectRatio">--</td></tr>
+                                        <tr><th>Channels & Mode</th><td id="metaChannels">--</td></tr>
+                                        <tr><th>File Size</th><td id="metaFileSize">--</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Detailed Distress Annotations Table -->
+                        <div class="card detections-card">
+                            <h3 id="detectionsTableHeading">Detected Distresses (Authentic Model Coordinates)</h3>
+                            <div class="table-responsive">
+                                <table class="data-table" id="detectionsTable">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Distress Category</th>
+                                            <th>Class ID</th>
+                                            <th>Statistical Confidence</th>
+                                            <th>Source</th>
+                                            <th>Bounding Box [x1, y1, x2, y2]</th>
+                                            <th>Pixel Extent (W × H)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="detectionsTableBody">
+                                        <!-- Injected by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+
+                <!-- Engineering Safety Disclaimer -->
+                <div class="alert alert-disclaimer">
+                    <div class="alert-icon">🛡️</div>
+                    <div class="alert-content">
+                        <strong id="disclaimerHeading">Civil Engineering Disclaimer & Safety Boundary:</strong>
+                        <p id="disclaimerText">
+                            VisionGuard AI detections and ratings reflect statistical model certainty, not physical pavement failure depth or roadway load capacity. Official remediation decisions are verified by municipal engineering personnel.
+                        </p>
+                    </div>
+                </div>
+            </section>
         </div><!-- /#newInspectionSection -->
+
 
         <!-- Inspection Records & History Section -->
         <section class="records-container" id="recordsSection" style="display: none;">
