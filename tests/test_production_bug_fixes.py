@@ -301,29 +301,31 @@ def test_citizen_my_reports_api_filters_correctly(test_setup):
 
 
 def test_citizen_defect_map_shows_all_civic_geotagged_records(test_setup):
-    """Verifies that citizens can explore all public geotagged records on the Defect Map."""
+    """Verifies that citizens can explore all published geotagged civic records on the shared Defect Map."""
     app = test_setup["app"]
     db_path = test_setup["db_path"]
     c1 = test_setup["c1"]
 
-    # 1. Citizen's own geotagged record
+    # 1. Citizen's own geotagged record, approved and published
     save_inspection({
         "image_name": "my_geo.jpg",
         "road_name": "Local Road",
         "latitude": 19.0760,
         "longitude": 72.8777,
         "status": "Open",
+        "publication_status": "published",
         "created_by_user_id": c1["id"],
         "created_by_username": "zeeshanshaikh1",
     }, db_path=db_path)
 
-    # 2. Another user's public geotagged record
+    # 2. Another user's public geotagged record, approved and published
     save_inspection({
         "image_name": "city_geo.jpg",
         "road_name": "Highway 1",
         "latitude": 19.1200,
         "longitude": 72.8500,
         "status": "Open",
+        "publication_status": "published",
         "created_by_user_id": 999,
         "created_by_username": "city_inspector",
     }, db_path=db_path)
@@ -335,22 +337,46 @@ def test_citizen_defect_map_shows_all_civic_geotagged_records(test_setup):
         "latitude": None,
         "longitude": None,
         "status": "Open",
+        "publication_status": "published",
+    }, db_path=db_path)
+
+    # 4. Unpublished pending_review record (should NOT be on public map)
+    save_inspection({
+        "image_name": "pending_geo.jpg",
+        "road_name": "Unpublished Road",
+        "latitude": 19.1500,
+        "longitude": 72.8600,
+        "status": "Open",
+        "publication_status": "pending_review",
     }, db_path=db_path)
 
     client = app.test_client()
     with client.session_transaction() as sess:
         sess["user_id"] = c1["id"]
 
-    # Defect Map query
-    resp = client.get("/api/inspections?has_coords=true&limit=500")
+    # Shared Defect Map query
+    resp = client.get("/api/public/defects?limit=500")
     assert resp.status_code == 200
     data = resp.get_json()
-    # Both geotagged records must be visible on the public Defect Map
+    # Exactly the two published geotagged records must be visible on the public Defect Map
     assert data["count"] == 2
-    names = {r["image_name"] for r in data["inspections"]}
-    assert "my_geo.jpg" in names
-    assert "city_geo.jpg" in names
-    assert "no_coords.jpg" not in names
+    lats = {round(r["latitude"], 4) for r in data["defects"]}
+    assert 19.0760 in lats
+    assert 19.1200 in lats
+
+    # Private fields must never leak on the public map
+    for marker in data["defects"]:
+        assert marker["marker_id"].startswith("PUB-")
+        assert "image_name" not in marker
+        assert "created_by_user_id" not in marker
+        assert "created_by_username" not in marker
+
+    # On private dashboard /api/inspections, citizen c1 only sees their own inspection
+    resp_priv = client.get("/api/inspections?limit=500")
+    assert resp_priv.status_code == 200
+    priv_data = resp_priv.get_json()
+    assert priv_data["count"] == 1
+    assert priv_data["inspections"][0]["image_name"] == "my_geo.jpg"
 
 
 def test_citizen_detail_view_access_by_username(test_setup):

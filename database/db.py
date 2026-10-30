@@ -95,6 +95,10 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
         defect_count INTEGER DEFAULT 0,
         detections_json TEXT DEFAULT '[]',
         target_repair_date TEXT,
+        publication_status TEXT DEFAULT 'pending_review',
+        published_at TIMESTAMP,
+        published_by_user_id INTEGER,
+        published_by_username TEXT,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """)
@@ -129,6 +133,10 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
         ("assignment_status", "TEXT DEFAULT 'unassigned'"),
         ("assignment_updated_at", "TIMESTAMP"),
         ("inspection_type", "TEXT DEFAULT 'road'"),
+        ("publication_status", "TEXT DEFAULT 'pending_review'"),
+        ("published_at", "TIMESTAMP"),
+        ("published_by_user_id", "INTEGER"),
+        ("published_by_username", "TEXT"),
     ]
 
     for col_name, col_type in columns_to_add:
@@ -513,7 +521,7 @@ def row_to_dict(row: Any, ref_date: Optional[datetime.date] = None) -> Dict[str,
     """Converts a database row into a dict and parses detections_json, location, and maintenance deadline fields safely."""
     d = dict(row)
     # Convert datetime fields to ISO strings for cross-backend JSON serialization safety
-    for dt_key in ("uploaded_at", "updated_at", "assigned_at", "assignment_updated_at", "submitted_at", "created_at"):
+    for dt_key in ("uploaded_at", "updated_at", "assigned_at", "assignment_updated_at", "submitted_at", "created_at", "published_at"):
         if isinstance(d.get(dt_key), (datetime.datetime, datetime.date)):
             d[dt_key] = d[dt_key].isoformat()
 
@@ -526,6 +534,32 @@ def row_to_dict(row: Any, ref_date: Optional[datetime.date] = None) -> Dict[str,
             d["detections"] = []
     else:
         d["detections"] = []
+
+    # Convenience aliases for Gemini inspection telemetry
+    sev = d.get("severity") or d.get("preliminary_severity")
+    if not sev and d.get("detections"):
+        for det in d["detections"]:
+            if det.get("severity"):
+                sev = det["severity"]
+                break
+    if not sev and d.get("defect_count", 0) > 0:
+        sev = "Moderate"
+    d["severity"] = sev
+    d["preliminary_severity"] = sev.title() if isinstance(sev, str) else sev
+
+    if not d.get("summary") and d.get("detections"):
+        for det in d["detections"]:
+            if det.get("description"):
+                d["summary"] = det["description"]
+                break
+    if not d.get("observations") and d.get("detections"):
+        obs_pts = [det.get("evidence") or det.get("inspection_points") for det in d["detections"] if det.get("evidence") or det.get("inspection_points")]
+        if obs_pts:
+            d["observations"] = " • ".join(obs_pts)
+    if not d.get("recommendations") and d.get("detections"):
+        rec_pts = [det.get("recommended_action") for det in d["detections"] if det.get("recommended_action")]
+        if rec_pts:
+            d["recommendations"] = " • ".join(rec_pts)
 
     # Ensure latitude and longitude are float or None
     lat = d.get("latitude")
@@ -577,6 +611,12 @@ def row_to_dict(row: Any, ref_date: Optional[datetime.date] = None) -> Dict[str,
     d["submission_channel"] = d.get("complaint_submission_channel") or d.get("submission_channel")
     d["submission_reference"] = d.get("complaint_submission_reference") or d.get("submission_reference")
     d["submitted_at"] = d.get("complaint_submitted_at") or d.get("submitted_at")
+
+    # Public Defect Map publication lifecycle fields
+    d["publication_status"] = d.get("publication_status") or "pending_review"
+    d["published_at"] = d.get("published_at")
+    d["published_by_user_id"] = d.get("published_by_user_id")
+    d["published_by_username"] = d.get("published_by_username")
 
     return d
 
@@ -632,8 +672,13 @@ def save_inspection(data: Dict[str, Any], db_path: str = DEFAULT_DB_PATH) -> Dic
     if status not in ALLOWED_STATUSES:
         status = DEFAULT_STATUS
 
-    # Check for detections list
-    detections = data.get("detections", [])
+    # Check for detections list or detections_json
+    detections = data.get("detections")
+    if not detections and data.get("detections_json"):
+        try:
+            detections = json.loads(data["detections_json"])
+        except Exception:
+            detections = []
     if not isinstance(detections, list):
         detections = []
 
@@ -669,20 +714,36 @@ def save_inspection(data: Dict[str, Any], db_path: str = DEFAULT_DB_PATH) -> Dic
     if inspection_type not in ("road", "home"):
         inspection_type = "road"
 
+    severity_val = data.get("severity") or data.get("preliminary_severity")
+    if not severity_val and detections:
+        for d in detections:
+            if d.get("severity"):
+                severity_val = d["severity"]
+                break
+
+    pub_status = (data.get("publication_status") or "pending_review").strip().lower()
+    if pub_status not in ("pending_review", "published", "hidden"):
+        pub_status = "pending_review"
+    published_at = data.get("published_at")
+    published_by_user_id = data.get("published_by_user_id")
+    published_by_username = data.get("published_by_username")
+
     cursor.execute("""
     INSERT INTO defect_inspections (
-        image_name, file_path, status, defect_type, confidence, notes,
+        image_name, file_path, status, defect_type, confidence, severity, notes,
         original_image_path, annotated_image_path, road_name, area, city,
         latitude, longitude, location_notes,
         inspection_mode, confidence_threshold, defect_count, detections_json,
-        target_repair_date, created_by_user_id, created_by_username, inspection_type
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        target_repair_date, created_by_user_id, created_by_username, inspection_type,
+        publication_status, published_at, published_by_user_id, published_by_username
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     """, (
         image_name,
         original_image_path,
         status,
         defect_type,
         round(top_conf, 4),
+        severity_val,
         location_notes,
         original_image_path,
         annotated_image_path,
@@ -700,6 +761,10 @@ def save_inspection(data: Dict[str, Any], db_path: str = DEFAULT_DB_PATH) -> Dic
         data.get("created_by_user_id") or data.get("user_id"),
         data.get("created_by_username") or data.get("username"),
         inspection_type,
+        pub_status,
+        published_at,
+        published_by_user_id,
+        published_by_username,
     ))
 
     inserted_id = cursor.lastrowid
@@ -749,6 +814,7 @@ def get_inspections(
     domain: Optional[str] = None,
     inspection_type: Optional[str] = None,
     complaint_status: Optional[str] = None,
+    publication_status: Optional[str] = None,
     sort_by: Optional[str] = "newest",
     db_path: str = DEFAULT_DB_PATH
 ) -> List[Dict[str, Any]]:
@@ -876,6 +942,11 @@ def get_inspections(
         else:
             conditions.append("LOWER(COALESCE(cd.status, '')) = ?")
             params.append(cst)
+
+    # Defect marker publication status filter (Public Defect Map)
+    if publication_status and publication_status.strip() and publication_status.strip().lower() != "all":
+        conditions.append("LOWER(COALESCE(di.publication_status, 'pending_review')) = ?")
+        params.append(publication_status.strip().lower())
 
     where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
 
@@ -1447,6 +1518,75 @@ def update_inspection(
     cursor.execute("SELECT * FROM defect_inspections WHERE id = ?;", (inspection_id,))
     updated_row = cursor.fetchone()
     conn.close()
+    return row_to_dict(updated_row)
+
+
+def update_inspection_publication_status(
+    inspection_id: int,
+    publication_status: str,
+    user_id: Optional[int] = None,
+    username: Optional[str] = None,
+    db_path: str = DEFAULT_DB_PATH
+) -> Optional[Dict[str, Any]]:
+    """
+    Updates the publication status of an inspection record ('pending_review', 'published', 'hidden').
+    Restricted to authorized administrators and inspectors.
+    Logs transition activity to maintenance_activity_log.
+    """
+    clean_status = (publication_status or "").strip().lower()
+    if clean_status not in ("pending_review", "published", "hidden"):
+        raise ValueError(f"Invalid publication status '{publication_status}'. Must be one of: 'pending_review', 'published', 'hidden'.")
+
+    init_db(db_path)
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM defect_inspections WHERE id = ?;", (inspection_id,))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        return None
+
+    old_pub_status = row["publication_status"] or "pending_review"
+    now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    published_at_val = now_iso if clean_status == "published" else (row["published_at"] if clean_status == old_pub_status else None)
+
+    cursor.execute("""
+    UPDATE defect_inspections
+    SET publication_status = ?,
+        published_at = ?,
+        published_by_user_id = ?,
+        published_by_username = ?,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?;
+    """, (
+        clean_status,
+        published_at_val,
+        user_id,
+        username,
+        inspection_id
+    ))
+
+    # Log to maintenance audit trail
+    cursor.execute("""
+    INSERT INTO maintenance_activity_log (
+        inspection_id, action_type, previous_status, new_status, notes, user_id, username
+    ) VALUES (?, 'publication_status_change', ?, ?, ?, ?, ?);
+    """, (
+        inspection_id,
+        old_pub_status,
+        clean_status,
+        f"Defect marker publication status updated to '{clean_status}' by {username or 'Authority'}.",
+        user_id,
+        username
+    ))
+
+    conn.commit()
+
+    cursor.execute("SELECT * FROM defect_inspections WHERE id = ?;", (inspection_id,))
+    updated_row = cursor.fetchone()
+    conn.close()
+
     return row_to_dict(updated_row)
 
 

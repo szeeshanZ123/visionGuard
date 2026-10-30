@@ -167,27 +167,58 @@ def test_citizen_inspection_list_cannot_leak_other_records_via_query_params(auth
 def test_public_map_data_sanitizes_citizen_pii_and_internal_dispatch(auth_security_app):
     """When a citizen views civic geotagged map pins, private citizen notes and staff IDs are stripped."""
     app = auth_security_app["app"]
+    alice_record_id = auth_security_app["alice_record_id"]
 
     with app.test_client() as client:
         login_client(client, "citizen_bob", "BobPass1234!")
 
-        # Bob explores civic map
-        res = client.get("/api/inspections?has_coords=true&all_civic=true")
+        # 1. Bob explores public defect map while Alice's record is in pending_review
+        res = client.get("/api/public/defects")
         assert res.status_code == 200
-        records = res.get_json()["inspections"]
+        records = res.get_json()["defects"]
+        assert len(records) == 0
+
+        # Bob also sees zero records on private inspections endpoint
+        res = client.get("/api/inspections")
+        assert res.status_code == 200
+        assert len(res.get_json()["inspections"]) == 0
+
+    # 2. Admin approves and publishes Alice's civic defect record
+    with app.test_client() as client:
+        csrf_tok = login_client(client, "admin_user", "AdminPass1234!")
+        headers = {"X-CSRF-Token": csrf_tok}
+        pub_res = client.patch(
+            f"/api/inspections/{alice_record_id}/publication",
+            json={"publication_status": "published"},
+            headers=headers
+        )
+        assert pub_res.status_code == 200
+
+    # 3. Bob now explores shared public defect map
+    with app.test_client() as client:
+        login_client(client, "citizen_bob", "BobPass1234!")
+        res = client.get("/api/public/defects")
+        assert res.status_code == 200
+        records = res.get_json()["defects"]
         assert len(records) >= 1
 
         alice_pin = records[0]
         # Coordinates and public road location are preserved
         assert alice_pin["latitude"] == 18.9438
-        assert alice_pin["road_name"] == "Marine Drive"
+        assert "Marine Drive" in alice_pin["location_summary"]
+        assert alice_pin["marker_id"].startswith("PUB-")
 
-        # PII and internal dispatch instructions are strictly stripped
-        assert alice_pin["created_by_user_id"] is None
-        assert alice_pin["created_by_username"] == "Citizen Report"
-        assert alice_pin["assigned_to_user_id"] is None
-        assert alice_pin["assignment_instructions"] == ""
-        assert alice_pin["notes"] == ""  # Confidential private note hidden
+        # PII, internal dispatch instructions, and private notes are strictly stripped / not returned
+        for forbidden_key in [
+            "id", "created_by_user_id", "created_by_username", "assigned_to_user_id",
+            "assignment_instructions", "notes", "original_image_url", "annotated_image_url", "pdf_url"
+        ]:
+            assert forbidden_key not in alice_pin
+
+        # Bob still sees zero records on private inspections endpoint (strict citizen ownership)
+        res_priv = client.get("/api/inspections")
+        assert res_priv.status_code == 200
+        assert len(res_priv.get_json()["inspections"]) == 0
 
 
 def test_authorized_admin_access_continues_working(auth_security_app):

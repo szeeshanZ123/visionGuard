@@ -105,6 +105,7 @@ from database.db import (
     delete_inspection,
     validate_target_repair_date,
     get_inspection_activity,
+    update_inspection_publication_status,
     ALLOWED_STATUSES,
     DEFAULT_DB_PATH,
 )
@@ -149,6 +150,7 @@ from database.complaints import (
     update_complaint_draft,
     export_complaint_draft_pdf,
     COMPLAINT_DISCLAIMER_TEXT,
+    format_defect_classification,
 )
 from ai.preprocessing.image_ops import (
     validate_image_stream,
@@ -675,9 +677,24 @@ def create_app(
     @app.route("/report", methods=["GET"])
     @app.route("/reports", methods=["GET"])
     @app.route("/records", methods=["GET"])
-    def page_report():
-        """Serves the inspection records and reporting table."""
-        return render_template("report.html", csrf_token=get_or_create_csrf_token())
+    @app.route("/report/<int:inspection_id>", methods=["GET"])
+    @app.route("/reports/<int:inspection_id>", methods=["GET"])
+    @app.route("/records/<int:inspection_id>", methods=["GET"])
+    def page_report(inspection_id: Optional[int] = None):
+        """Serves the inspection records and reporting table, with optional direct inspection focus."""
+        if is_auth_enforced() and inspection_id:
+            curr_user = get_current_user_record()
+            if curr_user and curr_user.get("role") == ROLE_CITIZEN:
+                db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+                rec = get_inspection_by_id(inspection_id, db_path=db_path)
+                if rec and not check_citizen_inspection_access(rec, curr_user, db_path=db_path):
+                    return redirect("/report?error=forbidden")
+
+        return render_template(
+            "report.html",
+            csrf_token=get_or_create_csrf_token(),
+            inspection_id=inspection_id,
+        )
 
     @app.route("/app", methods=["GET"])
     @app.route("/classic", methods=["GET"])
@@ -1733,6 +1750,13 @@ def create_app(
                 },
                 "inspection_mode": inspection_mode,
                 "confidence_threshold": conf_thresh,
+                "candidate_summary": {
+                    "total_candidates": len(defects),
+                    "accepted": len(defects),
+                    "suppressed": 0,
+                    "slice_count": 1,
+                    "model": getattr(gemini_svc, "model_name", "gemini"),
+                },
                 "defect_count": len(defects),
                 "detections": defects,
                 "defects": defects,
@@ -1988,12 +2012,101 @@ def create_app(
             )
         }), 200
 
+    def generate_public_marker_id(inspection_id: int, uploaded_at: Any = None) -> str:
+        """Generates an opaque, non-reversible public marker token decoupled from database IDs."""
+        seed = f"vg-pub-marker-{inspection_id}-{str(uploaded_at or '')}"
+        token = hashlib.sha256(seed.encode("utf-8")).hexdigest()[:10].upper()
+        return f"PUB-{token}"
+
+    @app.route("/api/public/defects", methods=["GET"])
+    @roles_required(ROLE_ADMIN, ROLE_INSPECTOR, ROLE_MAINTENANCE, ROLE_CITIZEN)
+    def api_get_public_defects():
+        """
+        Retrieves public civic defect markers approved and published for the shared map.
+        Strict Privacy Guardrails:
+        - Only records with publication_status = 'published' are returned.
+        - Excludes all citizen PII, user IDs, raw inspection IDs, and complaint reference IDs.
+        - Excludes private uploaded photos, annotated photos, and private citizen notes.
+        - Returns an opaque public marker ID (e.g. PUB-XXXX).
+        """
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        domain_filter = request.args.get("domain") or request.args.get("inspection_type")
+        category_filter = request.args.get("category")
+        try:
+            limit = min(500, max(1, int(request.args.get("limit", 100))))
+            offset = max(0, int(request.args.get("offset", 0)))
+        except (TypeError, ValueError):
+            limit = 100
+            offset = 0
+
+        # Query defect_inspections strictly for published records with coordinates
+        published_records = get_inspections(
+            has_coords=True,
+            publication_status="published",
+            domain=domain_filter if domain_filter and domain_filter.lower() != "all" else None,
+            category=category_filter if category_filter and category_filter.lower() != "all" else None,
+            limit=limit,
+            offset=offset,
+            db_path=db_path
+        )
+
+        defects_list = []
+        for r in published_records:
+            lat = r.get("latitude")
+            lon = r.get("longitude")
+            if lat is None or lon is None:
+                continue
+            try:
+                f_lat = float(lat)
+                f_lon = float(lon)
+            except (ValueError, TypeError):
+                continue
+            if not (-90.0 <= f_lat <= 90.0 and -180.0 <= f_lon <= 180.0):
+                continue
+            if f_lat == 0.0 and f_lon == 0.0:
+                continue
+
+            loc_parts = []
+            if r.get("road_name") and str(r["road_name"]).strip():
+                loc_parts.append(str(r["road_name"]).strip())
+            if r.get("area") and str(r["area"]).strip():
+                loc_parts.append(str(r["area"]).strip())
+            if r.get("city") and str(r["city"]).strip():
+                loc_parts.append(str(r["city"]).strip())
+            loc_summary = ", ".join(loc_parts) or "Municipal Asset Corridor"
+
+            dom = (r.get("inspection_type") or "road").lower()
+            cat_display = format_defect_classification(r.get("defect_type") or "Infrastructure Distress", domain=dom)
+            raw_sev = r.get("severity") or r.get("preliminary_severity") or "Moderate"
+            sev_display = raw_sev.title() if isinstance(raw_sev, str) else "Moderate"
+
+            marker_id = generate_public_marker_id(r["id"], r.get("uploaded_at"))
+
+            defects_list.append({
+                "marker_id": marker_id,
+                "domain": dom,
+                "defect_category": cat_display,
+                "preliminary_severity": sev_display,
+                "status": r.get("status") or "Open",
+                "inspection_date": str(r.get("uploaded_at") or r.get("created_at") or "")[:10] or datetime.date.today().isoformat(),
+                "latitude": round(f_lat, 6),
+                "longitude": round(f_lon, 6),
+                "location_summary": loc_summary,
+                "defect_count": int(r.get("defect_count") or (len(r.get("detections", [])) if r.get("detections") else 1)),
+            })
+
+        return jsonify({
+            "status": "success",
+            "count": len(defects_list),
+            "defects": defects_list,
+        }), 200
+
     @app.route("/api/inspections", methods=["GET"])
     @roles_required(ROLE_ADMIN, ROLE_INSPECTOR, ROLE_MAINTENANCE, ROLE_CITIZEN)
     def api_get_inspections():
         """
         Lists saved inspection records with optional filtering.
-        Query params: status, category, q (search query), limit, offset, my_reports, all_civic.
+        Query params: status, category, q (search query), limit, offset, my_reports.
         """
         db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
         status_filter = request.args.get("status")
@@ -2035,18 +2148,12 @@ def create_app(
         my_reports = request.args.get("my_reports") or request.args.get("created_by_me")
         created_by_filter = None
         created_by_username_filter = None
-        is_map_query = bool(has_coords or request.args.get("all_civic") in ["1", "true", "yes"])
 
         if curr_user and curr_user.get("role") == ROLE_CITIZEN:
-            # Citizens can only view civic geotagged pins for the map, or their own personal reports
-            if is_map_query:
-                # Defect Map exploration: allow geotagged records, but sanitize non-owned rows below
-                created_by_filter = None
-                created_by_username_filter = None
-            else:
-                # On all list/table/record views, citizen is strictly locked to their own reports
-                created_by_filter = curr_user["id"]
-                created_by_username_filter = curr_user.get("username")
+            # On /api/inspections, citizen is strictly locked to their own personal reports.
+            # Shared public defect map uses the dedicated /api/public/defects endpoint.
+            created_by_filter = curr_user["id"]
+            created_by_username_filter = curr_user.get("username")
         elif my_reports and my_reports.lower() in ["1", "true", "yes"] and curr_user:
             created_by_filter = curr_user["id"]
             created_by_username_filter = curr_user.get("username")
@@ -2368,6 +2475,59 @@ def create_app(
             "status": "success",
             "inspection": record,
             "disclaimer": disclaimer_text,
+        }), 200
+
+    @app.route("/api/inspections/<int:inspection_id>/publication", methods=["PATCH"])
+    @roles_required(ROLE_ADMIN, ROLE_INSPECTOR)
+    def api_update_inspection_publication(inspection_id: int):
+        """
+        Updates the public map publication status of an inspection.
+        Only admins and inspectors are authorized to publish or hide defect markers.
+        """
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        payload = request.get_json(silent=True) or {}
+        new_status = payload.get("publication_status")
+        if not new_status or str(new_status).strip().lower() not in ("pending_review", "published", "hidden"):
+            return jsonify({
+                "status": "error",
+                "error_code": "INVALID_PUBLICATION_STATUS",
+                "message": "Invalid publication_status. Allowed values: 'pending_review', 'published', 'hidden'.",
+            }), 400
+
+        clean_status = str(new_status).strip().lower()
+        curr_user = get_current_user_record()
+        user_id = curr_user.get("id") if curr_user else None
+        username = curr_user.get("username") if curr_user else None
+
+        try:
+            updated = update_inspection_publication_status(
+                inspection_id=inspection_id,
+                publication_status=clean_status,
+                user_id=user_id,
+                username=username,
+                db_path=db_path
+            )
+        except ValueError as val_err:
+            return jsonify({
+                "status": "error",
+                "error_code": "VALIDATION_FAILED",
+                "message": str(val_err),
+            }), 400
+
+        if not updated:
+            return jsonify({
+                "status": "error",
+                "error_code": "INSPECTION_NOT_FOUND",
+                "message": f"Inspection record #{inspection_id} not found.",
+            }), 404
+
+        return jsonify({
+            "status": "success",
+            "message": f"Defect marker publication status updated to '{clean_status}'.",
+            "inspection_id": inspection_id,
+            "publication_status": updated.get("publication_status"),
+            "published_at": updated.get("published_at"),
+            "published_by_username": updated.get("published_by_username"),
         }), 200
 
     @app.route("/api/inspections/<int:inspection_id>/status", methods=["PATCH"])

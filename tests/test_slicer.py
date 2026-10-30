@@ -371,10 +371,54 @@ def test_cross_tile_and_global_deduplication_integration():
 # Flask API Integration Tests with inspection_mode
 # ---------------------------------------------------------
 
+class MockGeminiServiceForSlicer:
+    """Mock Gemini Vision Service for offline and sandboxed testing."""
+    def __init__(self):
+        self.model_name = "gemini-3.1-flash-lite"
+        self.configured = True
+
+    def is_configured(self):
+        return True
+
+    def get_configuration_diagnostics(self):
+        return {
+            "sdk_installed": True,
+            "api_key_configured": True,
+            "environment_source": "mock_test",
+        }
+
+    def analyze_image(self, image_bytes, domain="road", timeout=30.0):
+        return {
+            "status": "success",
+            "model": self.model_name,
+            "domain": domain,
+            "overall_severity": "Moderate",
+            "preliminary_severity": "Moderate",
+            "summary": "Tiled inference road distress evaluation.",
+            "executive_summary": "Surface distress identified during inspection.",
+            "observations": "Localized asphalt distress on roadway.",
+            "recommendations": "Apply cold patch within 48 hours.",
+            "defects": [
+                {
+                    "defect_id": "DEF-001",
+                    "type": "Pothole",
+                    "severity": "Moderate",
+                    "confidence": 0.88,
+                    "description": "Localized asphalt pothole",
+                    "observations": "Pothole on asphalt pavement",
+                    "recommended_action": "Patch asphalt",
+                    "bbox": [50, 50, 150, 150],
+                }
+            ],
+            "raw_response": "{}",
+        }
+
+
 @pytest.fixture
 def client():
     app = create_app()
     app.config["TESTING"] = True
+    app.gemini_service = MockGeminiServiceForSlicer()
     with app.test_client() as c:
         yield c
 
