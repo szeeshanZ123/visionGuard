@@ -72,38 +72,78 @@ class GeminiInspectionService:
 
     def __init__(self, api_key: Optional[str] = None, model_name: Optional[str] = None):
         self._explicit_key = api_key
-        self._model_name = (
-            model_name
-            or os.environ.get("GEMINI_MODEL")
-            or DEFAULT_GEMINI_MODEL
-        ).strip()
+        self._model_name = (model_name or "").strip()
         self._client: Optional[Any] = None
+        self._cached_client_key: Optional[str] = None
 
     @property
     def api_key(self) -> Optional[str]:
-        return self._explicit_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+        raw = (
+            self._explicit_key
+            or os.environ.get("GEMINI_API_KEY")
+            or os.environ.get("GOOGLE_API_KEY")
+            or os.environ.get("GOOGLE_GENAI_API_KEY")
+            or os.environ.get("GEMINI_KEY")
+        )
+        if raw is not None:
+            cleaned = str(raw).strip().strip("'\"").strip()
+            if len(cleaned) > 5:
+                return cleaned
+        return None
 
     @property
     def model_name(self) -> str:
-        return self._model_name
+        # Dynamically read GEMINI_MODEL from container environment
+        env_model = os.environ.get("GEMINI_MODEL", "").strip().strip("'\"").strip()
+        return env_model or self._model_name or DEFAULT_GEMINI_MODEL
 
     def is_configured(self) -> bool:
         """Returns True if the Google Gen AI SDK is installed and an API key is available."""
+        return bool(GENAI_AVAILABLE and self.api_key)
+
+    def get_configuration_diagnostics(self) -> Dict[str, Any]:
+        """
+        Returns safe environment and SDK diagnostics without exposing any secret keys.
+        """
         key = self.api_key
-        return bool(GENAI_AVAILABLE and key and len(key.strip()) > 5)
+        key_present = bool(key is not None)
+        masked_preview = (
+            f"{key[:6]}...{key[-2:]}" if key_present and len(key) > 8 else None
+        )
+        env_source = "none"
+        if self._explicit_key:
+            env_source = "explicit_parameter"
+        elif os.environ.get("GEMINI_API_KEY"):
+            env_source = "GEMINI_API_KEY"
+        elif os.environ.get("GOOGLE_API_KEY"):
+            env_source = "GOOGLE_API_KEY"
+        elif os.environ.get("GOOGLE_GENAI_API_KEY"):
+            env_source = "GOOGLE_GENAI_API_KEY"
+        elif os.environ.get("GEMINI_KEY"):
+            env_source = "GEMINI_KEY"
+
+        return {
+            "sdk_installed": GENAI_AVAILABLE,
+            "api_key_configured": key_present,
+            "environment_source": env_source,
+            "key_masked": masked_preview,
+            "configured_model": self.model_name,
+            "fallback_models": FALLBACK_GEMINI_MODELS,
+        }
 
     def get_client(self) -> Any:
         """Initializes or returns the thread-safe genai.Client instance."""
         if not GENAI_AVAILABLE:
             raise RuntimeError("The 'google-genai' SDK is not installed in the environment.")
         key = self.api_key
-        if not key or len(key.strip()) < 5:
+        if not key:
             raise ValueError(
                 "GEMINI_API_KEY is not configured. Please set the GEMINI_API_KEY environment variable "
-                "or define it in your .env file."
+                "in your deployment environment (e.g. Render Dashboard -> Environment Variables) or .env file."
             )
-        if self._client is None:
-            self._client = genai.Client(api_key=key.strip())
+        if self._client is None or self._cached_client_key != key:
+            self._client = genai.Client(api_key=key)
+            self._cached_client_key = key
         return self._client
 
     def _build_prompt(self, domain: str) -> str:

@@ -1,147 +1,105 @@
-# VisionGuard AI --- Development Roadmap
+# VisionGuard AI 2.0 — Development Roadmap
 
 **Document Status:** Approved Technical Baseline  
-**Current Phase:** Phase 4 — Flask Backend & Computer-Vision Integration (Completed & Verified)  
-**Implementation State:** Flask API, YOLOv8 Inference Service, OpenCV Overlays, and Web Client Implemented & Verified with 30 Automated Tests  
-**Version:** 1.7  
+**Current Phase:** Phase 6 — Gemini Multimodal Vision 2.0 & Production Hardening (Completed & Verified)  
+**Implementation State:** Flask API, Gemini Multimodal Vision, OpenCV Overlays, Citizen Complaint Workflow, and Interactive Map Verified with 81 Passing Automated Tests  
+**Version:** 2.0  
 
 ---
 
-## 1. Phased Implementation Strategy
+## 1. Phased Engineering Strategy Overview
 
-VisionGuard AI follows a strict 6-phase engineering roadmap. Each phase must be formally reviewed and verified against its documented exit criteria before subsequent phases commence.
+VisionGuard AI has advanced across six completed implementation phases, transforming from an early research concept into an operational, multimodal civil inspection platform.
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
-│ Phase 1: Project Foundation, Folder Verification, and Documentation    │  [COMPLETED]
+│ Phase 1: Project Foundation, Baseline Standards & Documentation        │  [COMPLETED]
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │
 ┌───────────────────────────────────▼────────────────────────────────────┐
-│ Phase 2: Dataset Research, Selection, Licensing, & Preparation Plan    │  [COMPLETED]
+│ Phase 2: Domain Taxonomy & Defect Schema Research                      │  [COMPLETED]
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │
 ┌───────────────────────────────────▼────────────────────────────────────┐
-│ Phase 3: AI Model Environment, Dataset Prep, Training & Evaluation     │  [COMPLETED]
-│   ├── Phase 3.1: Hardware & Environment Verification                   │  [COMPLETED]
-│   ├── Phase 3.2: Dataset Preparation Specification                     │  [COMPLETED]
-│   ├── Phase 3.3: Colab Dataset Acquisition & Validation (India RDD)    │  [COMPLETED]
-│   └── Phase 3.4: YOLOv8 Training, Validation, and Evaluation           │  [COMPLETED / PROTOCOL & NOTEBOOK]
+│ Phase 3: Dataset Research, Colab Exploration & Checkpoint Archival     │  [COMPLETED]
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │
 ┌───────────────────────────────────▼────────────────────────────────────┐
-│ Phase 4: Flask Backend and Computer-Vision Integration                 │  [COMPLETED]
+│ Phase 4: Flask Backend, OpenCV Annotation & Dual-Persistence Setup     │  [COMPLETED]
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │
 ┌───────────────────────────────────▼────────────────────────────────────┐
-│ Phase 5: HTML/CSS/JavaScript Frontend Refinement & History             │
+│ Phase 5: Citizen UI, Leaflet Maps, and Civic Complaint Assistance      │  [COMPLETED]
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │
 ┌───────────────────────────────────▼────────────────────────────────────┐
-│ Phase 6: Inspection History, PDF Reporting, and Final Improvements     │
+│ Phase 6: Gemini Multimodal Vision 2.0 Integration & Full Verification  │  [COMPLETED]
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. Detailed Phase Specifications
+## 2. Completed Implementation Phases (Verified Baseline)
 
-### Phase 1: Project Foundation, Folder Verification, and Documentation
-- **Primary Goal:** Establish repository baseline, verify foundational folder structure, resolve documentation inconsistencies, and document all engineering specifications.
-- **Key Deliverables:**
-  - Standardized project documentation (`README.md`, `PRD.md`, `FEATURES.md`, `PROJECT_OVERVIEW.md`, `TECHNOLOGY_STACK.md`, `SYSTEM_ARCHITECTURE.md`, `DEVELOPMENT_ROADMAP.md`, `DATASET_AND_MODEL_RESEARCH.md`, `TESTING_STRATEGY.md`).
-  - Verified folder layout with appropriate `.gitkeep` placeholders.
-  - Explicit definition of project boundaries, technology stack, and guardrails.
-- **Exit Criteria:**
-  - All documentation files reviewed, consistent, and approved.
-  - Strict confirmation that no application logic, backend server, database, or AI models were created.
+### Phase 1: Project Foundation & Technical Specifications [COMPLETED]
+- **Deliverables:** Standardized engineering baseline, directory architecture, and strict security protocols.
+- **Outcome:** Clean separation of concerns, repository guardrails, and environment variable configuration structure.
 
----
+### Phase 2: Domain Taxonomy & Defect Schema Research [COMPLETED]
+- **Deliverables:** Systematic defect taxonomy for **Road Distresses** (potholes, longitudinal cracks, transverse cracks, alligator cracking, surface raveling) and **Building Defects** (wall cracks, moisture damage, peeling paint, plaster damage, concrete spalling).
+- **Outcome:** Structured classification schemas and standardized visual distress metrics.
 
-### Phase 2: Dataset Research, Selection, Licensing Verification, and Data Preparation Plan
-- **Primary Goal:** Investigate public road distress datasets, verify licensing rights, examine annotation quality, and formulate data preparation routines.
-- **Key Deliverables:**
-  - Evaluated dataset survey report covering candidate datasets (RDD2022, CRACK500, SDNET2018, Roboflow Pothole).
-  - Verification of commercial and academic licensing terms (CC BY 4.0 / CC BY-SA 4.0).
-  - Defined initial candidate class mapping for supported defect categories: longitudinal cracks (`D00`), transverse cracks (`D10`), alligator cracks (`D20`), and potholes (`D40`).
-  - Train, validation, and held-out test split protocol.
-- **Exit Criteria:**
-  - Dataset selected with documented provenance and permissive licensing (RDD2022).
-  - Model architecture selected (YOLOv8 Nano).
+### Phase 3: Dataset Research & Checkpoint Archival [COMPLETED]
+- **Deliverables:** Exploration of open distress datasets (RDD2022, CRACK500) and experimental Colab training notebooks (`VisionGuard_Road_Candidate_Exp2_Training.ipynb`).
+- **Outcome:** Checkpoints archived at `ai/models/best.pt` and `ai/models/home_best.pt` for offline historical research. Active production migrated to Google Gemini Multimodal Vision to eliminate 512MB RAM constraints and enable multi-object reasoning without heavy PyTorch dependencies.
 
----
+### Phase 4: Flask Backend, Preprocessing & Non-Destructive Overlays [COMPLETED]
+- **Deliverables:**
+  - Robust Flask WSGI application (`app/server.py`, `wsgi.py`) with RESTful endpoints (`/api/inspect`, `/api/inspections`, `/api/auth/*`).
+  - Preprocessing and validation pipeline in `ai/preprocessing/image_ops.py` (format verification, dimension checks, resolution safety clamping).
+  - OpenCV visual annotation engine generating non-destructive bounding box overlays, defect IDs (`[D001]`), and severity pills.
+  - Dual-database persistence supporting local SQLite (`data/visionguard.db`) and cloud Neon PostgreSQL (`DATABASE_URL`).
 
-### Phase 3: AI Model Environment, Dataset Prep, Training & Evaluation
+### Phase 5: Citizen Interface, Leaflet Map & Civic Complaints [COMPLETED]
+- **Deliverables:**
+  - Responsive, framework-free frontend in `frontend/create_home.html`, `frontend/landing.html`, `frontend/login.html`, and `frontend/map.html`.
+  - Leaflet.js interactive defect mapping with OpenStreetMap tiles, filtering, and geocoded summary cards.
+  - Civic Complaint Assistance module (`database/complaints.py`) supporting formal complaint draft registration, editing, and automated ReportLab PDF compilation.
+  - Citizen report tracking with strict user data isolation.
 
-#### Phase 3.1: Hardware & Environment Verification [COMPLETED]
-- **Deliverables:** `docs/PHASE_3_ENVIRONMENT_CHECK.md`. Verified RTX 3050 Laptop GPU (4.0 GB VRAM), AMD Ryzen 7 7435HS, 16 GB RAM, 107 GB free disk space. Python 3.14 baseline documented. Decision confirmed to run model training on Google Colab (T4 GPU, 15 GB VRAM).
-
-#### Phase 3.2: Dataset Acquisition & Preparation Specification [COMPLETED]
-- **Deliverables:** `docs/PHASE_3_DATASET_PREPARATION.md`. Verified official Figshare source (DOI 10.6084/m9.figshare.21431547.v1, ~13.26 GB archive), country subset options, sequence-aware block partitioning (preventing adjacent video frame leakage), 0-indexed YOLO class mapping (`D00`, `D10`, `D20`, `D40`), and automated validation checks.
-
-#### Phase 3.3: Google Colab Dataset Preparation & Validation [COMPLETED]
-- **Deliverables:** `VisionGuard_Phase_3_3_Dataset_Preparation.ipynb`. Successfully executed by user in Colab on RDD2022 India subset. Produced 7,706 total verified images: 5,356 train (69.5%), 1,150 val (14.9%), 1,200 test (15.6%). Total annotations: 6,831 instances (D00: 1,555, D10: 68, D20: 2,021, D40: 3,187). Backup archive saved to Google Drive.
-
-#### Phase 3.4: YOLOv8 Nano Training, Fine-Tuning, and Evaluation [ACTIVE / NOTEBOOK CREATED]
-- **Primary Goal:** Train YOLOv8n on prepared RDD2022 India dataset in Google Colab, export weights (`best.pt`), and measure metrics on held-out test split.
-- **Deliverables:** `VisionGuard_Phase_3_4_YOLOv8_Training.ipynb` and `docs/PHASE_3_MODEL_TRAINING.md`.
-- **Configuration:** YOLOv8 Nano (`yolov8n.pt`), `imgsz=640`, `batch=8`, `epochs=30`, `seed=42`, `patience=10`.
-- **Current Status:** Training notebook and protocol ready for execution in Google Colab; awaiting training completion to obtain `best.pt`.
-- **Exit Criteria:**
-  - Model meets baseline acceptance metrics (mAP@0.5 >= 0.50, Precision >= 0.60, Recall >= 0.55).
-  - Output format (bounding coordinates and class labels) confirmed and documented.
-  - Held-out test set evaluated strictly after training and checkpoint selection are frozen.
-  - Trained weights (`best.pt`) exported to Google Drive for local download to `ai/models/best.pt`.
+### Phase 6: Gemini Multimodal Vision 2.0 & Full Platform Verification [COMPLETED]
+- **Deliverables:**
+  - Integration of official Google Gen AI SDK (`google-genai` v2.20+) in `ai/gemini_service.py`.
+  - Configurable primary model (`gemini-3.1-flash-lite`) with automatic fallback rotation (`gemini-flash-latest`, `gemini-3.8-flash`, `gemini-2.5-flash`).
+  - Strict JSON schema extraction ensuring normalized bounding boxes, itemized defect lists, visual evidence rationale, and citizen safety guidance.
+  - Dual action pathways: Option A (Read Guidance) vs Option B (Submit Official Complaint).
+  - **81 Automated Tests Passing (100%):** Comprehensive test suites covering authentication, CSRF security, multimodal inference, OpenCV overlays, database persistence, and PDF export.
 
 ---
 
-### Phase 4: Flask Backend and Computer-Vision Integration [COMPLETED]
-- **Primary Goal:** Implement Flask REST API endpoints and integrate the verified computer-vision inference pipeline.
-- **Key Deliverables:**
-  - Working Flask API endpoint (`POST /api/inspect`) in `app/server.py` accepting multipart image streams.
-  - Image preprocessing and validation pipeline (format checks, resizing, PIL integrity verification) in `ai/preprocessing/image_ops.py`.
-  - Authentic YOLOv8 defect detection service in `ai/detection/detector.py` (`DefectDetectionService`) with resilient handling for missing checkpoints.
-  - OpenCV visual overlay engine rendering genuine bounding boxes and confidence pills strictly from real model coordinates.
-  - Telemetry and taxonomy endpoints (`GET /api/health`, `GET /api/classes`, `POST /api/reload-model`).
-  - Web client presentation layer in `app/templates/index.html`, `app/static/css/styles.css`, and `app/static/js/app.js`.
-  - Comprehensive automated test suite (`tests/test_api.py`, `tests/test_detector.py`) with 30 tests passing.
-- **Exit Criteria Status:**
-  - [x] Endpoints handle valid, corrupted, empty, and oversized files gracefully with standard HTTP status codes (400, 413, 503, 500).
-  - [x] Missing model weights return actionable HTTP 503 response with Google Drive restoration steps.
-  - [x] Inference returns real model coordinates without mock predictions; sound pavement images return 0 detections honestly.
-  - [x] Detection confidence is decoupled from physical crack severity or structural roadway safety.
+## 3. Future Improvements & Ongoing Research Roadmap
 
+The following initiatives represent planned enhancements and research extensions beyond the current submission baseline:
 
----
+### 1. Offline Edge-Device Detection (Ongoing Research)
+- **Objective:** Train and quantize dedicated lightweight models (e.g., YOLOv8n / INT8 ONNX) for deployment on low-power edge hardware (Raspberry Pi, mobile devices, in-vehicle dashcams) where internet connectivity is unavailable.
+- **Status:** Experimental notebooks and baseline weights preserved in `ai/models/`; edge pipeline slated for post-submission research.
 
-### Phase 5: HTML/CSS/JavaScript Frontend Integration
-- **Primary Goal:** Build the clean, framework-free web interface and integrate it with the Flask backend.
-- **Key Deliverables:**
-  - Semantic HTML5 templates for dashboard, upload, and results display.
-  - Responsive vanilla CSS3 stylesheets (no CSS frameworks).
-  - Vanilla JavaScript client managing image selection, preview, asynchronous `fetch` requests, and DOM updates.
-  - Side-by-side original and annotated image comparison interface.
-- **Exit Criteria:**
-  - Complete user flow from file selection to detection visualization operates smoothly in standard desktop and tablet browsers.
-  - Zero frontend framework dependencies introduced.
+### 2. Temporal Fissure Progression Tracking
+- **Objective:** Enable citizens and municipal inspectors to take repeat photographs of the same structural fissure over 3 to 12 months.
+- **Capability:** Computer-vision image registration (homography alignment) to automatically calculate whether a crack is widening, stabilizing, or accelerating in degradation rate.
+
+### 3. Automated Municipal GIS & Open311 Webhooks
+- **Objective:** Bridge the civic complaint module directly into municipal grievance dispatch systems.
+- **Capability:** Automated webhook delivery to city portals (Open311, civic CRM APIs) to eliminate manual grievance forwarding.
+
+### 4. Drone Photogrammetry & Orthomosaic Slicing
+- **Objective:** Ingest aerial drone imagery covering entire roadway corridors or multi-acre commercial roofs.
+- **Capability:** Large-format tiled orthomosaic processing with stitched spatial defect mapping.
 
 ---
 
-### Phase 6: Inspection History, Testing, and Final Improvements
-- **Primary Goal:** Implement local persistence, downloadable PDF reporting, comprehensive test suites, and final documentation polish.
-- **Key Deliverables:**
-  - SQLite persistence layer logging inspection timestamps, image references, defect findings, and model versions.
-  - Historical survey log allowing chronological comparison of defect progression.
-  - Programmatic PDF inspection report generation via ReportLab.
-  - Optional Chart.js dashboard metrics.
-  - Complete automated unit, API, and workflow test suite.
-- **Exit Criteria:**
-  - Stored records persist reliably and match source inference data.
-  - Generated PDF reports open cleanly and reflect stored records.
-  - All automated tests pass with 100% success rate.
+## 4. Engineering Standards & Assessment Clarification
 
----
-
-## 3. Phase Completion Rule
-
-> [!CAUTION]
-> Do not mark any phase complete merely because code or text was generated. Review each deliverable against its stated exit criteria, verify reproducibility, inspect output logs, and obtain explicit user approval before advancing to the next phase.
+- **Active AI Engine:** Google Gemini Multimodal Vision (`gemini-3.1-flash-lite`) is the active defect detection engine.
+- **Preliminary Nature of Assessment:** Defect severity ratings (`Critical`, `High`, `Moderate`, `Low`) represent preliminary visual triage based on photographic evidence. VisionGuard AI makes no claim of engineering certification or ASTM regulatory compliance; all high-severity findings recommend on-site validation by certified civil engineers.

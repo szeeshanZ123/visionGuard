@@ -28,14 +28,18 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-# Automatically load environment variables from .env file if present
-_env_path = PROJECT_ROOT / ".env"
-if _env_path.exists():
-    try:
-        from dotenv import load_dotenv
+# Automatically load environment variables from .env file if present (local development)
+# In cloud deployments (e.g. Render, Railway, Docker), environment variables are provided
+# directly by the container host environment (os.environ) and do NOT require a .env file.
+try:
+    from dotenv import load_dotenv
+    _env_path = PROJECT_ROOT / ".env"
+    if _env_path.exists():
         load_dotenv(dotenv_path=_env_path, override=False)
-    except Exception:
-        pass
+    else:
+        load_dotenv(override=False)
+except Exception:
+    pass
 
 import secrets
 import threading
@@ -1282,8 +1286,13 @@ def create_app(
             "ai_provider": getattr(app, "ai_provider", "gemini"),
             "gemini": {
                 "configured": gemini_ready,
-                "model": getattr(app, "gemini_model", DEFAULT_GEMINI_MODEL),
+                "model": app.gemini_service.model_name if getattr(app, "gemini_service", None) else getattr(app, "gemini_model", DEFAULT_GEMINI_MODEL),
                 "architecture": "VisionGuard Multimodal AI — Powered by Google Gemini Vision",
+                "diagnostics": (
+                    app.gemini_service.get_configuration_diagnostics()
+                    if hasattr(getattr(app, "gemini_service", None), "get_configuration_diagnostics")
+                    else {"configured": gemini_ready}
+                ),
             },
             "model": {
                 "loaded": True if is_gemini and gemini_ready else app.detector.is_loaded,
@@ -1605,6 +1614,15 @@ def create_app(
         if provider_name == "gemini":
             gemini_svc = getattr(app, "gemini_service", None)
             if not gemini_svc or not gemini_svc.is_configured():
+                diagnostics = (
+                    gemini_svc.get_configuration_diagnostics()
+                    if hasattr(gemini_svc, "get_configuration_diagnostics")
+                    else {
+                        "sdk_installed": True,
+                        "api_key_configured": bool(gemini_svc and gemini_svc.is_configured()),
+                        "environment_source": "none",
+                    }
+                )
                 return (
                     jsonify({
                         "status": "error",
@@ -1612,13 +1630,17 @@ def create_app(
                         "domain": domain,
                         "message": (
                             "Google Gemini Vision API key is not configured on the server. "
-                            "Please set the GEMINI_API_KEY environment variable in your .env file "
-                            "or deployment environment settings."
+                            "Please set the GEMINI_API_KEY environment variable in your deployment environment "
+                            "(e.g. Render Dashboard -> Environment -> Environment Variables) or .env file."
                         ),
+                        "diagnostics": diagnostics,
                         "setup_instructions": (
-                            "1. Obtain a free Gemini API key at https://aistudio.google.com/\n"
-                            "2. Set GEMINI_API_KEY=your_key in .env or Render environment settings.\n"
-                            "3. Restart the VisionGuard AI server."
+                            "To configure on Render:\n"
+                            "1. Go to your Render Dashboard (https://dashboard.render.com/) -> select your Web Service.\n"
+                            "2. Click the 'Environment' tab in the left sidebar.\n"
+                            "3. Click 'Add Environment Variable': Key=GEMINI_API_KEY, Value=<your_google_ai_studio_api_key>\n"
+                            "4. (Optional) Key=GEMINI_MODEL, Value=gemini-3.1-flash-lite\n"
+                            "5. Click 'Save Changes' (Render will redeploy automatically)."
                         ),
                         "metadata": metadata,
                     }),
