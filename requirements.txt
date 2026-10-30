@@ -10,6 +10,10 @@ waitress>=3.0.0
 gunicorn>=23.0.0
 streamlit>=1.30.0
 
+# Multimodal Vision & Google Gen AI SDK
+google-genai>=2.0.0
+python-dotenv>=1.0.0
+
 # Computer Vision, Deep Learning & Image Preprocessing
 torch>=2.0.0
 torchvision>=0.15.0

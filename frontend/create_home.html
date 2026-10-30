@@ -484,86 +484,218 @@
                 </div>
 
                 <!-- 7. Verified Inspection Results (Revealed after successful inference) -->
+                                <!-- 7. Verified Inspection Results & AI Report (Revealed after successful inference) -->
                 <section id="inspection-results-section" class="hidden bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 md:p-8 shadow-sm space-y-6">
+                    <!-- Results Header Banner -->
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
                         <div>
                             <div class="flex items-center gap-2">
-                                <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold shrink-0">
-                                    <span class="material-symbols-outlined text-[14px]">check</span>
+                                <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-100 text-primary-container text-xs font-bold shrink-0">
+                                    <span class="material-symbols-outlined text-[16px]">verified</span>
                                 </span>
-                                <h2 class="font-headline-md text-headline-md font-semibold text-slate-900">Verified Defect Detections</h2>
+                                <h2 class="font-headline-md text-headline-md font-semibold text-slate-900">AI Inspection Report</h2>
                             </div>
-                            <p class="font-body-sm text-body-sm text-text-placeholder ml-8 mt-0.5">
-                                Genuine YOLOv8 bounding box localization and ASTM D6433 compliance assessment.
+                            <p class="font-body-sm text-body-sm text-slate-500 ml-9 mt-0.5">
+                                Multimodal visual analysis, defect localization, and preliminary severity assessment.
                             </p>
                         </div>
-                        <div class="flex items-center gap-2 ml-8 sm:ml-0">
-                            <span id="result-status-badge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <div class="flex flex-wrap items-center gap-2 ml-9 sm:ml-0">
+                            <!-- Overall Severity Badge -->
+                            <span id="result-severity-badge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                                <span id="result-severity-text">Severity: Moderate</span>
+                            </span>
+                            <!-- Defect Count Badge -->
+                            <span id="result-status-badge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                                <span class="w-2 h-2 rounded-full bg-blue-500"></span>
                                 <span id="result-defect-count-text">0 Defects Localized</span>
                             </span>
                         </div>
                     </div>
 
-                    <!-- Split Grid: Visual Overlay + Detections Breakdown -->
+                    <!-- AI Summary Callout -->
+                    <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
+                        <div class="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-wider">
+                            <span class="material-symbols-outlined text-[16px] text-blue-600">psychology</span>
+                            <span>Executive Visual Inspection Summary</span>
+                        </div>
+                        <p id="result-summary-text" class="text-sm text-slate-800 leading-relaxed font-medium">
+                            Analyzing visual evidence...
+                        </p>
+                    </div>
+
+                    <!-- Split Grid: Visual Overlay + Dual View Gallery -->
                     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                        <!-- Left: Annotated Image Display -->
+                        <!-- Left: Image Viewer (Side-by-side or Tab Toggle) -->
                         <div class="lg:col-span-7 flex flex-col space-y-3">
-                            <div class="relative w-full rounded-xl overflow-hidden bg-slate-950 border border-slate-200 shadow-md min-h-[280px] max-h-[460px] flex items-center justify-center">
-                                <img id="result-annotated-image" src="" alt="Neural Detection Overlay" class="w-full h-full object-contain max-h-[460px]" />
-                                <div class="absolute bottom-2 left-2 bg-black/70 backdrop-blur-sm text-white px-2.5 py-1 rounded text-[11px] font-mono flex items-center gap-1.5">
-                                    <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-                                    <span id="result-image-meta">YOLOv8 Detection Matrix</span>
+                            <div class="flex items-center justify-between pb-1">
+                                <div class="inline-flex p-1 bg-slate-100 rounded-xl text-xs font-semibold">
+                                    <button id="btn-view-annotated" onclick="switchImageView('annotated')" type="button"
+                                        class="px-3 py-1 rounded-lg bg-white text-slate-900 shadow-xs transition-all flex items-center gap-1.5">
+                                        <span class="material-symbols-outlined text-[14px] text-blue-600">draw</span>
+                                        <span>Annotated Overlay</span>
+                                    </button>
+                                    <button id="btn-view-original" onclick="switchImageView('original')" type="button"
+                                        class="px-3 py-1 rounded-lg text-slate-600 hover:text-slate-900 transition-all flex items-center gap-1.5">
+                                        <span class="material-symbols-outlined text-[14px] text-slate-500">photo</span>
+                                        <span>Original Photo</span>
+                                    </button>
+                                </div>
+                                <button onclick="openFullscreenImageModal()" type="button"
+                                    class="text-xs text-slate-600 hover:text-blue-600 flex items-center gap-1 font-medium transition-colors">
+                                    <span class="material-symbols-outlined text-[16px]">fullscreen</span>
+                                    <span>Zoom View</span>
+                                </button>
+                            </div>
+
+                            <div class="relative w-full rounded-xl overflow-hidden bg-slate-950 border border-slate-200 shadow-md min-h-[300px] max-h-[460px] flex items-center justify-center">
+                                <img id="result-annotated-image" src="" alt="Defect Detection Overlay" class="w-full h-full object-contain max-h-[460px] transition-opacity duration-200" />
+                                <div class="absolute bottom-2 left-2 bg-black/75 backdrop-blur-sm text-white px-2.5 py-1 rounded text-[11px] font-mono flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+                                    <span id="result-image-meta">OpenCV Visual Overlay & Gemini Localization</span>
                                 </div>
                             </div>
-                            <div class="flex items-center justify-between text-xs text-slate-500 pt-1">
-                                <span id="result-timing-breakdown">Inference Latency: -- ms</span>
-                                <span id="result-model-badge" class="font-mono bg-slate-100 px-2 py-0.5 rounded text-[11px]">Model: YOLOv8</span>
+
+                            <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 pt-1">
+                                <span id="result-timing-breakdown">Inference: -- ms • Total: -- ms</span>
+                                <span id="result-model-badge" class="font-mono bg-slate-100 px-2 py-0.5 rounded text-[11px]">VisionGuard Multimodal AI</span>
                             </div>
                         </div>
 
-                        <!-- Right: Detections List & Action Center -->
+                        <!-- Right: Defect Cards Breakdown -->
                         <div class="lg:col-span-5 flex flex-col justify-between space-y-4">
                             <div class="space-y-3">
-                                <h3 class="font-label-md text-label-md font-semibold text-slate-800">Detected Distress Classes</h3>
-                                <div id="result-detections-list" class="space-y-2 max-h-[260px] overflow-y-auto pr-1">
-                                    <!-- Dynamic detection item chips will be rendered here -->
+                                <div class="flex items-center justify-between">
+                                    <h3 class="font-label-md text-label-md font-semibold text-slate-800">Identified Defect Breakdown</h3>
+                                    <span class="text-xs text-slate-400 font-mono">ASTM & Multimodal Standard</span>
+                                </div>
+                                <div id="result-detections-list" class="space-y-3 max-h-[340px] overflow-y-auto pr-1">
+                                    <!-- Dynamic defect cards populated here -->
                                 </div>
                             </div>
 
-                            <!-- Safety Disclaimer -->
-                            <div class="p-3.5 rounded-xl bg-amber-50/80 border border-amber-200 text-amber-900 text-xs leading-relaxed flex items-start gap-2.5">
+                            <!-- Human Engineering Disclaimer -->
+                            <div class="p-3.5 rounded-xl bg-amber-50/90 border border-amber-200 text-amber-900 text-xs leading-relaxed flex items-start gap-2.5">
                                 <span class="material-symbols-outlined text-amber-600 text-[18px] shrink-0 mt-0.5">verified_user</span>
-                                <p id="result-safety-disclaimer">Notice: Detection confidence measures model statistical likelihood, not physical damage severity or roadway load capacity.</p>
+                                <p id="result-safety-disclaimer">
+                                    Notice: Preliminary visual assessment generated by Google Gemini Vision. This assessment does not replace an on-site structural engineering certification or municipal inspection warranty.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Citizen Decision & Action Center (Step 6) -->
+                    <div class="pt-4 border-t border-slate-200 space-y-4">
+                        <div class="flex flex-col sm:flex-row items-center justify-between gap-2">
+                            <div>
+                                <h3 class="font-semibold text-slate-900 text-sm sm:text-base">Citizen Action Pathways</h3>
+                                <p class="text-xs text-slate-500">Choose to read inspection guidance or submit an official verified complaint.</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- OPTION A: READ GUIDANCE -->
+                            <div class="p-4 sm:p-5 rounded-xl bg-blue-50/60 border border-blue-200 flex flex-col justify-between space-y-3">
+                                <div>
+                                    <div class="flex items-center gap-2 mb-1.5">
+                                        <span class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">A</span>
+                                        <h4 class="font-bold text-slate-900 text-sm">Option A — Read Guidance</h4>
+                                    </div>
+                                    <p class="text-xs text-slate-600 leading-relaxed">
+                                        View full safety guidance, why these defects pose hazards, and on-site inspection points without filing a municipal complaint.
+                                    </p>
+                                </div>
+                                <button type="button" id="btn-toggle-guidance" onclick="toggleGuidanceDrawer()"
+                                    class="w-full h-10 px-4 rounded-full bg-white border border-blue-300 hover:bg-blue-50 text-blue-700 font-semibold text-xs flex items-center justify-center gap-2 transition-colors shadow-xs">
+                                    <span class="material-symbols-outlined text-[17px]">menu_book</span>
+                                    <span id="btn-guidance-label">Read Full Guidance & Safety Steps</span>
+                                </button>
                             </div>
 
-                            <!-- Save / Dispatch Actions -->
-                            <div class="pt-2 space-y-2.5">
-                                <button type="button" id="btn-save-inspection" onclick="saveCurrentInspection()"
-                                    class="w-full h-11 px-5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs sm:text-sm shadow-sm shadow-emerald-600/20 transition-all flex items-center justify-center gap-2">
-                                    <span class="material-symbols-outlined text-[18px]">add_location_alt</span>
-                                    <span id="btn-save-label">Save &amp; Pin to Defect Map</span>
-                                </button>
-                                <div class="grid grid-cols-2 gap-2">
-                                    <a href="/map" class="h-10 px-3 rounded-full bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium text-xs flex items-center justify-center gap-1.5 transition-colors">
-                                        <span class="material-symbols-outlined text-[16px] text-blue-600">map</span>
-                                        <span>View Map</span>
-                                    </a>
-                                    <a href="/report" class="h-10 px-3 rounded-full bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium text-xs flex items-center justify-center gap-1.5 transition-colors">
-                                        <span class="material-symbols-outlined text-[16px] text-slate-600">folder_open</span>
-                                        <span>View Records</span>
-                                    </a>
+                            <!-- OPTION B: SUBMIT COMPLAINT -->
+                            <div class="p-4 sm:p-5 rounded-xl bg-emerald-50/60 border border-emerald-200 flex flex-col justify-between space-y-3">
+                                <div>
+                                    <div class="flex items-center gap-2 mb-1.5">
+                                        <span class="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold">B</span>
+                                        <h4 class="font-bold text-slate-900 text-sm">Option B — Submit Complaint</h4>
+                                    </div>
+                                    <p class="text-xs text-slate-600 leading-relaxed">
+                                        Review inspection telemetry, verify your location, and explicitly submit an official complaint draft to municipal authorities.
+                                    </p>
                                 </div>
+                                <button type="button" id="btn-open-complaint" onclick="openComplaintReviewModal()"
+                                    class="w-full h-10 px-4 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs flex items-center justify-center gap-2 transition-colors shadow-xs shadow-emerald-600/20">
+                                    <span class="material-symbols-outlined text-[17px]">campaign</span>
+                                    <span>Review & Confirm Complaint Submission</span>
+                                </button>
                             </div>
+                        </div>
+
+                        <!-- Expandable Guidance Drawer (Option A Content) -->
+                        <div id="guidance-drawer" class="hidden p-5 sm:p-6 rounded-xl bg-slate-50 border border-slate-200 space-y-4 transition-all">
+                            <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+                                <div class="flex items-center gap-2 text-slate-900 font-bold text-sm">
+                                    <span class="material-symbols-outlined text-[20px] text-blue-600">info</span>
+                                    <span>Comprehensive Defect Guidance & Civil Safety Protocols</span>
+                                </div>
+                                <button type="button" onclick="toggleGuidanceDrawer()" class="text-slate-400 hover:text-slate-600 p-1">
+                                    <span class="material-symbols-outlined text-[18px]">close</span>
+                                </button>
+                            </div>
+                            <div id="guidance-cards-container" class="space-y-3 text-xs text-slate-700">
+                                <!-- Populated dynamically based on inspection defects -->
+                            </div>
+                            <div class="p-3 rounded-lg bg-blue-100/70 text-blue-900 text-xs">
+                                <strong>Next Step for Citizens:</strong> If this defect obstructs traffic or risks pedestrian falls, consider using Option B above to generate a municipal work-order notice.
+                            </div>
+                        </div>
+
+                        <!-- Secondary Quick Navigation Links -->
+                        <div class="grid grid-cols-2 gap-2 pt-2">
+                            <a href="/map" class="h-9 px-3 rounded-full bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium text-xs flex items-center justify-center gap-1.5 transition-colors">
+                                <span class="material-symbols-outlined text-[16px] text-blue-600">map</span>
+                                <span>Defect Map</span>
+                            </a>
+                            <a href="/report" class="h-9 px-3 rounded-full bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium text-xs flex items-center justify-center gap-1.5 transition-colors">
+                                <span class="material-symbols-outlined text-[16px] text-slate-600">folder_open</span>
+                                <span>My Reports</span>
+                            </a>
                         </div>
                     </div>
                 </section>
 
+                                <!-- 6. Real-time Multi-Step Progress Banner (Active during analysis) -->
+                <div id="inspection-progress-card" class="hidden p-5 sm:p-6 rounded-2xl bg-white border border-blue-200 shadow-sm space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-3 h-3 rounded-full bg-blue-600 animate-ping"></span>
+                            <h4 id="progress-step-title" class="font-bold text-slate-900 text-sm sm:text-base">Processing Inspection</h4>
+                        </div>
+                        <span id="progress-step-counter" class="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">Step 1 of 5</span>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1 text-[11px] font-medium text-slate-500">
+                        <div id="prog-step-1" class="p-2 rounded-lg bg-blue-50 text-blue-800 border border-blue-200 flex items-center gap-1.5 font-semibold">
+                            <span class="material-symbols-outlined text-[15px]">cloud_upload</span> Uploading
+                        </div>
+                        <div id="prog-step-2" class="p-2 rounded-lg bg-slate-50 text-slate-500 border border-slate-200 flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-[15px]">auto_awesome</span> Gemini Vision
+                        </div>
+                        <div id="prog-step-3" class="p-2 rounded-lg bg-slate-50 text-slate-500 border border-slate-200 flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-[15px]">radar</span> Defect Triage
+                        </div>
+                        <div id="prog-step-4" class="p-2 rounded-lg bg-slate-50 text-slate-500 border border-slate-200 flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-[15px]">draw</span> OpenCV Overlay
+                        </div>
+                        <div id="prog-step-5" class="p-2 rounded-lg bg-slate-50 text-slate-500 border border-slate-200 flex items-center gap-1.5 col-span-2 sm:col-span-1">
+                            <span class="material-symbols-outlined text-[15px]">description</span> AI Report
+                        </div>
+                    </div>
+                </div>
                 <section class="flex flex-col items-center justify-center pt-2 pb-12 space-y-4 px-2"><button
                         class="w-full sm:w-auto sm:min-w-[340px] md:min-w-[420px] h-12 sm:h-13 py-3 px-6 sm:px-8 rounded-full bg-primary-container hover:bg-blue-600 text-white font-label-md text-base font-semibold shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-3 group active:scale-[0.99]"
                         id="btn-run-inspection" onclick="triggerInspection()" type="button"><span
                             class="material-symbols-outlined text-[22px] group-hover:rotate-12 transition-transform">auto_awesome</span><span
-                            id="cta-label">Run Defect Inspection</span><span
+                            id="cta-label">Detect Defect</span><span
                             class="material-symbols-outlined text-[20px] group-hover:translate-x-1 transition-transform">arrow_forward</span></button>
                     <div
                         class="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-2 sm:gap-4 text-center font-caption text-caption text-slate-500 max-w-xl">
@@ -748,203 +880,144 @@ function dismissStudioAlert() {
 let inspectionTimer1 = null;
 let inspectionTimer2 = null;
 
-function triggerInspection() {
-    if (!selectedFile) {
-        showStudioAlert('error', 'Photograph Required', 'Please select or capture an image of the distress surface before running inference.');
-        const dropzone = document.getElementById('dropzone');
-        dropzone.classList.add('border-rose-400');
-        setTimeout(() => dropzone.classList.remove('border-rose-400'), 2000);
-        return;
-    }
+let currentOriginalImageUri = '';
+let currentAnnotatedImageUri = '';
+let activeImageView = 'annotated';
+let stepInterval = null;
 
-    dismissStudioAlert();
-    const btn = document.getElementById('btn-run-inspection');
-    const label = document.getElementById('cta-label');
-    const originalText = 'Run Defect Inspection';
+function setProgressStep(stepNum, label) {
+    const card = document.getElementById('inspection-progress-card');
+    if (card) card.classList.remove('hidden');
 
-    btn.disabled = true;
-    btn.classList.add('opacity-90', 'cursor-wait');
-    label.innerText = 'Analyzing distress photo (YOLOv8)...';
+    const titleEl = document.getElementById('progress-step-title');
+    const counterEl = document.getElementById('progress-step-counter');
+    if (titleEl) titleEl.innerText = label;
+    if (counterEl) counterEl.innerText = `Step ${stepNum} of 5`;
 
-    clearTimeout(inspectionTimer1);
-    clearTimeout(inspectionTimer2);
-
-    inspectionTimer1 = setTimeout(() => {
-        if (btn.disabled) {
-            label.innerText = 'Warming up neural engine & scanning surface...';
-        }
-    }, 8000);
-
-    inspectionTimer2 = setTimeout(() => {
-        if (btn.disabled) {
-            label.innerText = 'Localizing defect distress & bounding boxes...';
-        }
-    }, 20000);
-
-    const csrfTok = getCsrfToken();
-    const formData = new FormData();
-    formData.append('image', selectedFile);
-    formData.append('domain', activeWorkflow === 'building' ? 'home' : 'road');
-    formData.append('inspection_mode', activeMode);
-    formData.append('confidence_threshold', '0.25');
-    if (csrfTok) {
-        formData.append('csrf_token', csrfTok);
-    }
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000);
-
-    fetch('/api/inspect', {
-        method: 'POST',
-        headers: csrfTok ? { 'X-CSRF-Token': csrfTok } : {},
-        body: formData,
-        signal: controller.signal
-    })
-    .then(async (res) => {
-        clearTimeout(timeoutId);
-        clearTimeout(inspectionTimer1);
-        clearTimeout(inspectionTimer2);
-
-        let data = null;
-        try {
-            data = await res.json();
-        } catch (_) {}
-
-        if (!res.ok || !data || data.status !== 'success') {
-            let errorTitle = 'Inspection Failed';
-            let errorMsg = (data && data.message) ? data.message : `Server responded with HTTP ${res.status}.`;
-            if (res.status === 403 && (data?.error_code === 'CSRF_TOKEN_INVALID' || data?.message?.includes('CSRF'))) {
-                // Refresh CSRF token dynamically from status endpoint
-                try {
-                    const statusRes = await fetch('/api/auth/status');
-                    const statusData = await statusRes.json();
-                    if (statusData.csrf_token) {
-                        sessionStorage.setItem('vg_csrf_token', statusData.csrf_token);
-                        const m = document.querySelector('meta[name="csrf-token"]');
-                        if (m) m.setAttribute('content', statusData.csrf_token);
-                    }
-                } catch (_) {}
-                errorTitle = 'Session Refreshed';
-                errorMsg = 'Security token updated. Please click Run Defect Inspection again.';
-            } else if (res.status === 401) {
-                errorTitle = 'Authentication Required';
-                errorMsg = 'Please sign in to run defect inspections.';
-                setTimeout(() => { window.location.href = '/login?return=/create_home'; }, 1500);
-            } else if (res.status === 413) {
-                errorTitle = 'Image Too Large';
-                errorMsg = 'Photograph exceeds the 15 MB limit. Please select a compressed or smaller image.';
-            } else if (res.status === 503) {
-                errorTitle = 'Server Busy / Warming Up';
-                errorMsg = data?.message || 'VisionGuard AI server is currently busy or warming up from standby. Please retry shortly.';
-            } else if (res.status === 504) {
-                errorTitle = 'Inference Timeout';
-                errorMsg = 'Neural inference took longer than expected. Please retry with standard mode.';
-            }
-            showStudioAlert('error', errorTitle, errorMsg);
-            return;
-        }
-
-        lastInspectionResult = data;
-        renderInspectionResults(data);
-    })
-    .catch((err) => {
-        clearTimeout(timeoutId);
-        clearTimeout(inspectionTimer1);
-        clearTimeout(inspectionTimer2);
-        if (err.name === 'AbortError') {
-            showStudioAlert('error', 'Inspection Timed Out', 'Analysis took longer than 60 seconds. The server may be waking up from cold standby. Please retry.');
+    for (let i = 1; i <= 5; i++) {
+        const stepEl = document.getElementById(`prog-step-${i}`);
+        if (!stepEl) continue;
+        if (i < stepNum) {
+            stepEl.className = 'p-2 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1.5 font-medium';
+        } else if (i === stepNum) {
+            stepEl.className = 'p-2 rounded-lg bg-blue-50 text-blue-800 border border-blue-200 flex items-center gap-1.5 font-bold animate-pulse';
         } else {
-            showStudioAlert('error', 'Network Failure', `Unable to reach inspection server: ${err.message || 'Connection lost'}. Please verify backend status.`);
+            stepEl.className = 'p-2 rounded-lg bg-slate-50 text-slate-400 border border-slate-200 flex items-center gap-1.5';
         }
-    })
-    .finally(() => {
-        clearTimeout(inspectionTimer1);
-        clearTimeout(inspectionTimer2);
-        btn.disabled = false;
-        btn.classList.remove('opacity-90', 'cursor-wait');
-        label.innerText = originalText;
-    });
+    }
 }
 
-function renderInspectionResults(data) {
-    const section = document.getElementById('inspection-results-section');
-    section.classList.remove('hidden');
-
-    // Visual overlay
-    const imgElem = document.getElementById('result-annotated-image');
-    if (data.annotated_image) {
-        imgElem.src = data.annotated_image.startsWith('data:')
-            ? data.annotated_image
-            : 'data:image/jpeg;base64,' + data.annotated_image;
-    } else if (data.processed_file_path) {
-        imgElem.src = data.processed_file_path;
-    } else {
-        imgElem.src = URL.createObjectURL(selectedFile);
-    }
-
-    // Counts & badges
-    const defectCount = data.defect_count !== undefined ? data.defect_count : (data.detections ? data.detections.length : 0);
-    document.getElementById('result-defect-count-text').innerText = `${defectCount} Defect${defectCount === 1 ? '' : 's'} Localized`;
-    document.getElementById('result-timing-breakdown').innerText = `Inference: ${data.timings?.inference_ms || 0} ms • Total: ${data.timings?.total_ms || 0} ms`;
-    document.getElementById('result-model-badge').innerText = `Domain: ${data.domain === 'home' ? 'Home/Structural' : 'Road/Civil'}`;
-
-    if (data.safety_disclaimer || data.disclaimer) {
-        document.getElementById('result-safety-disclaimer').innerText = data.safety_disclaimer || data.disclaimer;
-    }
-
-    // Detections List Chips
-    const listContainer = document.getElementById('result-detections-list');
-    listContainer.innerHTML = '';
-
-    if (data.detections && data.detections.length > 0) {
-        data.detections.forEach((det, idx) => {
-            const confPercent = Math.round((det.confidence || 0) * 100);
-            const className = det.class_name || det.name || 'Defect';
-            const chip = document.createElement('div');
-            chip.className = 'p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs';
-            chip.innerHTML = `
-                <div class="flex items-center gap-2">
-                    <span class="w-5 h-5 rounded-full bg-blue-100 text-primary-container font-bold flex items-center justify-center text-[10px] shrink-0">${idx + 1}</span>
-                    <span class="font-semibold text-slate-900">${className}</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="px-2 py-0.5 rounded font-mono font-semibold ${confPercent >= 70 ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'}">${confPercent}% Conf</span>
-                </div>
-            `;
-            listContainer.appendChild(chip);
-        });
-    } else {
-        listContainer.innerHTML = `
-            <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600 flex items-center gap-2">
-                <span class="material-symbols-outlined text-[18px] text-emerald-600">verified</span>
-                <span>No surface distress detected exceeding standard threshold (0.25). Surface structurally intact.</span>
-            </div>
-        `;
-    }
-
-    // Scroll to results
-    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+function clearProgressSteps() {
+    if (stepInterval) clearInterval(stepInterval);
+    const card = document.getElementById('inspection-progress-card');
+    if (card) card.classList.add('hidden');
 }
 
-function saveCurrentInspection() {
+function switchImageView(mode) {
+    activeImageView = mode;
+    const imgEl = document.getElementById('result-annotated-image');
+    const btnAnnotated = document.getElementById('btn-view-annotated');
+    const btnOrig = document.getElementById('btn-view-original');
+    const metaEl = document.getElementById('result-image-meta');
+
+    if (mode === 'annotated') {
+        imgEl.src = currentAnnotatedImageUri || currentOriginalImageUri;
+        btnAnnotated.className = 'px-3 py-1 rounded-lg bg-white text-slate-900 shadow-xs transition-all flex items-center gap-1.5';
+        btnOrig.className = 'px-3 py-1 rounded-lg text-slate-600 hover:text-slate-900 transition-all flex items-center gap-1.5';
+        metaEl.innerText = 'OpenCV Visual Overlay & Gemini Localization';
+    } else {
+        imgEl.src = currentOriginalImageUri;
+        btnOrig.className = 'px-3 py-1 rounded-lg bg-white text-slate-900 shadow-xs transition-all flex items-center gap-1.5';
+        btnAnnotated.className = 'px-3 py-1 rounded-lg text-slate-600 hover:text-slate-900 transition-all flex items-center gap-1.5';
+        metaEl.innerText = 'Original Raw Photograph (Uploaded)';
+    }
+}
+
+function openFullscreenImageModal() {
+    const modal = document.getElementById('fullscreen-image-modal');
+    const zoomImg = document.getElementById('modal-zoom-image');
+    const title = document.getElementById('modal-image-title');
+    if (modal && zoomImg) {
+        zoomImg.src = activeImageView === 'annotated' ? (currentAnnotatedImageUri || currentOriginalImageUri) : currentOriginalImageUri;
+        title.innerText = activeImageView === 'annotated' ? 'Annotated Defect Overlay (OpenCV)' : 'Original Photograph';
+        modal.classList.remove('hidden');
+    }
+}
+
+function closeFullscreenImageModal() {
+    const modal = document.getElementById('fullscreen-image-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function toggleGuidanceDrawer() {
+    const drawer = document.getElementById('guidance-drawer');
+    const label = document.getElementById('btn-guidance-label');
+    if (!drawer) return;
+    if (drawer.classList.contains('hidden')) {
+        drawer.classList.remove('hidden');
+        if (label) label.innerText = 'Hide Guidance Drawer';
+        drawer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } else {
+        drawer.classList.add('hidden');
+        if (label) label.innerText = 'Read Full Guidance & Safety Steps';
+    }
+}
+
+function openComplaintReviewModal() {
     if (!lastInspectionResult) {
-        showStudioAlert('error', 'No Active Inspection', 'Run an inspection first before saving.');
+        showStudioAlert('error', 'No Active Inspection', 'Please run defect detection first.');
         return;
     }
+    const modal = document.getElementById('complaint-review-modal');
+    if (!modal) return;
 
-    const saveBtn = document.getElementById('btn-save-inspection');
-    const label = document.getElementById('btn-save-label');
-    saveBtn.disabled = true;
-    label.innerText = 'Persisting to Municipal Database...';
-
-    const building = document.getElementById('loc-building').value.trim();
-    const area = document.getElementById('loc-area').value.trim();
-    const city = document.getElementById('loc-city').value.trim() || 'Mumbai';
-    const lat = parseFloat(document.getElementById('loc-lat').value) || 19.076090;
-    const lng = parseFloat(document.getElementById('loc-lng').value) || 72.877426;
-    const notes = document.getElementById('loc-notes').value.trim();
+    const building = document.getElementById('loc-building')?.value.trim() || '';
+    const area = document.getElementById('loc-area')?.value.trim() || '';
+    const city = document.getElementById('loc-city')?.value.trim() || 'Mumbai';
+    const lat = document.getElementById('loc-lat')?.value.trim() || '19.076090';
+    const lng = document.getElementById('loc-lng')?.value.trim() || '72.877426';
+    const notes = document.getElementById('loc-notes')?.value.trim() || '';
 
     const roadName = building ? (building + (area ? ` - ${area}` : '')) : (area || 'Municipal Asset');
+
+    document.getElementById('modal-comp-road').value = roadName;
+    document.getElementById('modal-comp-area').value = area;
+    document.getElementById('modal-comp-city').value = city;
+    document.getElementById('modal-comp-coords').value = `${lat}, ${lng}`;
+    document.getElementById('modal-comp-notes').value = notes;
+
+    const defectCount = lastInspectionResult.defect_count || 0;
+    document.getElementById('modal-comp-defect-summary').innerText = `${defectCount} Candidate Defect${defectCount === 1 ? '' : 's'} Detected`;
+    document.getElementById('modal-comp-severity').innerText = (lastInspectionResult.preliminary_severity || 'Moderate').toUpperCase();
+    document.getElementById('modal-comp-evidence').innerText = lastInspectionResult.summary || 'Surface defect visual evidence attached.';
+
+    modal.classList.remove('hidden');
+}
+
+function closeComplaintReviewModal() {
+    const modal = document.getElementById('complaint-review-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function executeComplaintSubmission() {
+    if (!lastInspectionResult) return;
+
+    const btn = document.getElementById('btn-confirm-complaint-submit');
+    const label = document.getElementById('btn-confirm-complaint-label');
+    btn.disabled = true;
+    label.innerText = 'Submitting Complaint Draft...';
+
+    const roadName = document.getElementById('modal-comp-road').value.trim();
+    const area = document.getElementById('modal-comp-area').value.trim();
+    const city = document.getElementById('modal-comp-city').value.trim();
+    const coordsStr = document.getElementById('modal-comp-coords').value;
+    const [latStr, lngStr] = coordsStr.split(',').map(s => s.trim());
+    const lat = parseFloat(latStr) || 19.076090;
+    const lng = parseFloat(lngStr) || 72.877426;
+
+    const compName = document.getElementById('modal-comp-name').value.trim();
+    const compContact = document.getElementById('modal-comp-contact').value.trim();
+    const notes = document.getElementById('modal-comp-notes').value.trim();
 
     const csrfTok = getCsrfToken();
     const payload = {
@@ -974,23 +1047,285 @@ function saveCurrentInspection() {
     })
     .then(async (res) => {
         const data = await res.json().catch(() => ({}));
-        saveBtn.disabled = false;
-        if (res.ok && data.status === 'success') {
-            const inspId = data.inspection?.id || data.id || 'NEW';
-            label.innerText = `Saved as Record #VG-${inspId} ✓`;
-            saveBtn.className = 'w-full h-11 px-5 rounded-full bg-slate-800 text-white font-semibold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 cursor-default';
-            showStudioAlert('success', 'Persisted to Municipal Registry', `Inspection Record #VG-${inspId} is now mapped and queued for municipal triage.`);
-        } else {
-            label.innerText = 'Save & Pin to Defect Map';
-            showStudioAlert('error', 'Save Failed', data.message || 'Could not persist inspection record.');
+        if (!res.ok || data.status !== 'success') {
+            throw new Error(data.message || 'Failed to save inspection.');
         }
+        const inspId = data.inspection?.id || data.id;
+
+        return fetch(`/api/inspections/${inspId}/complaint-draft`)
+            .then(r => r.json())
+            .then(draftData => {
+                const patchPayload = {
+                    complainant_name: compName,
+                    complainant_contact: compContact,
+                    complaint_body: notes || draftData.draft?.complaint_body,
+                    status: 'draft',
+                    csrf_token: csrfTok
+                };
+                return fetch(`/api/inspections/${inspId}/complaint-draft`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(csrfTok ? { 'X-CSRF-Token': csrfTok } : {})
+                    },
+                    body: JSON.stringify(patchPayload)
+                });
+            })
+            .then(() => inspId);
+    })
+    .then((inspId) => {
+        closeComplaintReviewModal();
+        const successModal = document.getElementById('complaint-success-modal');
+        document.getElementById('success-comp-ref').innerText = `Grievance Reference: #VG-${inspId}`;
+        document.getElementById('success-link-pdf').href = `/api/inspections/${inspId}/complaint-draft/export/pdf`;
+        document.getElementById('success-link-txt').href = `/api/inspections/${inspId}/complaint-draft/export/txt`;
+        successModal.classList.remove('hidden');
     })
     .catch((err) => {
-        saveBtn.disabled = false;
-        label.innerText = 'Save & Pin to Defect Map';
-        showStudioAlert('error', 'Network Error', 'Could not save record to backend database.');
+        showStudioAlert('error', 'Complaint Submission Error', err.message || 'Failed to submit complaint.');
+    })
+    .finally(() => {
+        btn.disabled = false;
+        label.innerText = 'Confirm & Submit Complaint Draft';
     });
 }
+
+function triggerInspection() {
+    if (!selectedFile) {
+        showStudioAlert('error', 'Photograph Required', 'Please select or capture an image of the distress surface before running inference.');
+        const dropzone = document.getElementById('dropzone');
+        dropzone.classList.add('border-rose-400');
+        setTimeout(() => dropzone.classList.remove('border-rose-400'), 2000);
+        return;
+    }
+
+    dismissStudioAlert();
+    const btn = document.getElementById('btn-run-inspection');
+    const label = document.getElementById('cta-label');
+    const originalText = 'Detect Defect';
+
+    btn.disabled = true;
+    btn.classList.add('opacity-90', 'cursor-wait');
+
+    // Meaningful real progress sequence
+    let currentStep = 1;
+    setProgressStep(1, 'Uploading photograph...');
+    label.innerText = 'Uploading photograph...';
+
+    stepInterval = setInterval(() => {
+        currentStep++;
+        if (currentStep === 2) {
+            setProgressStep(2, 'Analysing photograph with Gemini Vision...');
+            label.innerText = 'Analysing photograph with Gemini Vision...';
+        } else if (currentStep === 3) {
+            setProgressStep(3, 'Identifying visible defects & severity...');
+            label.innerText = 'Identifying visible defects & severity...';
+        } else if (currentStep === 4) {
+            setProgressStep(4, 'Generating visual bounding boxes (OpenCV)...');
+            label.innerText = 'Generating visual bounding boxes (OpenCV)...';
+        } else if (currentStep >= 5) {
+            setProgressStep(5, 'Preparing inspection report...');
+            label.innerText = 'Preparing inspection report...';
+            clearInterval(stepInterval);
+        }
+    }, 2800);
+
+    const csrfTok = getCsrfToken();
+    const formData = new FormData();
+    formData.append('image', selectedFile);
+    formData.append('domain', activeWorkflow === 'building' ? 'home' : 'road');
+    formData.append('inspection_mode', activeMode);
+    formData.append('confidence_threshold', '0.25');
+    if (csrfTok) {
+        formData.append('csrf_token', csrfTok);
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+    fetch('/api/inspect', {
+        method: 'POST',
+        headers: csrfTok ? { 'X-CSRF-Token': csrfTok } : {},
+        body: formData,
+        signal: controller.signal
+    })
+    .then(async (res) => {
+        clearTimeout(timeoutId);
+        clearProgressSteps();
+
+        let data = null;
+        try {
+            data = await res.json();
+        } catch (_) {}
+
+        if (!res.ok || !data || data.status !== 'success') {
+            let errorTitle = 'Inspection Failed';
+            let errorMsg = (data && data.message) ? data.message : `Server responded with HTTP ${res.status}.`;
+            if (data?.error_code === 'GEMINI_NOT_CONFIGURED') {
+                errorTitle = 'Gemini API Key Required';
+                errorMsg = 'Google Gemini Vision API key is not configured. Please set GEMINI_API_KEY in your .env file or server deployment settings.';
+            } else if (res.status === 429 || data?.error_code === 'QUOTA_EXHAUSTED') {
+                errorTitle = 'API Free-Tier Rate Limit';
+                errorMsg = 'Google Gemini Vision free-tier rate limit reached. Please wait a moment and try again, or check your API quota in Google AI Studio.';
+            } else if (res.status === 403 && (data?.error_code === 'CSRF_TOKEN_INVALID' || data?.message?.includes('CSRF'))) {
+                try {
+                    const statusRes = await fetch('/api/auth/status');
+                    const statusData = await statusRes.json();
+                    if (statusData.csrf_token) {
+                        sessionStorage.setItem('vg_csrf_token', statusData.csrf_token);
+                        const m = document.querySelector('meta[name="csrf-token"]');
+                        if (m) m.setAttribute('content', statusData.csrf_token);
+                    }
+                } catch (_) {}
+                errorTitle = 'Session Refreshed';
+                errorMsg = 'Security token updated. Please click Detect Defect again.';
+            } else if (res.status === 401) {
+                errorTitle = 'Authentication Required';
+                errorMsg = 'Please sign in to run defect inspections.';
+                setTimeout(() => { window.location.href = '/login?return=/create_home'; }, 1500);
+            } else if (res.status === 413) {
+                errorTitle = 'Image Too Large';
+                errorMsg = 'Photograph exceeds the 15 MB limit. Please select a compressed image.';
+            }
+            showStudioAlert('error', errorTitle, errorMsg);
+            return;
+        }
+
+        lastInspectionResult = data;
+        renderInspectionResults(data);
+    })
+    .catch((err) => {
+        clearTimeout(timeoutId);
+        clearProgressSteps();
+        if (err.name === 'AbortError') {
+            showStudioAlert('error', 'Inspection Timed Out', 'Analysis took longer than 60 seconds. The server may be waking up from cold standby. Please retry.');
+        } else {
+            showStudioAlert('error', 'Network Failure', `Unable to reach inspection server: ${err.message || 'Connection lost'}. Please verify backend status.`);
+        }
+    })
+    .finally(() => {
+        clearProgressSteps();
+        btn.disabled = false;
+        btn.classList.remove('opacity-90', 'cursor-wait');
+        label.innerText = originalText;
+    });
+}
+
+function renderInspectionResults(data) {
+    const section = document.getElementById('inspection-results-section');
+    section.classList.remove('hidden');
+
+    currentOriginalImageUri = URL.createObjectURL(selectedFile);
+    currentAnnotatedImageUri = data.annotated_image
+        ? (data.annotated_image.startsWith('data:') ? data.annotated_image : 'data:image/jpeg;base64,' + data.annotated_image)
+        : (data.processed_file_path || currentOriginalImageUri);
+
+    switchImageView('annotated');
+
+    const defectCount = data.defect_count !== undefined ? data.defect_count : (data.detections ? data.detections.length : 0);
+    document.getElementById('result-defect-count-text').innerText = `${defectCount} Defect${defectCount === 1 ? '' : 's'} Localized`;
+    document.getElementById('result-timing-breakdown').innerText = `Inference: ${data.timings?.inference_ms || 0} ms • Total: ${data.timings?.total_ms || 0} ms`;
+
+    const severity = (data.preliminary_severity || 'moderate').toLowerCase();
+    const sevBadge = document.getElementById('result-severity-badge');
+    const sevText = document.getElementById('result-severity-text');
+    sevText.innerText = `Severity: ${severity.charAt(0).toUpperCase() + severity.slice(1)}`;
+
+    const sevColors = {
+        critical: 'bg-rose-100 text-rose-800 border-rose-300',
+        high: 'bg-orange-100 text-orange-800 border-orange-300',
+        moderate: 'bg-amber-100 text-amber-800 border-amber-300',
+        low: 'bg-blue-100 text-blue-800 border-blue-300',
+        uncertain: 'bg-slate-100 text-slate-800 border-slate-300'
+    };
+    sevBadge.className = `inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${sevColors[severity] || sevColors.moderate}`;
+
+    const summaryEl = document.getElementById('result-summary-text');
+    summaryEl.innerText = data.summary || `Preliminary visual inspection identified ${defectCount} candidate defect(s).`;
+
+    if (data.safety_disclaimer || data.disclaimer) {
+        document.getElementById('result-safety-disclaimer').innerText = data.safety_disclaimer || data.disclaimer;
+    }
+
+    const listContainer = document.getElementById('result-detections-list');
+    const guidanceContainer = document.getElementById('guidance-cards-container');
+    listContainer.innerHTML = '';
+    guidanceContainer.innerHTML = '';
+
+    const defects = data.defects || data.detections || [];
+
+    if (defects && defects.length > 0) {
+        defects.forEach((det, idx) => {
+            const detId = det.id || `D${String(idx + 1).padStart(3, '0')}`;
+            const title = det.title || det.class_name || 'Infrastructure Distress';
+            const detSev = (det.severity || 'moderate').toLowerCase();
+            const action = det.recommended_action || 'Arrange on-site inspection.';
+            const evidence = det.evidence || det.description || 'Observed surface distress.';
+            const hasBox = det.has_bounding_box !== false && (det.bounding_box !== null);
+
+            const card = document.createElement('div');
+            card.className = 'p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-2';
+            card.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="px-2 py-0.5 rounded font-mono font-bold bg-blue-100 text-blue-800 text-[11px]">${detId}</span>
+                        <span class="font-bold text-slate-900">${title}</span>
+                    </div>
+                    <span class="px-2 py-0.5 rounded font-semibold uppercase text-[10px] ${sevColors[detSev] || sevColors.moderate}">
+                        ${detSev}
+                    </span>
+                </div>
+                <div class="space-y-1 text-slate-600 text-[11px] leading-relaxed">
+                    <p><strong>Evidence:</strong> ${evidence}</p>
+                    <p><strong>Action:</strong> ${action}</p>
+                </div>
+                <div class="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-200">
+                    <span class="flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[13px] ${hasBox ? 'text-emerald-600' : 'text-amber-500'}">${hasBox ? 'check_circle' : 'help'}</span>
+                        ${hasBox ? 'Localized Bounding Box' : 'Localization Uncertain'}
+                    </span>
+                    <span>${det.maintenance_priority || 'Standard Priority'}</span>
+                </div>
+            `;
+            listContainer.appendChild(card);
+
+            const gCard = document.createElement('div');
+            gCard.className = 'p-3.5 rounded-xl bg-white border border-slate-200 space-y-1.5';
+            gCard.innerHTML = `
+                <div class="flex items-center justify-between font-bold text-slate-900">
+                    <span>[${detId}] ${title}</span>
+                    <span class="text-slate-500 uppercase font-mono text-[10px]">${detSev} Severity</span>
+                </div>
+                <p><strong>Why is this a problem?</strong> ${det.why_problem || 'Surface distress accelerates under moisture intrusion and traffic loading.'}</p>
+                <p><strong>Safety Precaution:</strong> ${det.safety_guidance || 'Maintain safe distance and avoid mechanical impact over the damaged area.'}</p>
+                <p><strong>What Maintenance Should Inspect:</strong> ${det.inspection_points || 'Subgrade integrity, cavity depth, and perimeter fracture propagation.'}</p>
+            `;
+            guidanceContainer.appendChild(gCard);
+        });
+    } else {
+        listContainer.innerHTML = `
+            <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600 flex items-center gap-3">
+                <span class="material-symbols-outlined text-[22px] text-emerald-600">verified</span>
+                <div>
+                    <h5 class="font-bold text-slate-800">No Defects Localized</h5>
+                    <p class="text-[11px] mt-0.5">Surface appears clean and structurally intact with no visible distress cues.</p>
+                </div>
+            </div>
+        `;
+        guidanceContainer.innerHTML = `
+            <div class="p-3 rounded-xl bg-white border border-slate-200 text-xs text-slate-600">
+                Surface is in sound condition. Perform routine scheduled cleaning and monitoring.
+            </div>
+        `;
+    }
+
+    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function saveCurrentInspection() {
+    openComplaintReviewModal();
+}
+
 
 // Drag & Drop Handling
 document.addEventListener('DOMContentLoaded', () => {
@@ -1068,6 +1403,149 @@ document.addEventListener('DOMContentLoaded', () => {
                     href="#">Terms</a></nav>
         </div>
     </footer>
+
+    <!-- Modal 1: Fullscreen Zoom Viewer -->
+    <div id="fullscreen-image-modal" class="hidden fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="relative w-full max-w-5xl bg-slate-900 rounded-2xl overflow-hidden shadow-2xl border border-slate-700 flex flex-col">
+            <div class="flex items-center justify-between px-4 py-3 bg-slate-950 border-b border-slate-800 text-white">
+                <span class="text-xs font-mono font-semibold" id="modal-image-title">High-Resolution Defect Inspection Overlay</span>
+                <button type="button" onclick="closeFullscreenImageModal()" class="text-slate-400 hover:text-white p-1">
+                    <span class="material-symbols-outlined text-[20px]">close</span>
+                </button>
+            </div>
+            <div class="p-2 sm:p-4 flex items-center justify-center max-h-[80vh] overflow-auto">
+                <img id="modal-zoom-image" src="" alt="Zoom Inspection View" class="max-w-full max-h-[75vh] object-contain rounded" />
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 2: Citizen Complaint Review & Explicit Confirmation (Option B) -->
+    <div id="complaint-review-modal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+        <div class="relative w-full max-w-2xl bg-white rounded-2xl overflow-hidden shadow-2xl border border-slate-200 flex flex-col my-8">
+            <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-emerald-400 text-[20px]">campaign</span>
+                    <h3 class="font-bold text-sm sm:text-base">Review & Confirm Civic Complaint Submission</h3>
+                </div>
+                <button type="button" onclick="closeComplaintReviewModal()" class="text-slate-400 hover:text-white p-1">
+                    <span class="material-symbols-outlined text-[20px]">close</span>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+                <div class="space-y-2">
+                    <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">1. Location Verification</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div>
+                            <label class="block text-slate-500 mb-1">Road / Asset Name</label>
+                            <input id="modal-comp-road" type="text" class="w-full h-9 px-3 rounded-lg border border-slate-300 text-slate-800" />
+                        </div>
+                        <div>
+                            <label class="block text-slate-500 mb-1">Area / Ward</label>
+                            <input id="modal-comp-area" type="text" class="w-full h-9 px-3 rounded-lg border border-slate-300 text-slate-800" />
+                        </div>
+                        <div>
+                            <label class="block text-slate-500 mb-1">City</label>
+                            <input id="modal-comp-city" type="text" class="w-full h-9 px-3 rounded-lg border border-slate-300 text-slate-800" />
+                        </div>
+                        <div>
+                            <label class="block text-slate-500 mb-1">Coordinates (Lat, Lng)</label>
+                            <input id="modal-comp-coords" type="text" class="w-full h-9 px-3 rounded-lg border border-slate-300 text-slate-800 font-mono" readonly />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-2 pt-2 border-t border-slate-100">
+                    <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">2. Citizen Contact Details</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div>
+                            <label class="block text-slate-500 mb-1">Full Name</label>
+                            <input id="modal-comp-name" type="text" placeholder="Citizen Name" class="w-full h-9 px-3 rounded-lg border border-slate-300 text-slate-800" />
+                        </div>
+                        <div>
+                            <label class="block text-slate-500 mb-1">Contact Email / Phone</label>
+                            <input id="modal-comp-contact" type="text" placeholder="contact@example.com" class="w-full h-9 px-3 rounded-lg border border-slate-300 text-slate-800" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-2 pt-2 border-t border-slate-100">
+                    <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">3. AI Findings Attached</h4>
+                    <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
+                        <div class="flex items-center justify-between font-semibold text-slate-800">
+                            <span id="modal-comp-defect-summary">0 Candidate Defects</span>
+                            <span id="modal-comp-severity" class="font-mono text-amber-700">Moderate</span>
+                        </div>
+                        <p id="modal-comp-evidence" class="text-slate-600 text-[11px]"></p>
+                    </div>
+                </div>
+
+                <div class="space-y-2 pt-2 border-t border-slate-100">
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">4. Additional Citizen Observations</label>
+                    <textarea id="modal-comp-notes" rows="2" placeholder="Describe any immediate hazards, traffic obstruction, or pedestrian risk..."
+                        class="w-full p-2.5 rounded-lg border border-slate-300 text-xs text-slate-800"></textarea>
+                </div>
+
+                <div class="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900 leading-relaxed space-y-1">
+                    <p class="font-bold flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[15px] text-amber-700">gavel</span>
+                        Citizen Confirmation Requirement
+                    </p>
+                    <p>
+                        VisionGuard AI generates an official civic complaint draft linked to your verified inspection telemetry.
+                        In accordance with citizen privacy and municipal policy, VisionGuard AI never automatically submits complaints without explicit citizen confirmation.
+                    </p>
+                </div>
+            </div>
+
+            <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-end gap-3">
+                <button type="button" onclick="closeComplaintReviewModal()"
+                    class="w-full sm:w-auto h-10 px-4 rounded-full bg-white border border-slate-300 text-slate-700 font-semibold text-xs hover:bg-slate-100 transition-colors">
+                    Cancel & Keep Draft
+                </button>
+                <button type="button" id="btn-confirm-complaint-submit" onclick="executeComplaintSubmission()"
+                    class="w-full sm:w-auto h-10 px-6 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs flex items-center justify-center gap-2 transition-all shadow-md shadow-emerald-600/20">
+                    <span class="material-symbols-outlined text-[18px]">send</span>
+                    <span id="btn-confirm-complaint-label">Confirm & Submit Complaint Draft</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 3: Complaint Success & Export Modal -->
+    <div id="complaint-success-modal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="relative w-full max-w-lg bg-white rounded-2xl overflow-hidden shadow-2xl border border-slate-200 p-6 text-center space-y-4">
+            <div class="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+                <span class="material-symbols-outlined text-[32px]">check_circle</span>
+            </div>
+            <div>
+                <h3 class="font-bold text-slate-900 text-lg">Civic Complaint Draft Generated</h3>
+                <p id="success-comp-ref" class="text-xs font-mono font-semibold text-emerald-700 mt-1">Reference: #VG-NEW</p>
+                <p class="text-xs text-slate-600 mt-2 leading-relaxed">
+                    Your inspection record and formal civic grievance draft are now persisted in the municipal registry. You can download the official document below.
+                </p>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2">
+                <a id="success-link-pdf" href="#" target="_blank"
+                    class="h-10 px-4 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-sm">
+                    <span class="material-symbols-outlined text-[17px]">picture_as_pdf</span>
+                    <span>Download PDF</span>
+                </a>
+                <a id="success-link-txt" href="#" target="_blank"
+                    class="h-10 px-4 rounded-full bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors">
+                    <span class="material-symbols-outlined text-[17px]">description</span>
+                    <span>Download TXT</span>
+                </a>
+            </div>
+            <div class="pt-2">
+                <a href="/report" class="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline font-semibold">
+                    <span>View in My Reports Dashboard</span>
+                    <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
 </body>
 
 </html>

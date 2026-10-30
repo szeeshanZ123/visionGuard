@@ -55,3 +55,5 @@ zenodo_masks/
 *.zip
 *.tar.gz
 *.bak
+scratch/
+data/backups/

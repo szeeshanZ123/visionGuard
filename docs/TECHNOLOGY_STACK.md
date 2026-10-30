@@ -49,8 +49,9 @@ VisionGuard AI pairs a lightweight, framework-free frontend with a modern Python
 
 | Component | Responsibility | Guardrails & Requirements |
 | :--- | :--- | :--- |
-| **Defect Detection Model** | Pothole & Crack Detection | A genuine object-detection (e.g. YOLO, Faster R-CNN) or instance segmentation (e.g. Mask R-CNN) model selected during Phase 2/3. |
-| **Gemini / LLM** *(Optional)* | Natural-Language Explanations | May be considered for summarizing verified inspection numbers into plain-language text; **strictly prohibited** from fabricating defect predictions. |
+| **Google Gemini Multimodal Vision** | Primary Visual Defect Detection & Severity Analysis | Utilizes Google's official `google-genai` SDK (`gemini-2.5-flash` / `gemini-1.5-flash`) for multi-defect identification, normalized bounding box estimation, visual evidence extraction, and safety guidance across road and building domains. |
+| **OpenCV Visual Annotation Engine** | Non-Destructive BGR Image Overlays | Renders high-contrast bounding boxes, defect IDs (`[D001]`), labels, and color-coded severity pills directly onto a memory copy of the image, keeping original photograph untouched. |
+| **Archived YOLOv8 Engine** | Historical Fallback & Offline Research Benchmark | Archived local weights (`ai/models/best.pt`, `ai/models/home_best.pt`) preserved for offline comparative ablation studies; bypassed in standard production to conserve memory. |
 
 ---
 
