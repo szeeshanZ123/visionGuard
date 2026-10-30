@@ -366,389 +366,297 @@
                             </div>
                         </div>
                     </div>
-                </section><!-- 5. Inference Configuration & Controls -->
-                <section aria-labelledby="inference-heading" class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 md:p-8 shadow-sm space-y-6 hidden>
-                    <div class=" flex items-center gap-2 pb-4 border-b border-slate-100"><span
-                        class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-primary-container text-xs font-bold shrink-0">4</span>
-                    <div>
-                        <h2 class="font-headline-md text-headline-md font-semibold text-on-secondary-fixed"
-                            id="inference-heading">Inference Configuration &amp; Controls</h2>
-                        <p class="font-body-sm text-body-sm text-text-placeholder">Municipal engineering confidence
-                            parameters and inference resolution settings.</p>
-                    </div>
-            </div>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <!-- Subsection A: Detection Confidence Threshold (Strictly Locked) -->
-                <div
-                    class="p-4 sm:p-5 rounded-xl bg-slate-50/70 border border-slate-200 flex flex-col justify-between space-y-4">
-                    <div>
-                        <div class="flex items-center justify-between gap-2 mb-2"><span
-                                class="font-headline-md text-slate-900 font-semibold text-sm">Detection
-                                Confidence Threshold</span><span
-                                class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-200/80 text-slate-700 shrink-0"><span
-                                    class="material-symbols-outlined text-[12px]">lock</span> Locked</span>
+                </section>
+                <!-- 6. Primary CTA & Compliance Footer Assurance -->
+
+                <!-- Dynamic Status / Alert Banner -->
+                <div id="studio-alert" class="hidden p-4 rounded-xl border text-sm transition-all" role="alert">
+                    <div class="flex items-start gap-3">
+                        <span id="studio-alert-icon"
+                            class="material-symbols-outlined text-[20px] shrink-0 mt-0.5">info</span>
+                        <div class="flex-1 min-w-0">
+                            <h4 id="studio-alert-title" class="font-bold">Notice</h4>
+                            <p id="studio-alert-message" class="text-xs mt-0.5 leading-relaxed"></p>
                         </div>
-                        <p class="font-body-sm text-body-sm text-text-placeholder leading-relaxed mb-4">Minimum
-                            statistical probability required to register a distress bounding box on the target
-                            concrete matrix.</p>
-                        <div class="space-y-2">
-                            <div class="flex items-center justify-between text-xs font-semibold text-slate-700">
-                                <span>Confidence Floor</span><span
-                                    class="font-mono text-primary-container bg-blue-50 px-2 py-0.5 rounded border border-blue-200">Threshold:
-                                    0.25</span>
-                            </div><!-- Simulated Locked Slider -->
-                            <div
-                                class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden relative opacity-70 cursor-not-allowed">
-                                <div class="bg-primary-container h-full rounded-full" style="width: 25%"></div>
-                            </div>
-                            <div class="flex justify-between text-[11px] text-slate-400"><span>0.00
-                                    (Loose)</span><span>0.25 (Standard)</span><span>1.00 (Rigid)</span></div>
-                        </div>
+                        <button type="button" onclick="dismissStudioAlert()"
+                            class="text-slate-400 hover:text-slate-600 p-1">
+                            <span class="material-symbols-outlined text-[18px]">close</span>
+                        </button>
                     </div>
+                </div>
+
+                <!-- 7. Verified Inspection Results (Revealed after successful inference) -->
+                <!-- 7. Verified Inspection Results & AI Report (Revealed after successful inference) -->
+                <section id="inspection-results-section"
+                    class="hidden bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 md:p-8 shadow-sm space-y-6">
+                    <!-- Results Header Banner -->
                     <div
-                        class="p-3 rounded-lg bg-white border border-slate-200 flex items-start sm:items-center gap-2 text-xs text-slate-600">
-                        <span
-                            class="material-symbols-outlined text-[16px] text-slate-400 shrink-0 mt-0.5 sm:mt-0">lock_clock</span><span>🔒
-                            This setting is locked to ASTM D6433 municipal audit compliance and cannot be
-                            altered.</span>
-                    </div>
-                </div><!-- Subsection B: Inspection Mode -->
-                <div
-                    class="p-4 sm:p-5 rounded-xl bg-slate-50/70 border border-slate-200 flex flex-col justify-between space-y-4">
-                    <div>
-                        <div class="flex items-center justify-between gap-2 mb-2"><span
-                                class="font-headline-md text-slate-900 font-semibold text-sm">Inspection
-                                Mode</span><span
-                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200 shrink-0">Standard
-                                Profile Active</span></div>
-                        <p class="font-body-sm text-body-sm text-text-placeholder leading-relaxed mb-4">Choose
-                            compute partition strategy for ultra-high-resolution structural orthomosaics.</p>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="mode-selector">
-                            <!-- Mode 1: Standard (Selected) -->
-                            <div class="p-3.5 rounded-xl bg-white border-2 border-primary-container cursor-pointer transition-all hover:shadow-xs flex flex-col justify-between"
-                                id="mode-standard" onclick="selectInspectionMode('standard')">
-                                <div class="flex items-center justify-between mb-2">
-                                    <div
-                                        class="w-8 h-8 rounded-lg bg-blue-50 text-primary-container flex items-center justify-center shrink-0">
-                                        <span class="material-symbols-outlined text-[18px]">bolt</span>
-                                    </div>
-                                    <span
-                                        class="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded shrink-0"
-                                        id="badge-standard"><span
-                                            class="material-symbols-outlined text-[11px]">lock</span>
-                                        Locked</span>
-                                </div>
-                                <h4 class="font-label-md text-label-md font-semibold text-slate-900 mb-1">
-                                    Standard (Fast)</h4>
-                                <p class="font-caption text-caption text-text-placeholder leading-normal">Fast
-                                    inspection using the standard single-pass scanning workflow.</p>
-                            </div><!-- Mode 2: Tiled Slicing -->
-                            <div class="p-3.5 rounded-xl bg-white border border-slate-200 opacity-80 cursor-pointer hover:border-slate-300 transition-all hover:shadow-xs flex flex-col justify-between"
-                                id="mode-tiled" onclick="selectInspectionMode('tiled')">
-                                <div class="flex items-center justify-between mb-2">
-                                    <div
-                                        class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
-                                        <span class="material-symbols-outlined text-[18px]">biotech</span>
-                                    </div>
-                                    <span
-                                        class="hidden inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded shrink-0"
-                                        id="badge-tiled"><span class="material-symbols-outlined text-[11px]">lock</span>
-                                        Locked</span>
-                                </div>
-                                <h4 class="font-label-md text-label-md font-semibold text-slate-900 mb-1">Tiled
-                                    Slicing</h4>
-                                <p class="font-caption text-caption text-text-placeholder leading-normal">
-                                    Detailed tiled sub-window inspection for deep crack coverage.</p>
+                        class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span
+                                    class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-100 text-primary-container text-xs font-bold shrink-0">
+                                    <span class="material-symbols-outlined text-[16px]">verified</span>
+                                </span>
+                                <h2 class="font-headline-md text-headline-md font-semibold text-slate-900">AI Inspection
+                                    Report</h2>
                             </div>
-                        </div>
-                    </div>
-                    <div class="flex flex-wrap items-center justify-between gap-2 pt-2 text-xs text-text-muted">
-                        <span class="flex items-center gap-1"><span
-                                class="material-symbols-outlined text-[14px] text-emerald-600">verified</span>SAHI
-                            Pipeline Enabled</span><span>Batch Size: 1</span>
-                    </div>
-                </div>
-            </div>
-            </section><!-- 6. Primary CTA & Compliance Footer Assurance -->
-
-            <!-- Dynamic Status / Alert Banner -->
-            <div id="studio-alert" class="hidden p-4 rounded-xl border text-sm transition-all" role="alert">
-                <div class="flex items-start gap-3">
-                    <span id="studio-alert-icon"
-                        class="material-symbols-outlined text-[20px] shrink-0 mt-0.5">info</span>
-                    <div class="flex-1 min-w-0">
-                        <h4 id="studio-alert-title" class="font-bold">Notice</h4>
-                        <p id="studio-alert-message" class="text-xs mt-0.5 leading-relaxed"></p>
-                    </div>
-                    <button type="button" onclick="dismissStudioAlert()"
-                        class="text-slate-400 hover:text-slate-600 p-1">
-                        <span class="material-symbols-outlined text-[18px]">close</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- 7. Verified Inspection Results (Revealed after successful inference) -->
-            <!-- 7. Verified Inspection Results & AI Report (Revealed after successful inference) -->
-            <section id="inspection-results-section"
-                class="hidden bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 md:p-8 shadow-sm space-y-6">
-                <!-- Results Header Banner -->
-                <div
-                    class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
-                    <div>
-                        <div class="flex items-center gap-2">
-                            <span
-                                class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-100 text-primary-container text-xs font-bold shrink-0">
-                                <span class="material-symbols-outlined text-[16px]">verified</span>
-                            </span>
-                            <h2 class="font-headline-md text-headline-md font-semibold text-slate-900">AI Inspection
-                                Report</h2>
-                        </div>
-                        <p class="font-body-sm text-body-sm text-slate-500 ml-9 mt-0.5">
-                            Multimodal visual analysis, defect localization, and preliminary severity assessment.
-                        </p>
-                    </div>
-                    <div class="flex flex-wrap items-center gap-2 ml-9 sm:ml-0">
-                        <!-- Overall Severity Badge -->
-                        <span id="result-severity-badge"
-                            class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                            <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-                            <span id="result-severity-text">Severity: Moderate</span>
-                        </span>
-                        <!-- Defect Count Badge -->
-                        <span id="result-status-badge"
-                            class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                            <span class="w-2 h-2 rounded-full bg-blue-500"></span>
-                            <span id="result-defect-count-text">0 Defects Localized</span>
-                        </span>
-                    </div>
-                </div>
-
-                <!-- AI Summary Callout -->
-                <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
-                    <div class="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-wider">
-                        <span class="material-symbols-outlined text-[16px] text-blue-600">psychology</span>
-                        <span>Executive Visual Inspection Summary</span>
-                    </div>
-                    <p id="result-summary-text" class="text-sm text-slate-800 leading-relaxed font-medium">
-                        Analyzing visual evidence...
-                    </p>
-                </div>
-
-                <!-- Split Grid: Visual Overlay + Dual View Gallery -->
-                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                    <!-- Left: Image Viewer (Side-by-side or Tab Toggle) -->
-                    <div class="lg:col-span-7 flex flex-col space-y-3">
-                        <div class="flex items-center justify-between pb-1">
-                            <div class="inline-flex p-1 bg-slate-100 rounded-xl text-xs font-semibold">
-                                <button id="btn-view-annotated" onclick="switchImageView('annotated')" type="button"
-                                    class="px-3 py-1 rounded-lg bg-white text-slate-900 shadow-xs transition-all flex items-center gap-1.5">
-                                    <span class="material-symbols-outlined text-[14px] text-blue-600">draw</span>
-                                    <span>Annotated Overlay</span>
-                                </button>
-                                <button id="btn-view-original" onclick="switchImageView('original')" type="button"
-                                    class="px-3 py-1 rounded-lg text-slate-600 hover:text-slate-900 transition-all flex items-center gap-1.5">
-                                    <span class="material-symbols-outlined text-[14px] text-slate-500">photo</span>
-                                    <span>Original Photo</span>
-                                </button>
-                            </div>
-                            <button onclick="openFullscreenImageModal()" type="button"
-                                class="text-xs text-slate-600 hover:text-blue-600 flex items-center gap-1 font-medium transition-colors">
-                                <span class="material-symbols-outlined text-[16px]">fullscreen</span>
-                                <span>Zoom View</span>
-                            </button>
-                        </div>
-
-                        <div
-                            class="relative w-full rounded-xl overflow-hidden bg-slate-950 border border-slate-200 shadow-md min-h-[300px] max-h-[460px] flex items-center justify-center">
-                            <img id="result-annotated-image" src="" alt="Defect Detection Overlay"
-                                class="w-full h-full object-contain max-h-[460px] transition-opacity duration-200" />
-                            <div
-                                class="absolute bottom-2 left-2 bg-black/75 backdrop-blur-sm text-white px-2.5 py-1 rounded text-[11px] font-mono flex items-center gap-1.5">
-                                <span class="w-2 h-2 rounded-full bg-blue-400"></span>
-                                <span id="result-image-meta">OpenCV Visual Overlay & Gemini Localization</span>
-                            </div>
-                        </div>
-
-                        <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 pt-1">
-                            <span id="result-timing-breakdown">Inference: -- ms • Total: -- ms</span>
-                            <span id="result-model-badge"
-                                class="font-mono bg-slate-100 px-2 py-0.5 rounded text-[11px]">VisionGuard Multimodal
-                                AI</span>
-                        </div>
-                    </div>
-
-                    <!-- Right: Defect Cards Breakdown -->
-                    <div class="lg:col-span-5 flex flex-col justify-between space-y-4">
-                        <div class="space-y-3">
-                            <div class="flex items-center justify-between">
-                                <h3 class="font-label-md text-label-md font-semibold text-slate-800">Identified Defect
-                                    Breakdown</h3>
-                                <span class="text-xs text-slate-400 font-mono">ASTM & Multimodal Standard</span>
-                            </div>
-                            <div id="result-detections-list" class="space-y-3 max-h-[340px] overflow-y-auto pr-1">
-                                <!-- Dynamic defect cards populated here -->
-                            </div>
-                        </div>
-
-                        <!-- Human Engineering Disclaimer -->
-                        <div
-                            class="p-3.5 rounded-xl bg-amber-50/90 border border-amber-200 text-amber-900 text-xs leading-relaxed flex items-start gap-2.5">
-                            <span
-                                class="material-symbols-outlined text-amber-600 text-[18px] shrink-0 mt-0.5">verified_user</span>
-                            <p id="result-safety-disclaimer">
-                                Notice: Preliminary visual assessment generated by Google Gemini Vision. This assessment
-                                does not replace an on-site structural engineering certification or municipal inspection
-                                warranty.
+                            <p class="font-body-sm text-body-sm text-slate-500 ml-9 mt-0.5">
+                                Multimodal visual analysis, defect localization, and preliminary severity assessment.
                             </p>
                         </div>
-                    </div>
-                </div>
-
-                <!-- Citizen Decision & Action Center (Step 6) -->
-                <div class="pt-4 border-t border-slate-200 space-y-4">
-                    <div class="flex flex-col sm:flex-row items-center justify-between gap-2">
-                        <div>
-                            <h3 class="font-semibold text-slate-900 text-sm sm:text-base">Citizen Action Pathways</h3>
-                            <p class="text-xs text-slate-500">Choose to read inspection guidance or submit an official
-                                verified complaint.</p>
+                        <div class="flex flex-wrap items-center gap-2 ml-9 sm:ml-0">
+                            <!-- Overall Severity Badge -->
+                            <span id="result-severity-badge"
+                                class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                                <span id="result-severity-text">Severity: Moderate</span>
+                            </span>
+                            <!-- Defect Count Badge -->
+                            <span id="result-status-badge"
+                                class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                                <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                                <span id="result-defect-count-text">0 Defects Localized</span>
+                            </span>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <!-- OPTION A: READ GUIDANCE -->
-                        <div
-                            class="p-4 sm:p-5 rounded-xl bg-blue-50/60 border border-blue-200 flex flex-col justify-between space-y-3">
-                            <div>
-                                <div class="flex items-center gap-2 mb-1.5">
-                                    <span
-                                        class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">A</span>
-                                    <h4 class="font-bold text-slate-900 text-sm">Option A — Read Guidance</h4>
+                    <!-- AI Summary Callout -->
+                    <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
+                        <div class="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-wider">
+                            <span class="material-symbols-outlined text-[16px] text-blue-600">psychology</span>
+                            <span>Executive Visual Inspection Summary</span>
+                        </div>
+                        <p id="result-summary-text" class="text-sm text-slate-800 leading-relaxed font-medium">
+                            Analyzing visual evidence...
+                        </p>
+                    </div>
+
+                    <!-- Split Grid: Visual Overlay + Dual View Gallery -->
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        <!-- Left: Image Viewer (Side-by-side or Tab Toggle) -->
+                        <div class="lg:col-span-7 flex flex-col space-y-3">
+                            <div class="flex items-center justify-between pb-1">
+                                <div class="inline-flex p-1 bg-slate-100 rounded-xl text-xs font-semibold">
+                                    <button id="btn-view-annotated" onclick="switchImageView('annotated')" type="button"
+                                        class="px-3 py-1 rounded-lg bg-white text-slate-900 shadow-xs transition-all flex items-center gap-1.5">
+                                        <span class="material-symbols-outlined text-[14px] text-blue-600">draw</span>
+                                        <span>Annotated Overlay</span>
+                                    </button>
+                                    <button id="btn-view-original" onclick="switchImageView('original')" type="button"
+                                        class="px-3 py-1 rounded-lg text-slate-600 hover:text-slate-900 transition-all flex items-center gap-1.5">
+                                        <span class="material-symbols-outlined text-[14px] text-slate-500">photo</span>
+                                        <span>Original Photo</span>
+                                    </button>
                                 </div>
-                                <p class="text-xs text-slate-600 leading-relaxed">
-                                    View full safety guidance, why these defects pose hazards, and on-site inspection
-                                    points without filing a municipal complaint.
+                                <button onclick="openFullscreenImageModal()" type="button"
+                                    class="text-xs text-slate-600 hover:text-blue-600 flex items-center gap-1 font-medium transition-colors">
+                                    <span class="material-symbols-outlined text-[16px]">fullscreen</span>
+                                    <span>Zoom View</span>
+                                </button>
+                            </div>
+
+                            <div
+                                class="relative w-full rounded-xl overflow-hidden bg-slate-950 border border-slate-200 shadow-md min-h-[300px] max-h-[460px] flex items-center justify-center">
+                                <img id="result-annotated-image" src="" alt="Defect Detection Overlay"
+                                    class="w-full h-full object-contain max-h-[460px] transition-opacity duration-200" />
+                                <div
+                                    class="absolute bottom-2 left-2 bg-black/75 backdrop-blur-sm text-white px-2.5 py-1 rounded text-[11px] font-mono flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+                                    <span id="result-image-meta">OpenCV Visual Overlay & Gemini Localization</span>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 pt-1">
+                                <span id="result-timing-breakdown">Inference: -- ms • Total: -- ms</span>
+                                <span id="result-model-badge"
+                                    class="font-mono bg-slate-100 px-2 py-0.5 rounded text-[11px]">VisionGuard
+                                    Multimodal
+                                    AI</span>
+                            </div>
+                        </div>
+
+                        <!-- Right: Defect Cards Breakdown -->
+                        <div class="lg:col-span-5 flex flex-col justify-between space-y-4">
+                            <div class="space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <h3 class="font-label-md text-label-md font-semibold text-slate-800">Identified
+                                        Defect
+                                        Breakdown</h3>
+                                    <span class="text-xs text-slate-400 font-mono">ASTM & Multimodal Standard</span>
+                                </div>
+                                <div id="result-detections-list" class="space-y-3 max-h-[340px] overflow-y-auto pr-1">
+                                    <!-- Dynamic defect cards populated here -->
+                                </div>
+                            </div>
+
+                            <!-- Human Engineering Disclaimer -->
+                            <div
+                                class="p-3.5 rounded-xl bg-amber-50/90 border border-amber-200 text-amber-900 text-xs leading-relaxed flex items-start gap-2.5">
+                                <span
+                                    class="material-symbols-outlined text-amber-600 text-[18px] shrink-0 mt-0.5">verified_user</span>
+                                <p id="result-safety-disclaimer">
+                                    Notice: Preliminary visual assessment generated by Google Gemini Vision. This
+                                    assessment
+                                    does not replace an on-site structural engineering certification or municipal
+                                    inspection
+                                    warranty.
                                 </p>
                             </div>
-                            <button type="button" id="btn-toggle-guidance" onclick="toggleGuidanceDrawer()"
-                                class="w-full h-10 px-4 rounded-full bg-white border border-blue-300 hover:bg-blue-50 text-blue-700 font-semibold text-xs flex items-center justify-center gap-2 transition-colors shadow-xs">
-                                <span class="material-symbols-outlined text-[17px]">menu_book</span>
-                                <span id="btn-guidance-label">Read Full Guidance & Safety Steps</span>
-                            </button>
                         </div>
+                    </div>
 
-                        <!-- OPTION B: SUBMIT COMPLAINT -->
-                        <div
-                            class="p-4 sm:p-5 rounded-xl bg-emerald-50/60 border border-emerald-200 flex flex-col justify-between space-y-3">
+                    <!-- Citizen Decision & Action Center (Step 6) -->
+                    <div class="pt-4 border-t border-slate-200 space-y-4">
+                        <div class="flex flex-col sm:flex-row items-center justify-between gap-2">
                             <div>
-                                <div class="flex items-center gap-2 mb-1.5">
-                                    <span
-                                        class="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold">B</span>
-                                    <h4 class="font-bold text-slate-900 text-sm">Option B — Submit Complaint</h4>
+                                <h3 class="font-semibold text-slate-900 text-sm sm:text-base">Citizen Action Pathways
+                                </h3>
+                                <p class="text-xs text-slate-500">Choose to read inspection guidance or submit an
+                                    official
+                                    verified complaint.</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- OPTION A: READ GUIDANCE -->
+                            <div
+                                class="p-4 sm:p-5 rounded-xl bg-blue-50/60 border border-blue-200 flex flex-col justify-between space-y-3">
+                                <div>
+                                    <div class="flex items-center gap-2 mb-1.5">
+                                        <span
+                                            class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">A</span>
+                                        <h4 class="font-bold text-slate-900 text-sm">Option A — Read Guidance</h4>
+                                    </div>
+                                    <p class="text-xs text-slate-600 leading-relaxed">
+                                        View full safety guidance, why these defects pose hazards, and on-site
+                                        inspection
+                                        points without filing a municipal complaint.
+                                    </p>
                                 </div>
-                                <p class="text-xs text-slate-600 leading-relaxed">
-                                    Review inspection telemetry, verify your location, and explicitly submit an official
-                                    complaint draft to municipal authorities.
-                                </p>
+                                <button type="button" id="btn-toggle-guidance" onclick="toggleGuidanceDrawer()"
+                                    class="w-full h-10 px-4 rounded-full bg-white border border-blue-300 hover:bg-blue-50 text-blue-700 font-semibold text-xs flex items-center justify-center gap-2 transition-colors shadow-xs">
+                                    <span class="material-symbols-outlined text-[17px]">menu_book</span>
+                                    <span id="btn-guidance-label">Read Full Guidance & Safety Steps</span>
+                                </button>
                             </div>
-                            <button type="button" id="btn-open-complaint" onclick="openComplaintReviewModal()"
-                                class="w-full h-10 px-4 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs flex items-center justify-center gap-2 transition-colors shadow-xs shadow-emerald-600/20">
-                                <span class="material-symbols-outlined text-[17px]">campaign</span>
-                                <span>Review & Confirm Complaint Submission</span>
-                            </button>
-                        </div>
-                    </div>
 
-                    <!-- Expandable Guidance Drawer (Option A Content) -->
-                    <div id="guidance-drawer"
-                        class="hidden p-5 sm:p-6 rounded-xl bg-slate-50 border border-slate-200 space-y-4 transition-all">
-                        <div class="flex items-center justify-between pb-2 border-b border-slate-200">
-                            <div class="flex items-center gap-2 text-slate-900 font-bold text-sm">
-                                <span class="material-symbols-outlined text-[20px] text-blue-600">info</span>
-                                <span>Comprehensive Defect Guidance & Civil Safety Protocols</span>
+                            <!-- OPTION B: SUBMIT COMPLAINT -->
+                            <div
+                                class="p-4 sm:p-5 rounded-xl bg-emerald-50/60 border border-emerald-200 flex flex-col justify-between space-y-3">
+                                <div>
+                                    <div class="flex items-center gap-2 mb-1.5">
+                                        <span
+                                            class="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold">B</span>
+                                        <h4 class="font-bold text-slate-900 text-sm">Option B — Submit Complaint</h4>
+                                    </div>
+                                    <p class="text-xs text-slate-600 leading-relaxed">
+                                        Review inspection telemetry, verify your location, and explicitly submit an
+                                        official
+                                        complaint draft to municipal authorities.
+                                    </p>
+                                </div>
+                                <button type="button" id="btn-open-complaint" onclick="openComplaintReviewModal()"
+                                    class="w-full h-10 px-4 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs flex items-center justify-center gap-2 transition-colors shadow-xs shadow-emerald-600/20">
+                                    <span class="material-symbols-outlined text-[17px]">campaign</span>
+                                    <span>Review & Confirm Complaint Submission</span>
+                                </button>
                             </div>
-                            <button type="button" onclick="toggleGuidanceDrawer()"
-                                class="text-slate-400 hover:text-slate-600 p-1">
-                                <span class="material-symbols-outlined text-[18px]">close</span>
-                            </button>
                         </div>
-                        <div id="guidance-cards-container" class="space-y-3 text-xs text-slate-700">
-                            <!-- Populated dynamically based on inspection defects -->
-                        </div>
-                        <div class="p-3 rounded-lg bg-blue-100/70 text-blue-900 text-xs">
-                            <strong>Next Step for Citizens:</strong> If this defect obstructs traffic or risks
-                            pedestrian falls, consider using Option B above to generate a municipal work-order notice.
-                        </div>
-                    </div>
 
-                    <!-- Secondary Quick Navigation Links -->
-                    <div class="grid grid-cols-2 gap-2 pt-2">
-                        <a href="/map"
-                            class="h-9 px-3 rounded-full bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium text-xs flex items-center justify-center gap-1.5 transition-colors">
-                            <span class="material-symbols-outlined text-[16px] text-blue-600">map</span>
-                            <span>Defect Map</span>
-                        </a>
-                        <a href="/report"
-                            class="h-9 px-3 rounded-full bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium text-xs flex items-center justify-center gap-1.5 transition-colors">
-                            <span class="material-symbols-outlined text-[16px] text-slate-600">folder_open</span>
-                            <span>My Reports</span>
-                        </a>
-                    </div>
-                </div>
-            </section>
+                        <!-- Expandable Guidance Drawer (Option A Content) -->
+                        <div id="guidance-drawer"
+                            class="hidden p-5 sm:p-6 rounded-xl bg-slate-50 border border-slate-200 space-y-4 transition-all">
+                            <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+                                <div class="flex items-center gap-2 text-slate-900 font-bold text-sm">
+                                    <span class="material-symbols-outlined text-[20px] text-blue-600">info</span>
+                                    <span>Comprehensive Defect Guidance & Civil Safety Protocols</span>
+                                </div>
+                                <button type="button" onclick="toggleGuidanceDrawer()"
+                                    class="text-slate-400 hover:text-slate-600 p-1">
+                                    <span class="material-symbols-outlined text-[18px]">close</span>
+                                </button>
+                            </div>
+                            <div id="guidance-cards-container" class="space-y-3 text-xs text-slate-700">
+                                <!-- Populated dynamically based on inspection defects -->
+                            </div>
+                            <div class="p-3 rounded-lg bg-blue-100/70 text-blue-900 text-xs">
+                                <strong>Next Step for Citizens:</strong> If this defect obstructs traffic or risks
+                                pedestrian falls, consider using Option B above to generate a municipal work-order
+                                notice.
+                            </div>
+                        </div>
 
-            <!-- 6. Real-time Multi-Step Progress Banner (Active during analysis) -->
-            <div id="inspection-progress-card"
-                class="hidden p-5 sm:p-6 rounded-2xl bg-white border border-blue-200 shadow-sm space-y-4">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2.5">
-                        <span class="w-3 h-3 rounded-full bg-blue-600 animate-ping"></span>
-                        <h4 id="progress-step-title" class="font-bold text-slate-900 text-sm sm:text-base">Processing
-                            Inspection</h4>
+                        <!-- Secondary Quick Navigation Links -->
+                        <div class="grid grid-cols-2 gap-2 pt-2">
+                            <a href="/map"
+                                class="h-9 px-3 rounded-full bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium text-xs flex items-center justify-center gap-1.5 transition-colors">
+                                <span class="material-symbols-outlined text-[16px] text-blue-600">map</span>
+                                <span>Defect Map</span>
+                            </a>
+                            <a href="/report"
+                                class="h-9 px-3 rounded-full bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium text-xs flex items-center justify-center gap-1.5 transition-colors">
+                                <span class="material-symbols-outlined text-[16px] text-slate-600">folder_open</span>
+                                <span>My Reports</span>
+                            </a>
+                        </div>
                     </div>
-                    <span id="progress-step-counter"
-                        class="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">Step
-                        1 of 5</span>
+                </section>
+
+                <!-- 6. Real-time Multi-Step Progress Banner (Active during analysis) -->
+                <div id="inspection-progress-card"
+                    class="hidden p-5 sm:p-6 rounded-2xl bg-white border border-blue-200 shadow-sm space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-3 h-3 rounded-full bg-blue-600 animate-ping"></span>
+                            <h4 id="progress-step-title" class="font-bold text-slate-900 text-sm sm:text-base">
+                                Processing
+                                Inspection</h4>
+                        </div>
+                        <span id="progress-step-counter"
+                            class="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">Step
+                            1 of 5</span>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1 text-[11px] font-medium text-slate-500">
+                        <div id="prog-step-1"
+                            class="p-2 rounded-lg bg-blue-50 text-blue-800 border border-blue-200 flex items-center gap-1.5 font-semibold">
+                            <span class="material-symbols-outlined text-[15px]">cloud_upload</span> Uploading
+                        </div>
+                        <div id="prog-step-2"
+                            class="p-2 rounded-lg bg-slate-50 text-slate-500 border border-slate-200 flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-[15px]">auto_awesome</span> Gemini Vision
+                        </div>
+                        <div id="prog-step-3"
+                            class="p-2 rounded-lg bg-slate-50 text-slate-500 border border-slate-200 flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-[15px]">radar</span> Defect Triage
+                        </div>
+                        <div id="prog-step-4"
+                            class="p-2 rounded-lg bg-slate-50 text-slate-500 border border-slate-200 flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-[15px]">draw</span> OpenCV Overlay
+                        </div>
+                        <div id="prog-step-5"
+                            class="p-2 rounded-lg bg-slate-50 text-slate-500 border border-slate-200 flex items-center gap-1.5 col-span-2 sm:col-span-1">
+                            <span class="material-symbols-outlined text-[15px]">description</span> AI Report
+                        </div>
+                    </div>
                 </div>
-                <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1 text-[11px] font-medium text-slate-500">
-                    <div id="prog-step-1"
-                        class="p-2 rounded-lg bg-blue-50 text-blue-800 border border-blue-200 flex items-center gap-1.5 font-semibold">
-                        <span class="material-symbols-outlined text-[15px]">cloud_upload</span> Uploading
+                <section class="flex flex-col items-center justify-center pt-2 pb-12 space-y-4 px-2"><button
+                        class="w-full sm:w-auto sm:min-w-[340px] md:min-w-[420px] h-12 sm:h-13 py-3 px-6 sm:px-8 rounded-full bg-primary-container hover:bg-blue-600 text-white font-label-md text-base font-semibold shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-3 group active:scale-[0.99]"
+                        id="btn-run-inspection" onclick="triggerInspection()" type="button"><span
+                            class="material-symbols-outlined text-[22px] group-hover:rotate-12 transition-transform">auto_awesome</span><span
+                            id="cta-label">Detect Defect</span><span
+                            class="material-symbols-outlined text-[20px] group-hover:translate-x-1 transition-transform">arrow_forward</span></button>
+                    <div
+                        class="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-2 sm:gap-4 text-center font-caption text-caption text-slate-500 max-w-xl">
+                        <span class="inline-flex items-center gap-1.5"><span
+                                class="material-symbols-outlined text-[14px] text-emerald-600 shrink-0">security</span>Certified
+                            ASTM D6433 &amp; YOLOv8 Municipal Audit Engine</span><span
+                            class="hidden sm:inline">•</span><span class="inline-flex items-center gap-1"><span
+                                class="material-symbols-outlined text-[14px] text-slate-400 shrink-0">lock</span>Data
+                            encrypted in transit (TLS 1.3 256-bit)</span>
                     </div>
-                    <div id="prog-step-2"
-                        class="p-2 rounded-lg bg-slate-50 text-slate-500 border border-slate-200 flex items-center gap-1.5">
-                        <span class="material-symbols-outlined text-[15px]">auto_awesome</span> Gemini Vision
-                    </div>
-                    <div id="prog-step-3"
-                        class="p-2 rounded-lg bg-slate-50 text-slate-500 border border-slate-200 flex items-center gap-1.5">
-                        <span class="material-symbols-outlined text-[15px]">radar</span> Defect Triage
-                    </div>
-                    <div id="prog-step-4"
-                        class="p-2 rounded-lg bg-slate-50 text-slate-500 border border-slate-200 flex items-center gap-1.5">
-                        <span class="material-symbols-outlined text-[15px]">draw</span> OpenCV Overlay
-                    </div>
-                    <div id="prog-step-5"
-                        class="p-2 rounded-lg bg-slate-50 text-slate-500 border border-slate-200 flex items-center gap-1.5 col-span-2 sm:col-span-1">
-                        <span class="material-symbols-outlined text-[15px]">description</span> AI Report
-                    </div>
-                </div>
+                </section>
             </div>
-            <section class="flex flex-col items-center justify-center pt-2 pb-12 space-y-4 px-2"><button
-                    class="w-full sm:w-auto sm:min-w-[340px] md:min-w-[420px] h-12 sm:h-13 py-3 px-6 sm:px-8 rounded-full bg-primary-container hover:bg-blue-600 text-white font-label-md text-base font-semibold shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-3 group active:scale-[0.99]"
-                    id="btn-run-inspection" onclick="triggerInspection()" type="button"><span
-                        class="material-symbols-outlined text-[22px] group-hover:rotate-12 transition-transform">auto_awesome</span><span
-                        id="cta-label">Detect Defect</span><span
-                        class="material-symbols-outlined text-[20px] group-hover:translate-x-1 transition-transform">arrow_forward</span></button>
-                <div
-                    class="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-2 sm:gap-4 text-center font-caption text-caption text-slate-500 max-w-xl">
-                    <span class="inline-flex items-center gap-1.5"><span
-                            class="material-symbols-outlined text-[14px] text-emerald-600 shrink-0">security</span>Certified
-                        ASTM D6433 &amp; YOLOv8 Municipal Audit Engine</span><span
-                        class="hidden sm:inline">•</span><span class="inline-flex items-center gap-1"><span
-                            class="material-symbols-outlined text-[14px] text-slate-400 shrink-0">lock</span>Data
-                        encrypted in transit (TLS 1.3 256-bit)</span>
-                </div>
-            </section>
-        </div>
         </div>
         <script>
             function getCsrfToken() {
