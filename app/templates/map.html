@@ -532,7 +532,7 @@
             <div class="flex flex-wrap items-center justify-center md:justify-start gap-2 text-center md:text-left">
                 <span
                     class="px-2.5 py-1 rounded-full bg-slate-100 font-bold text-[10px] text-slate-700 border border-slate-200 tracking-wide uppercase">
-                    ASTM D6433 COMPLIANT SYSTEM
+                    VISIONGUARD MULTIMODAL PLATFORM
                 </span>
                 <span>© 2024 VisionGuard AI Civil Intelligence. All rights reserved.</span>
             </div>
@@ -726,7 +726,7 @@
             <div class="relative h-24 sm:h-28 w-full bg-slate-100 overflow-hidden">
               <img src="${record.img}" class="w-full h-full object-cover" alt="${record.name}" onerror="this.src='/static/img/placeholder.png'" />
               <div class="absolute top-2 left-2 bg-white/95 backdrop-blur-sm px-2 py-0.5 rounded text-[10px] font-bold text-slate-700 tracking-wider">
-                ${record.id}
+                ${record.complaintRef ? record.complaintRef : record.id}
               </div>
               <div class="absolute top-2 right-2 bg-slate-900/80 backdrop-blur-sm text-white px-2 py-0.5 rounded text-[10px] font-mono">
                 ASTM D6433
@@ -788,20 +788,23 @@
                         }
 
                         // Determine primary distress class
-                        let primaryClass = 'D00';
-                        if (item.detections && item.detections.length > 0) {
-                            primaryClass = item.detections[0].class_name || item.detections[0].name || 'D00';
-                        } else if (item.inspection_type === 'home' || item.domain === 'home') {
-                            primaryClass = 'WALL';
+                        let primaryClass = item.defect_type || '';
+                        if (!primaryClass && item.detections && item.detections.length > 0) {
+                            primaryClass = item.detections[0].type || item.detections[0].class_name || item.detections[0].name || item.detections[0].title || '';
+                        }
+                        if (!primaryClass) {
+                            primaryClass = (item.inspection_type === 'home' || item.domain === 'home') ? 'WALL' : 'D00';
                         }
 
                         const meta = getCategoryMeta(primaryClass);
                         const count = item.defect_count !== undefined ? item.defect_count : (item.detections ? item.detections.length : 1);
                         const severity = Math.min(100, Math.max(20, count * 22 + 15));
 
+                        const compRef = item.complaint_submission_reference || item.submission_reference || `VG-CMP-${String(item.id).padStart(4, '0')}`;
                         realMapped.push({
                             id: `VG-INSP-${item.id}`,
                             rawId: item.id,
+                            complaintRef: compRef,
                             name: item.road_name || item.area || item.city || 'Municipal Inspection Point',
                             category: meta.cat,
                             categoryLabel: meta.label,
@@ -819,6 +822,21 @@
                     // Merge backend records with sample defaults so the map is comprehensively populated
                     defectRecords = [...realMapped, ...defaultDefectRecords];
                     renderMarkers();
+
+                    // If URL parameter specifies an inspection or complaint id, auto-center and open popup
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const targetId = urlParams.get('id') || urlParams.get('highlight') || urlParams.get('ref');
+                    if (targetId) {
+                        const cleanId = targetId.replace(/[^0-9]/g, '');
+                        for (const [id, { marker, record }] of markerMap.entries()) {
+                            if (String(record.rawId) === cleanId || id === targetId || id === `VG-INSP-${cleanId}`) {
+                                map.flyTo(record.coords, 14, { animate: true, duration: 1.2 });
+                                marker.openPopup();
+                                updateActiveCard(record);
+                                break;
+                            }
+                        }
+                    }
                 }
             } catch (err) {
                 console.warn('Failed to load real inspections for map:', err);

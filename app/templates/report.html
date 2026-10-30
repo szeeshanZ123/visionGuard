@@ -862,7 +862,7 @@
                         </td>
                         <td class="py-3.5 px-4 lg:px-5 font-semibold text-slate-900">
                             ${location}, ${city}
-                            <span class="block text-[11px] font-normal text-slate-400">Record #VG-${item.id} • Lat: ${parseFloat(item.latitude || 19.076).toFixed(4)}, Lng: ${parseFloat(item.longitude || 72.877).toFixed(4)}</span>
+                            <span class="block text-[11px] font-normal text-slate-400">Ref: #${item.complaint_submission_reference || item.submission_reference || `VG-CMP-${String(item.id).padStart(4, '0')}`} • Insp #${item.id} • Lat: ${parseFloat(item.latitude || 19.076).toFixed(4)}, Lng: ${parseFloat(item.longitude || 72.877).toFixed(4)}</span>
                         </td>
                         <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap">
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold ${defects > 0 ? 'bg-rose-50 text-rose-700 border border-rose-100' : 'bg-emerald-50 text-emerald-700 border border-emerald-100'}">

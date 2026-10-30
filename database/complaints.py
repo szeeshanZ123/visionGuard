@@ -311,8 +311,14 @@ def get_or_create_complaint_draft(
     cursor.execute("SELECT * FROM complaint_drafts WHERE inspection_id = ?;", (inspection_id,))
     row = cursor.fetchone()
 
+    unique_ref = f"VG-CMP-{inspection_id:04d}"
+
     if row:
         draft = row_to_dict(row)
+        if not draft.get("submission_reference"):
+            cursor.execute("UPDATE complaint_drafts SET submission_reference = ? WHERE id = ?;", (unique_ref, draft["id"]))
+            conn.commit()
+            draft["submission_reference"] = unique_ref
         conn.close()
     else:
         complaint_type = "building_defect" if (inspection.get("inspection_type") == "home") else "road_distress"
@@ -323,8 +329,9 @@ def get_or_create_complaint_draft(
         cursor.execute("""
         INSERT INTO complaint_drafts (
             inspection_id, complaint_type, recipient_agency, subject, complaint_body,
-            status, created_by_user_id, created_by_username, complainant_name
-        ) VALUES (?, ?, ?, ?, ?, 'draft', ?, ?, ?);
+            status, created_by_user_id, created_by_username, complainant_name,
+            submission_reference
+        ) VALUES (?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?);
         """, (
             inspection_id,
             complaint_type,
@@ -334,6 +341,7 @@ def get_or_create_complaint_draft(
             user_id,
             username,
             default_complainant,
+            unique_ref,
         ))
         conn.commit()
 
@@ -344,6 +352,10 @@ def get_or_create_complaint_draft(
             raise RuntimeError(f"Failed to retrieve created complaint draft for inspection #{inspection_id}")
         draft = row_to_dict(created_row)
 
+    unique_ref = draft.get("submission_reference") or f"VG-CMP-{inspection_id:04d}"
+    draft["submission_reference"] = unique_ref
+    draft["complaint_id"] = unique_ref
+    draft["reference_id"] = unique_ref
     draft["is_official_submission"] = (draft.get("status") == "submitted")
     draft["disclaimer"] = COMPLAINT_DISCLAIMER_TEXT
     draft["inspection_type"] = inspection.get("inspection_type") or "road"
@@ -601,13 +613,14 @@ def export_complaint_draft_pdf(
         ]))
     else:
         status_label = html.escape(str(draft.get("status", "draft")).upper().replace("_", " "))
+        ref_disp = html.escape(str(draft.get("submission_reference") or f"VG-CMP-{inspection_id:04d}"))
         banner_data = [
             [
                 Paragraph("⚠️ FORMAL COMPLAINT DRAFT — NOT AN OFFICIAL GOVERNMENT SUBMISSION ⚠️", banner_style),
             ],
             [
                 Paragraph(
-                    f"Status: {status_label} &nbsp;|&nbsp; Prepared by VisionGuard AI for citizen review and personal filing.",
+                    f"Status: {status_label} &nbsp;|&nbsp; Complaint Ref: #{ref_disp} &nbsp;|&nbsp; Prepared by VisionGuard AI for citizen review and personal filing.",
                     banner_sub_style
                 )
             ]
@@ -628,10 +641,11 @@ def export_complaint_draft_pdf(
     story.append(Spacer(1, 4))
     complainant_disp = html.escape(str(draft.get("complainant_name") or "Citizen Complainant"))
     domain_disp = html.escape(str(draft.get("complaint_type", "road_distress")).replace("_", " ").title())
+    ref_disp = html.escape(str(draft.get("submission_reference") or f"VG-CMP-{inspection_id:04d}"))
     story.append(Paragraph(
-        f"<b>Reference Inspection ID:</b> Record #{inspection_id} &nbsp;|&nbsp; "
+        f"<b>Complaint Ref ID:</b> #{ref_disp} &nbsp;|&nbsp; "
+        f"<b>Inspection Record:</b> #{inspection_id} &nbsp;|&nbsp; "
         f"<b>Domain:</b> {domain_disp} &nbsp;|&nbsp; "
-        f"<b>Complainant:</b> {complainant_disp} &nbsp;|&nbsp; "
         f"<b>Date:</b> {datetime.date.today().isoformat()}",
         meta_style,
     ))

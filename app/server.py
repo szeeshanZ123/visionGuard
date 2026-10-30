@@ -1737,6 +1737,8 @@ def create_app(
                 "detections": defects,
                 "defects": defects,
                 "summary": gemini_result.get("summary", ""),
+                "observations": gemini_result.get("observations") or gemini_result.get("summary", ""),
+                "recommendations": gemini_result.get("recommendations") or gemini_result.get("safety_precautions", []),
                 "preliminary_severity": gemini_result.get("preliminary_severity", "uncertain"),
                 "requires_human_review": True,
                 "safety_precautions": gemini_result.get("safety_precautions", []),

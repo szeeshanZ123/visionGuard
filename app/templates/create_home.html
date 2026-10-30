@@ -992,16 +992,20 @@
                                         ...(csrfTok ? { 'X-CSRF-Token': csrfTok } : {})
                                     },
                                     body: JSON.stringify(patchPayload)
-                                });
-                            })
-                            .then(() => inspId);
+                                })
+                                    .then(r => r.json().catch(() => ({})))
+                                    .then(patchRes => ({ inspId, draft: patchRes?.draft }));
+                            });
                     })
-                    .then((inspId) => {
+                    .then(({ inspId, draft }) => {
                         closeComplaintReviewModal();
                         const successModal = document.getElementById('complaint-success-modal');
-                        document.getElementById('success-comp-ref').innerText = `Grievance Reference: #VG-${inspId}`;
+                        const refCode = draft?.submission_reference || draft?.reference_id || `VG-CMP-${String(inspId).padStart(4, '0')}`;
+                        document.getElementById('success-comp-ref').innerText = `Grievance Reference: #${refCode}`;
                         document.getElementById('success-link-pdf').href = `/api/inspections/${inspId}/complaint-draft/export/pdf`;
                         document.getElementById('success-link-txt').href = `/api/inspections/${inspId}/complaint-draft/export/txt`;
+                        const mapLink = document.getElementById('success-link-map');
+                        if (mapLink) mapLink.href = `/map?id=${inspId}`;
                         successModal.classList.remove('hidden');
                     })
                     .catch((err) => {
@@ -1180,10 +1184,12 @@
                 if (defects && defects.length > 0) {
                     defects.forEach((det, idx) => {
                         const detId = det.id || `D${String(idx + 1).padStart(3, '0')}`;
-                        const title = det.title || det.class_name || 'Infrastructure Distress';
+                        const rawType = det.type || det.class_name || det.distress_category || '';
+                        const defectType = rawType ? rawType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Infrastructure Distress';
+                        const title = det.title || defectType;
                         const detSev = (det.severity || 'moderate').toLowerCase();
-                        const action = det.recommended_action || 'Arrange on-site inspection.';
-                        const evidence = det.evidence || det.description || 'Observed surface distress.';
+                        const action = det.recommendations || det.recommended_action || det.action || 'Arrange on-site inspection.';
+                        const evidence = det.observations || det.evidence || det.description || 'Observed surface distress.';
                         const hasBox = det.has_bounding_box !== false && (det.bounding_box !== null);
 
                         const card = document.createElement('div');
@@ -1199,8 +1205,9 @@
                     </span>
                 </div>
                 <div class="space-y-1 text-slate-600 text-[11px] leading-relaxed">
-                    <p><strong>Evidence:</strong> ${evidence}</p>
-                    <p><strong>Action:</strong> ${action}</p>
+                    <p><strong>Defect Type:</strong> ${defectType}</p>
+                    <p><strong>Observations:</strong> ${evidence}</p>
+                    <p><strong>Recommendations:</strong> ${action}</p>
                 </div>
                 <div class="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-200">
                     <span class="flex items-center gap-1">
@@ -1219,6 +1226,9 @@
                     <span>[${detId}] ${title}</span>
                     <span class="text-slate-500 uppercase font-mono text-[10px]">${detSev} Severity</span>
                 </div>
+                <p><strong>Defect Type:</strong> ${defectType}</p>
+                <p><strong>Observations:</strong> ${evidence}</p>
+                <p><strong>Recommendations:</strong> ${action}</p>
                 <p><strong>Why is this a problem?</strong> ${det.why_problem || 'Surface distress accelerates under moisture intrusion and traffic loading.'}</p>
                 <p><strong>Safety Precaution:</strong> ${det.safety_guidance || 'Maintain safe distance and avoid mechanical impact over the damaged area.'}</p>
                 <p><strong>What Maintenance Should Inspect:</strong> ${det.inspection_points || 'Subgrade integrity, cavity depth, and perimeter fracture propagation.'}</p>
@@ -1484,11 +1494,17 @@
                     <span>Download TXT</span>
                 </a>
             </div>
-            <div class="pt-2">
+            <div class="pt-2 flex flex-wrap items-center justify-center gap-3">
                 <a href="/report"
                     class="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline font-semibold">
                     <span>View in My Reports Dashboard</span>
                     <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                </a>
+                <span class="text-slate-300">|</span>
+                <a id="success-link-map" href="/map"
+                    class="inline-flex items-center gap-1 text-xs text-emerald-600 hover:underline font-semibold">
+                    <span>View on Interactive Map</span>
+                    <span class="material-symbols-outlined text-[14px]">map</span>
                 </a>
             </div>
         </div>
