@@ -28,6 +28,15 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+# Automatically load environment variables from .env file if present
+_env_path = PROJECT_ROOT / ".env"
+if _env_path.exists():
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(dotenv_path=_env_path, override=False)
+    except Exception:
+        pass
+
 import secrets
 import threading
 import gc
@@ -158,6 +167,13 @@ from ai.detection.detector import (
     DEFAULT_HOME_MODEL_PATH,
     get_process_rss_mb,
 )
+from ai.gemini_service import (
+    GeminiInspectionService,
+    DEFAULT_GEMINI_MODEL,
+    ROAD_DEFECT_TYPES,
+    BUILDING_DEFECT_TYPES,
+)
+from ai.annotation_service import OpenCVAnnotationEngine
 from storage import (
     get_storage_backend,
     StorageBackend,
@@ -294,14 +310,47 @@ def create_app(
             "Ensure default development accounts have their passwords updated."
         )
 
+    # AI Provider Selection (Google Gemini Multimodal Vision vs Archived YOLO fallback)
+    # Default is 'gemini' (VisionGuard Multimodal AI — Powered by Google Gemini Vision)
+    if test_config and "AI_PROVIDER" in test_config:
+        app.ai_provider = str(test_config["AI_PROVIDER"]).lower().strip()
+    elif detector is not None or (test_config and "detector" in test_config):
+        # Caller provided a specific custom detector test double (legacy YOLO test compatibility)
+        app.ai_provider = "yolo"
+    elif test_config and test_config.get("TESTING") and not test_config.get("gemini_service"):
+        # Automated tests without explicit AI_PROVIDER or gemini_service default to local YOLO mock
+        app.ai_provider = "yolo"
+    elif os.environ.get("AI_PROVIDER"):
+        app.ai_provider = os.environ.get("AI_PROVIDER").lower().strip()
+    else:
+        app.ai_provider = "gemini"
+
+    # Configure Gemini Multimodal Vision Service
+    gemini_model_name = (
+        (test_config.get("GEMINI_MODEL") if test_config else None)
+        or os.environ.get("GEMINI_MODEL")
+        or DEFAULT_GEMINI_MODEL
+    ).strip()
+    app.gemini_model = gemini_model_name
+
+    if test_config and "gemini_service" in test_config:
+        app.gemini_service = test_config["gemini_service"]
+    else:
+        app.gemini_service = GeminiInspectionService(model_name=gemini_model_name)
+
+    if test_config and "annotation_engine" in test_config:
+        app.annotation_engine = test_config["annotation_engine"]
+    else:
+        app.annotation_engine = OpenCVAnnotationEngine()
+
     # Initialize road and home DefectDetectionService instances
+    # When running in Gemini mode (default), YOLO remains strictly lazy/unloaded
+    # to protect Render Free tier's 512MB RAM budget by not importing/loading PyTorch weights.
     if test_config and "detector" in test_config:
         app.detector = test_config["detector"]
     else:
-        # For tests, default to lazy to keep test suite fast
-        # For live servers, pre-warm road detector so first citizen request executes in ~140ms
         is_test = bool(test_config and test_config.get("TESTING"))
-        lazy_road = True if is_test else (os.environ.get("VISIONGUARD_LAZY_MODEL", "0") == "1")
+        lazy_road = True if (is_test or app.ai_provider == "gemini") else (os.environ.get("VISIONGUARD_LAZY_MODEL", "0") == "1")
         app.detector = detector or DefectDetectionService(domain="road", lazy=lazy_road)
 
     app.road_detector = app.detector
@@ -309,7 +358,6 @@ def create_app(
     if test_config and "home_detector" in test_config:
         app.home_detector = test_config["home_detector"]
     else:
-        # Keep home detector on-demand lazy to stay within 512MB RAM budget
         app.home_detector = home_detector or DefectDetectionService(domain="home", lazy=True)
 
     # -------------------------------------------------------------------------
@@ -1221,6 +1269,9 @@ def create_app(
                 "Set DATABASE_URL to connect persistent Neon PostgreSQL."
             )
         storage_type = "r2" if isinstance(getattr(app, "storage_backend", None), CloudflareR2StorageBackend) else "local"
+        is_gemini = (getattr(app, "ai_provider", "gemini") == "gemini")
+        gemini_ready = bool(getattr(app, "gemini_service", None) and app.gemini_service.is_configured())
+
         return jsonify({
             "status": "healthy",
             "database": db_health,
@@ -1228,25 +1279,43 @@ def create_app(
                 "backend": storage_type,
                 "ready": True,
             },
+            "ai_provider": getattr(app, "ai_provider", "gemini"),
+            "gemini": {
+                "configured": gemini_ready,
+                "model": getattr(app, "gemini_model", DEFAULT_GEMINI_MODEL),
+                "architecture": "VisionGuard Multimodal AI — Powered by Google Gemini Vision",
+            },
             "model": {
-                "loaded": app.detector.is_loaded,
-                "status_message": app.detector.status_message,
-                "checkpoint_path": app.detector.model_path,
-                "supported_classes": [CLASS_NAMES[i] for i in sorted(CLASS_NAMES.keys())],
+                "loaded": True if is_gemini and gemini_ready else app.detector.is_loaded,
+                "status_message": (
+                    f"Google Gemini Vision active ({app.gemini_service.model_name})"
+                    if is_gemini and gemini_ready
+                    else app.detector.status_message
+                ),
+                "checkpoint_path": "Google AI Studio API" if is_gemini else app.detector.model_path,
+                "supported_classes": list(ROAD_DEFECT_TYPES.keys()) if is_gemini else [CLASS_NAMES[i] for i in sorted(CLASS_NAMES.keys())],
             },
             "road_model": {
                 "domain": "road",
-                "loaded": app.detector.is_loaded,
-                "status_message": app.detector.status_message,
-                "checkpoint_path": app.detector.model_path,
-                "supported_classes": [ROAD_CLASS_NAMES[i] for i in sorted(ROAD_CLASS_NAMES.keys())],
+                "loaded": True if is_gemini and gemini_ready else app.detector.is_loaded,
+                "status_message": (
+                    f"Google Gemini Vision active ({app.gemini_service.model_name})"
+                    if is_gemini and gemini_ready
+                    else app.detector.status_message
+                ),
+                "checkpoint_path": "Google AI Studio API" if is_gemini else app.detector.model_path,
+                "supported_classes": list(ROAD_DEFECT_TYPES.keys()) if is_gemini else [ROAD_CLASS_NAMES[i] for i in sorted(ROAD_CLASS_NAMES.keys())],
             },
             "home_model": {
                 "domain": "home",
-                "loaded": app.home_detector.is_loaded,
-                "status_message": app.home_detector.status_message,
-                "checkpoint_path": app.home_detector.model_path,
-                "supported_classes": [HOME_CLASS_NAMES[i] for i in sorted(HOME_CLASS_NAMES.keys())],
+                "loaded": True if is_gemini and gemini_ready else app.home_detector.is_loaded,
+                "status_message": (
+                    f"Google Gemini Vision active ({app.gemini_service.model_name})"
+                    if is_gemini and gemini_ready
+                    else app.home_detector.status_message
+                ),
+                "checkpoint_path": "Google AI Studio API" if is_gemini else app.home_detector.model_path,
+                "supported_classes": list(BUILDING_DEFECT_TYPES.keys()) if is_gemini else [HOME_CLASS_NAMES[i] for i in sorted(HOME_CLASS_NAMES.keys())],
             },
             "limits": {
                 "max_file_size_mb": max_mb,
@@ -1471,37 +1540,7 @@ def create_app(
                 400,
             )
 
-        active_detector = app.home_detector if domain == "home" else app.detector
-
-        # 4. Verify model checkpoint readiness
-        if not active_detector.is_loaded:
-            setup_instructions = (
-                "1. Download 'home_best.pt' from your Google Drive ('VisionGuard_Artifacts/home_best.pt') "
-                "or Google Colab export.\n"
-                f"2. Copy 'home_best.pt' to '{active_detector.model_path}'.\n"
-                "3. Call 'POST /api/reload-model?domain=home' or restart the server."
-            ) if domain == "home" else (
-                "1. Download 'best.pt' from your Google Drive ('VisionGuard_Artifacts/best.pt') "
-                "or Google Colab export.\n"
-                f"2. Copy 'best.pt' to '{active_detector.model_path}'.\n"
-                "3. Call 'POST /api/reload-model?domain=road' or restart the server."
-            )
-            return (
-                jsonify({
-                    "status": "error",
-                    "error_code": "MODEL_WEIGHTS_MISSING",
-                    "domain": domain,
-                    "message": (
-                        f"{'Home' if domain == 'home' else 'Road'} model weights checkpoint '{active_detector.model_path}' is not present on the server. "
-                        "VisionGuard AI requires authentic model weights and does not fabricate detections."
-                    ),
-                    "setup_instructions": setup_instructions,
-                    "metadata": metadata,
-                }),
-                503,
-            )
-
-        # 5. Decode with OpenCV
+        # 4. Decode image stream with OpenCV
         t_dec_start = time.perf_counter()
         file_stream.seek(0)
         cv_img = load_image_as_opencv(file_stream)
@@ -1545,7 +1584,8 @@ def create_app(
 
         # Hash image raw bytes for deduplication and instant caching (active in non-testing environments)
         img_hash = hashlib.sha256(raw_bytes).hexdigest()
-        cache_key = (img_hash, domain, inspection_mode, round(conf_thresh, 2))
+        provider_name = getattr(app, "ai_provider", "gemini")
+        cache_key = (img_hash, domain, inspection_mode, round(conf_thresh, 2), provider_name)
         if not app.config.get("TESTING"):
             with INSPECTION_CACHE_LOCK:
                 if cache_key in INSPECTION_LRU_CACHE:
@@ -1554,12 +1594,193 @@ def create_app(
                     cached_res["cached"] = True
                     cached_res["timings"]["total_ms"] = round((time.perf_counter() - t_req_start) * 1000, 1)
                     logger.info(
-                        "Serving cached inspection for '%s' [%s] in %.1fms (domain=%s, mode=%s, conf=%.2f)",
-                        filename, img_hash[:10], cached_res["timings"]["total_ms"], domain, inspection_mode, conf_thresh
+                        "Serving cached inspection for '%s' [%s] in %.1fms (provider=%s, domain=%s)",
+                        filename, img_hash[:10], cached_res["timings"]["total_ms"], provider_name, domain
                     )
                     return jsonify(cached_res), 200
 
-        # 6. Execute genuine detection (serialized under lock to prevent peak memory stacking)
+        # -------------------------------------------------------------------------
+        # Branch A: Google Gemini Multimodal Vision (Primary Engine)
+        # -------------------------------------------------------------------------
+        if provider_name == "gemini":
+            gemini_svc = getattr(app, "gemini_service", None)
+            if not gemini_svc or not gemini_svc.is_configured():
+                return (
+                    jsonify({
+                        "status": "error",
+                        "error_code": "GEMINI_NOT_CONFIGURED",
+                        "domain": domain,
+                        "message": (
+                            "Google Gemini Vision API key is not configured on the server. "
+                            "Please set the GEMINI_API_KEY environment variable in your .env file "
+                            "or deployment environment settings."
+                        ),
+                        "setup_instructions": (
+                            "1. Obtain a free Gemini API key at https://aistudio.google.com/\n"
+                            "2. Set GEMINI_API_KEY=your_key in .env or Render environment settings.\n"
+                            "3. Restart the VisionGuard AI server."
+                        ),
+                        "metadata": metadata,
+                    }),
+                    400,
+                )
+
+            # Re-encode resized image to JPEG buffer for fast upload
+            success, prep_buffer = cv2.imencode(".jpg", cv_img, [cv2.IMWRITE_JPEG_QUALITY, 85])
+            gemini_payload_bytes = prep_buffer.tobytes() if success else raw_bytes
+
+            t_inf_start = time.perf_counter()
+            gemini_result = gemini_svc.analyze_image(gemini_payload_bytes, domain=domain)
+            t_inf_ms = (time.perf_counter() - t_inf_start) * 1000
+
+            if gemini_result.get("status") == "error":
+                err_code = gemini_result.get("error_code", "GEMINI_ERROR")
+                http_status = 429 if err_code == "QUOTA_EXHAUSTED" else (401 if err_code == "INVALID_API_KEY" else 500)
+                return jsonify(gemini_result), http_status
+
+            defects = gemini_result.get("defects", [])
+
+            # Generate OpenCV Visual Annotations
+            t_post_start = time.perf_counter()
+            try:
+                annotator = getattr(app, "annotation_engine", None)
+                if annotator is not None:
+                    annotated_bgr = annotator.annotate_image(cv_img, defects, domain=domain)
+                else:
+                    annotated_bgr = cv_img.copy()
+            except Exception as e_draw:
+                logger.warning("Failed to render visual annotations: %s", e_draw)
+                annotated_bgr = cv_img.copy()
+
+            annotated_b64 = ""
+            annotated_jpeg_bytes = None
+            if annotated_bgr is not None and cv2 is not None:
+                try:
+                    success, buffer = cv2.imencode(".jpg", annotated_bgr, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                    if success:
+                        annotated_jpeg_bytes = buffer.tobytes()
+                        annotated_b64 = f"data:image/jpeg;base64,{base64.b64encode(annotated_jpeg_bytes).decode('ascii')}"
+                except Exception as e_enc:
+                    logger.warning("Failed to encode annotated image: %s", e_enc)
+            t_post_ms = (time.perf_counter() - t_post_start) * 1000
+
+            # Image persistence via configured storage backend
+            t_stor_start = time.perf_counter()
+            orig_filename = f"orig_{uuid.uuid4().hex[:8]}_{filename}"
+            orig_key = f"uploads/{orig_filename}"
+            orig_path = None
+            storage = getattr(app, "storage_backend", None)
+            if storage is not None:
+                try:
+                    orig_path = storage.save(orig_key, raw_bytes, content_type="image/jpeg")
+                except Exception as e:
+                    logger.warning("Failed to persist original image: %s", e)
+
+            saved_filename = f"annotated_{uuid.uuid4().hex[:8]}_{filename}"
+            saved_key = f"processed/{saved_filename}"
+            saved_path = None
+            if storage is not None and annotated_jpeg_bytes is not None:
+                try:
+                    saved_path = storage.save(saved_key, annotated_jpeg_bytes, content_type="image/jpeg")
+                except Exception as e:
+                    logger.warning("Failed to persist annotated image: %s", e)
+            t_stor_ms = (time.perf_counter() - t_stor_start) * 1000
+
+            t_total_ms = (time.perf_counter() - t_req_start) * 1000
+            logger.info(
+                "Gemini inspection complete for '%s' in %.1fms [val=%.1fms, dec=%.1fms, inf=%.1fms, post=%.1fms, stor=%.1fms] (domain=%s, defects=%d)",
+                filename, t_total_ms, t_val_ms, t_dec_ms, t_inf_ms, t_post_ms, t_stor_ms, domain, len(defects)
+            )
+
+            disclaimer = gemini_result.get("disclaimer") or (
+                "VisionGuard Multimodal AI — Preliminary visual assessment generated by Google Gemini Vision. "
+                "This assessment does not constitute a certified structural engineering inspection."
+            )
+
+            response_payload = {
+                "status": "success",
+                "domain": domain,
+                "inspection_type": domain,
+                "filename": filename,
+                "metadata": metadata,
+                "ai_provider": "google_gemini",
+                "model_info": {
+                    "provider": "Google Gemini Vision",
+                    "model": gemini_svc.model_name,
+                    "architecture": "VisionGuard Multimodal AI — Powered by Google Gemini Vision",
+                },
+                "inspection_mode": inspection_mode,
+                "confidence_threshold": conf_thresh,
+                "defect_count": len(defects),
+                "detections": defects,
+                "defects": defects,
+                "summary": gemini_result.get("summary", ""),
+                "preliminary_severity": gemini_result.get("preliminary_severity", "uncertain"),
+                "requires_human_review": True,
+                "safety_precautions": gemini_result.get("safety_precautions", []),
+                "annotated_image": annotated_b64,
+                "original_file_path": orig_path,
+                "processed_file_path": saved_path,
+                "timings": {
+                    "validation_ms": round(t_val_ms, 1),
+                    "decode_ms": round(t_dec_ms, 1),
+                    "preprocessing_ms": round(t_prep_ms, 1),
+                    "model_load_ms": 0.0,
+                    "inference_ms": round(t_inf_ms, 1),
+                    "forward_pass_ms": round(t_inf_ms, 1),
+                    "slicing_ms": 0.0,
+                    "slice_count": 1,
+                    "postprocessing_ms": round(t_post_ms, 1),
+                    "storage_ms": round(t_stor_ms, 1),
+                    "total_ms": round(t_total_ms, 1),
+                },
+                "disclaimer": disclaimer,
+                "safety_disclaimer": disclaimer,
+            }
+
+            safe_payload = make_json_safe(response_payload)
+            if not app.config.get("TESTING"):
+                with INSPECTION_CACHE_LOCK:
+                    if len(INSPECTION_LRU_CACHE) >= MAX_INSPECTION_CACHE_SIZE:
+                        INSPECTION_LRU_CACHE.popitem(last=False)
+                    INSPECTION_LRU_CACHE[cache_key] = copy.deepcopy(safe_payload)
+
+            return jsonify(safe_payload), 200
+
+        # -------------------------------------------------------------------------
+        # Branch B: Archived YOLOv8 Checkpoint Fallback (AI_PROVIDER=yolo)
+        # -------------------------------------------------------------------------
+        active_detector = app.home_detector if domain == "home" else app.detector
+
+        # Verify model checkpoint readiness
+        if not active_detector.is_loaded:
+            setup_instructions = (
+                "1. Download 'home_best.pt' from your Google Drive ('VisionGuard_Artifacts/home_best.pt') "
+                "or Google Colab export.\n"
+                f"2. Copy 'home_best.pt' to '{active_detector.model_path}'.\n"
+                "3. Call 'POST /api/reload-model?domain=home' or restart the server."
+            ) if domain == "home" else (
+                "1. Download 'best.pt' from your Google Drive ('VisionGuard_Artifacts/best.pt') "
+                "or Google Colab export.\n"
+                f"2. Copy 'best.pt' to '{active_detector.model_path}'.\n"
+                "3. Call 'POST /api/reload-model?domain=road' or restart the server."
+            )
+            return (
+                jsonify({
+                    "status": "error",
+                    "error_code": "MODEL_WEIGHTS_MISSING",
+                    "domain": domain,
+                    "message": (
+                        f"{'Home' if domain == 'home' else 'Road'} model weights checkpoint '{active_detector.model_path}' is not present on the server. "
+                        "VisionGuard AI requires authentic model weights and does not fabricate detections."
+                    ),
+                    "setup_instructions": setup_instructions,
+                    "metadata": metadata,
+                }),
+                503,
+            )
+
+        # Execute genuine YOLO detection (serialized under lock to prevent peak memory stacking)
         t_inf_start = time.perf_counter()
         try:
             with INFERENCE_LOCK:
@@ -1587,7 +1808,7 @@ def create_app(
             )
         t_inf_ms = (time.perf_counter() - t_inf_start) * 1000
 
-        # 7. Generate genuine visual overlay and single-pass JPEG encoding
+        # Generate genuine visual overlay and single-pass JPEG encoding
         t_post_start = time.perf_counter()
         try:
             annotated_bgr = active_detector.draw_annotations(cv_img, detections, domain=domain)
@@ -1608,7 +1829,7 @@ def create_app(
                 annotated_b64 = ""
         t_post_ms = (time.perf_counter() - t_post_start) * 1000
 
-        # 8. Persist images via configured storage backend using the single-pass JPEG buffer
+        # Persist images via configured storage backend
         t_stor_start = time.perf_counter()
         orig_filename = f"orig_{uuid.uuid4().hex[:8]}_{filename}"
         orig_key = f"uploads/{orig_filename}"
@@ -1634,7 +1855,7 @@ def create_app(
 
         t_total_ms = (time.perf_counter() - t_req_start) * 1000
         logger.info(
-            "Inspection complete for '%s' in %.1fms [val=%.1fms, dec=%.1fms, prep=%.1fms, inf=%.1fms, post=%.1fms, stor=%.1fms] (domain=%s, mode=%s, detections=%d, RSS=%.1f MB / 512MB limit)",
+            "YOLO inspection complete for '%s' in %.1fms [val=%.1fms, dec=%.1fms, prep=%.1fms, inf=%.1fms, post=%.1fms, stor=%.1fms] (domain=%s, mode=%s, detections=%d, RSS=%.1f MB / 512MB limit)",
             filename,
             t_total_ms,
             t_val_ms,
@@ -1685,6 +1906,7 @@ def create_app(
             "inspection_type": domain,
             "filename": filename,
             "metadata": metadata,
+            "ai_provider": "yolo",
             "model_info": getattr(active_detector, "model_info", {}),
             "inspection_mode": inspection_mode,
             "confidence_threshold": conf_thresh,
@@ -1719,7 +1941,6 @@ def create_app(
                 INSPECTION_LRU_CACHE[cache_key] = copy.deepcopy(safe_payload)
 
         return jsonify(safe_payload), 200
-
     # -------------------------------------------------------------------------
     # Inspection Records API Routes
     # -------------------------------------------------------------------------
