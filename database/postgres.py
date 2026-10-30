@@ -377,7 +377,11 @@ CREATE TABLE IF NOT EXISTS defect_inspections (
     assignment_instructions TEXT,
     assignment_status TEXT DEFAULT 'unassigned',
     assignment_updated_at TIMESTAMP WITH TIME ZONE,
-    inspection_type TEXT DEFAULT 'road'
+    inspection_type TEXT DEFAULT 'road',
+    publication_status TEXT DEFAULT 'pending_review',
+    published_at TIMESTAMP WITH TIME ZONE,
+    published_by_user_id INTEGER,
+    published_by_username TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_inspections_assigned ON defect_inspections (assigned_to_user_id, assignment_status);
@@ -470,6 +474,18 @@ def init_postgres_db(conn) -> None:
 
     cursor = conn.cursor()
     cursor.execute(POSTGRES_SCHEMA_SQL)
+
+    # Safe additive migrations for existing tables
+    for col_name, col_def in [
+        ("publication_status", "TEXT DEFAULT 'pending_review'"),
+        ("published_at", "TIMESTAMP WITH TIME ZONE"),
+        ("published_by_user_id", "INTEGER"),
+        ("published_by_username", "TEXT"),
+    ]:
+        try:
+            cursor.execute(f"ALTER TABLE defect_inspections ADD COLUMN IF NOT EXISTS {col_name} {col_def};")
+        except Exception:
+            pass
 
     # Ensure schema_version metadata is recorded
     cursor.execute("""

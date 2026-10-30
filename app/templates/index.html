@@ -1255,10 +1255,16 @@
                     <button type="button" class="btn btn-secondary btn-sm" id="backToRecordsBtn">← Back to Inspection Records</button>
                     <span class="record-id-title" id="detailRecordIdHeader">Inspection Record #--</span>
                 </div>
-                <div class="detail-header-actions" style="display: flex; gap: 0.5rem;">
+                <div class="detail-header-actions" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                     <button type="button" class="btn btn-outline-warning btn-sm" id="openComplaintDraftBtn">
                         📝 Civic Complaint Draft
                     </button>
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="detailDownloadPdfBtn" title="Download formal PDF document">
+                        📄 Download PDF
+                    </button>
+                    <a href="/map" class="btn btn-outline-secondary btn-sm" id="detailViewOnMapBtn" title="Highlight this defect on map">
+                        📍 View on Map
+                    </a>
                 </div>
             </div>
 
@@ -1325,6 +1331,26 @@
                     <div class="alert-content">
                         <strong>Status Tracking Notice:</strong>
                         <p>Status updates represent user-entered administrative workflow tracking only. Changing a status to "Resolved" or "Repair in Progress" indicates a clerical workflow marker and does not prove, certify, or guarantee that physical road repair or engineering remediation has occurred.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Multimodal Observations & Recommendations Card -->
+            <div class="card" id="detailAiGuidanceCard" style="margin-top: 1rem;">
+                <div class="card-header-row" style="display: flex; justify-content: space-between; align-items: center; padding: 0.85rem 1.25rem; border-bottom: 1px solid var(--border-color);">
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.05rem;">🧠 Gemini Multimodal Observations & Recommendations</h3>
+                        <p class="card-subtitle" style="margin: 0.2rem 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">Automated structural diagnostics, physical visual evidence, and remedial engineering actions</p>
+                    </div>
+                </div>
+                <div class="loc-detail-grid" style="display: grid; grid-template-columns: 1fr; gap: 0.75rem; padding: 1rem 1.25rem;">
+                    <div class="loc-item">
+                        <span class="loc-label" style="font-weight: 600; color: var(--text-secondary); font-size: 0.75rem; text-transform: uppercase;">AI Executive Summary & Observations</span>
+                        <div id="detailAiSummaryDisplay" class="instructions-display-box" style="margin-top: 0.25rem; font-size: 0.88rem; line-height: 1.5; padding: 0.75rem; background: var(--surface-bg-alt, #f8fafc); border-radius: 6px; border: 1px solid var(--border-color);">Preliminary visual evaluation completed.</div>
+                    </div>
+                    <div class="loc-item">
+                        <span class="loc-label" style="font-weight: 600; color: var(--text-secondary); font-size: 0.75rem; text-transform: uppercase;">Remedial Engineering Recommendations & Safety Guidance</span>
+                        <div id="detailAiRecommendationsDisplay" class="instructions-display-box" style="margin-top: 0.25rem; font-size: 0.88rem; line-height: 1.5; padding: 0.75rem; background: var(--surface-bg-alt, #f8fafc); border-radius: 6px; border: 1px solid var(--border-color);">Standard engineering review recommended.</div>
                     </div>
                 </div>
             </div>

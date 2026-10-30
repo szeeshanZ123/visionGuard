@@ -3306,6 +3306,25 @@ document.addEventListener("DOMContentLoaded", () => {
             detailTimestamp.textContent = formatDateTime(rec.uploaded_at);
             detailInspectionMode.textContent = (rec.inspection_mode === "tiled" ? "Tiled Slicing" : "Standard Full-Frame") + ` (≥ ${rec.confidence_threshold.toFixed(2)})`;
 
+            // AI Multimodal Guidance & Telemetry
+            const detailAiSummaryDisplay = document.getElementById("detailAiSummaryDisplay");
+            const detailAiRecommendationsDisplay = document.getElementById("detailAiRecommendationsDisplay");
+            if (detailAiSummaryDisplay) {
+                let aiSummary = rec.summary || rec.observations || "";
+                if (!aiSummary && rec.detections && rec.detections.length > 0) {
+                    aiSummary = rec.detections.map(d => d.description || d.evidence || d.title).filter(Boolean).join(" ");
+                }
+                detailAiSummaryDisplay.textContent = aiSummary || "Automated multimodal visual evaluation completed.";
+            }
+            if (detailAiRecommendationsDisplay) {
+                let aiRecs = rec.recommendations || "";
+                if (!aiRecs && rec.detections && rec.detections.length > 0) {
+                    const recItems = rec.detections.map(d => d.recommended_action || d.safety_guidance).filter(Boolean);
+                    if (recItems.length > 0) aiRecs = recItems.join(" • ");
+                }
+                detailAiRecommendationsDisplay.textContent = aiRecs || "Follow routine maintenance monitoring protocols.";
+            }
+
             // Spatial Location Card
             if (detailLocRoad) detailLocRoad.textContent = rec.road_name || "Unspecified";
             if (detailLocArea) detailLocArea.textContent = rec.area || "Not Specified";
@@ -3517,6 +3536,16 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             if (detailOpenComplaintDraftBtn) {
                 detailOpenComplaintDraftBtn.onclick = () => openComplaintDraftModal(rec.id);
+            }
+            const detailDownloadPdfBtn = document.getElementById("detailDownloadPdfBtn");
+            if (detailDownloadPdfBtn) {
+                detailDownloadPdfBtn.onclick = () => {
+                    window.location.href = `/api/inspections/${rec.id}/complaint-draft/export/pdf`;
+                };
+            }
+            const detailViewOnMapBtn = document.getElementById("detailViewOnMapBtn");
+            if (detailViewOnMapBtn) {
+                detailViewOnMapBtn.href = `/map?highlight=${rec.id}`;
             }
         } catch (err) {
             console.error("Open detail error:", err);
@@ -4107,7 +4136,8 @@ document.addEventListener("DOMContentLoaded", () => {
                         <td style="font-size: 0.8rem; color: var(--text-secondary);">${formatDateTime(r.uploaded_at)}</td>
                         <td style="text-align: right; white-space: nowrap;">
                             <button type="button" class="btn btn-xs btn-outline-primary citizen-view-rec-btn" data-id="${r.id}" style="padding: 2px 8px; font-size: 0.78rem; margin-right: 4px;">🔍 View</button>
-                            <button type="button" class="btn btn-xs btn-outline-secondary citizen-open-draft-btn" data-id="${r.id}" style="padding: 2px 8px; font-size: 0.78rem;">📝 Draft</button>
+                            <button type="button" class="btn btn-xs btn-outline-secondary citizen-open-draft-btn" data-id="${r.id}" style="padding: 2px 8px; font-size: 0.78rem; margin-right: 4px;">📝 Draft</button>
+                            <a href="/map?highlight=${r.id}" class="btn btn-xs btn-outline-info" style="padding: 2px 8px; font-size: 0.78rem; text-decoration: none;" title="View on Map">📍 Map</a>
                         </td>
                     `;
 

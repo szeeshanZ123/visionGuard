@@ -107,7 +107,7 @@ def test_map_page_route(client):
     assert "Geospatial Defect Map" in html
     assert "defect-map" in html
     assert "leaflet" in html.lower()
-    assert "/api/inspections" in html
+    assert "/api/public/defects" in html
 
 
 def test_report_page_route(client):
