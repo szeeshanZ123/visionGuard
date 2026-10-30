@@ -1,18 +1,18 @@
-# VisionGuard AI --- Technology Stack Specification
+# VisionGuard AI 2.0 — Technology Stack Specification
 
 **Document Status:** Approved Technical Baseline  
-**Project Phase:** Phase 1 --- Project Foundation & Documentation Only  
-**Architecture Status:** Planned Architecture (Not a currently working implementation)  
-**Version:** 1.2  
+**Project Phase:** Phase 6 — Production System & Multimodal Defect Detection Deployed  
+**Architecture Status:** Fully Functional Production Architecture (81 Passing Automated Tests)  
+**Version:** 2.0  
 
 ---
 
 ## 1. Overview of Technology Choices
 
-VisionGuard AI pairs a lightweight, framework-free frontend with a modern Python computer-vision backend. The selection is guided by three engineering principles:
+VisionGuard AI 2.0 pairs a responsive, framework-free frontend with a modern Python multimodal computer-vision backend. The selection is guided by three engineering principles:
 1. **Separation of Concerns:** Clear client-server decoupling via standard HTTP REST APIs.
-2. **Student-Developer Accessibility:** Minimal external dependencies, standard toolchains, and zero client-side compilation steps.
-3. **Domain Fitness:** Leveraging Python's premier ecosystem for computer vision and machine learning alongside standards-compliant web technologies.
+2. **Student-Developer Accessibility & Maintainability:** Zero node_modules build overhead; all client assets run natively in standard modern web browsers.
+3. **Domain Fitness & Production Reliability:** Leveraging Google's official Gen AI SDK for multimodal defect analysis, OpenCV for non-destructive visual annotations, and lightweight relational persistence.
 
 ---
 
@@ -22,12 +22,12 @@ VisionGuard AI pairs a lightweight, framework-free frontend with a modern Python
 
 | Technology | Role | Justification & Appropriateness |
 | :--- | :--- | :--- |
-| **HTML5** | Semantic Page Structure | Provides standard, accessible markup for forms, file inputs, comparison containers, and modal dialogs without framework overhead. |
-| **CSS3** | Responsive Styling & Layout | Delivers responsive grid and flexbox layouts, visual indicators, and micro-interactions with pure vanilla CSS. Avoids framework lock-in. |
-| **Vanilla JavaScript (ES6+)** | Client Interactivity & API Communication | Manages DOM events, client-side file reading (`FileReader`), asynchronous HTTP `fetch` requests, error handling, and dynamic result rendering without node_modules overhead. |
-| **Chart.js** *(Optional)* | Frontend Analytics | Lightweight canvas-based charting library selected only for rendering optional defect distribution summaries and historical trend lines. |
+| **HTML5** | Semantic Page Structure | Provides standard, accessible markup for inspection forms, image dropzones, side-by-side comparison containers, and action modals without framework overhead. |
+| **Tailwind CSS & Vanilla CSS3** | Responsive Styling & Layout | Delivers responsive grid and flexbox layouts, visual indicators, micro-interactions, and high-contrast color-coded severity badges. |
+| **Vanilla JavaScript (ES6+)** | Client Interactivity & API Communication | Manages DOM events, client-side file reading (`FileReader`), asynchronous HTTP `fetch` requests, error handling, progress steppers, and dynamic result rendering without node dependencies. |
+| **Leaflet.js & OpenStreetMap** | Geospatial Distress Mapping | Lightweight, mobile-friendly interactive mapping library plotting geocoded civic distress locations with urgency-coded marker pins and summary popups. |
 
-*Explicit Decision:* Frameworks such as React, Next.js, Vue, or Angular are **strictly excluded**. They add build toolchains, node dependencies, and unnecessary complexity. Streamlit is also excluded to preserve clean RESTful API separation.
+*Explicit Decision:* Heavy single-page frameworks (React, Angular, Vue) are strictly excluded to avoid build-pipeline fragility, heavy dependencies, and unnecessary client bundling.
 
 ---
 
@@ -35,13 +35,13 @@ VisionGuard AI pairs a lightweight, framework-free frontend with a modern Python
 
 | Technology | Role | Justification & Appropriateness |
 | :--- | :--- | :--- |
-| **Python 3.10+** | Core Backend Language | Universal standard for computer vision, scientific computing, deep learning inference, and backend automation. |
-| **Flask** | Web Server & REST API Framework | Minimalist WSGI micro-framework that excels at serving RESTful JSON endpoints and static files with clear, readable routing. |
-| **OpenCV (`opencv-python`)** | Image Preprocessing & Visualisation | High-performance C++ backend exposed to Python for array decoding, dimension checks, tensor resizing, and drawing genuine detection overlays. |
-| **PyTorch** *(Conditional)* | Deep Learning Runtime | Industrial standard for executing convolutional neural networks and transformer-based vision models. Included only if the selected model requires it. |
-| **SQLite** | Local Relational Database | Zero-configuration, serverless, self-contained SQL database engine ideal for persisting inspection records and defect logs locally. |
-| **Pandas** | Tabular Data Handling | High-performance data manipulation library for aggregating historical inspection metrics and defect distributions. |
-| **ReportLab** | PDF Report Compilation | Robust Python library for programmatically generating clean, printable inspection documentation and audit reports. |
+| **Python 3.10+ / 3.14** | Core Backend Language | Universal standard for scientific computing, computer vision, AI model orchestration, and backend REST automation. |
+| **Flask (v3.1+)** | Web Server & REST API Framework | Minimalist WSGI micro-framework serving RESTful JSON endpoints, session management, and CSRF protection with clear, auditable routing. |
+| **OpenCV (`opencv-python`)** | Image Preprocessing & Visualisation | High-performance C++ backend exposed to Python for array decoding, dimension checks, resolution safety clamping, and drawing genuine detection overlays. |
+| **SQLite** | Local Relational Database | Zero-configuration, serverless, self-contained SQL database engine ideal for persisting inspection records and defect logs locally (`data/visionguard.db`). |
+| **Neon PostgreSQL** | Cloud Relational Database | Serverless PostgreSQL backend for production deployments, supported seamlessly via `DATABASE_URL` with connection pooling and SSL encryption. |
+| **ReportLab (v4.x)** | PDF Report Compilation | Robust Python library for programmatically generating clean, printable municipal complaint notices and audit reports. |
+| **Waitress / Gunicorn** | Production WSGI Servers | Production-grade WSGI servers: Waitress for multi-threaded Windows execution, Gunicorn for Linux / Render cloud hosting. |
 
 ---
 
@@ -49,53 +49,62 @@ VisionGuard AI pairs a lightweight, framework-free frontend with a modern Python
 
 | Component | Responsibility | Guardrails & Requirements |
 | :--- | :--- | :--- |
-| **Google Gemini Multimodal Vision** | Primary Visual Defect Detection & Severity Analysis | Utilizes Google's official `google-genai` SDK (`gemini-2.5-flash` / `gemini-1.5-flash`) for multi-defect identification, normalized bounding box estimation, visual evidence extraction, and safety guidance across road and building domains. |
-| **OpenCV Visual Annotation Engine** | Non-Destructive BGR Image Overlays | Renders high-contrast bounding boxes, defect IDs (`[D001]`), labels, and color-coded severity pills directly onto a memory copy of the image, keeping original photograph untouched. |
-| **Archived YOLOv8 Engine** | Historical Fallback & Offline Research Benchmark | Archived local weights (`ai/models/best.pt`, `ai/models/home_best.pt`) preserved for offline comparative ablation studies; bypassed in standard production to conserve memory. |
+| **Google Gemini Multimodal Vision** | Primary Visual Defect Detection & Severity Analysis | Utilizes Google's official `google-genai` SDK (`gemini-3.1-flash-lite`) for multi-defect identification, normalized bounding box estimation, visual evidence extraction, and safety guidance across road and building domains. |
+| **OpenCV Visual Annotation Engine** | Non-Destructive Image Overlays | Renders high-contrast bounding boxes, defect IDs (`[D001]`), labels, and color-coded severity pills directly onto a memory copy of the image, keeping original photograph untouched. |
+| **Archived Research Weights** | Historical Baseline & Offline Benchmarking | Preserved local weights (`ai/models/best.pt`, `ai/models/home_best.pt`) kept in read-only isolation for historical ablation studies and future edge-model research; bypassed in active citizen detection. |
 
 ---
 
 ## 3. End-to-End Data Flow
 
-The planned frontend-to-backend lifecycle executes as follows:
+The complete frontend-to-backend inspection lifecycle executes as follows:
 
 ```text
-[ Browser (HTML5 / CSS3 / Vanilla JavaScript) ]
+[ Browser (HTML5 / Vanilla JavaScript) ]
                         │
                         │  1. User selects image; JS generates client-side preview
                         │  2. JS sends multipart/form-data via HTTP POST
                         ▼
              [ Flask REST API (/api/inspect) ]
                         │
-                        │  3. Server validates format, dimensions, file size
+                        │  3. Server validates format, dimensions, file size (<15MB)
                         ▼
-         [ Image Preprocessing Pipeline (OpenCV) ]
+          [ Image Preprocessing Pipeline (OpenCV) ]
                         │
-                        │  4. Decodes image into BGR array; checks tensor validity
-                        │  5. Formats input tensor to model specifications
+                        │  4. Decodes image into BGR array; checks resolution
+                        │  5. Safely clamps oversized images (>1280px) to conserve memory
                         ▼
-        [ Computer Vision Model Inference Engine ]
+         [ Google Gemini Vision Engine (google-genai) ]
                         │
-                        │  6. Runs authentic inference on tensor
-                        │  7. Returns classes, confidence scores, coordinates/masks
+                        │  6. Generates structured JSON schema response
+                        │  7. Returns defect list, severities, evidence, and normalized boxes
                         ▼
-       [ Visualisation & Overlay Engine (OpenCV) ]
+        [ Bounding Box Validation & OpenCV Annotation ]
                         │
-                        │  8. Draws bounding boxes/masks strictly from real coordinates
+                        │  8. Validates coordinates [0.0, 1.0]; converts to pixel bounds
+                        │  9. Draws non-destructive bounding boxes, IDs, and severity pills
                         ▼
-         [ Flask JSON Response Construction ]
+             [ Flask Structured JSON Response ]
                         │
-                        │  9. Packages structured JSON (detections, metrics, overlay ref)
+                        │  10. Packages findings, base64 annotated image, and safety guidance
                         ▼
-[ Browser Display (HTML / CSS / DOM Update) ]
+[ Browser Display (AI Inspection Report & Decision Pathways) ]
                         │
-                        │  10. JS renders side-by-side images, metrics table, and details
+                        │  11. Displays severity badge, defect inventory, and interactive views
+                        │  12. Citizen chooses Option A (Read Guidance) or Option B (Submit Complaint)
                         ▼
-  [ Database & Reporting (SQLite & ReportLab) ]
+      [ Database Persistence & PDF Generation ]
                         │
-                        │  11. Inspection persisted to SQLite (later phase)
-                        │  12. PDF inspection report compiled on demand (later phase)
+                        │  13. Complaint saved to SQLite / PostgreSQL
+                        │  14. ReportLab compiles formal municipal PDF on demand
+                        │  15. Geocoded pin plotted on Leaflet.js interactive map
 ```
 
-> [!IMPORTANT]
-> The workflow detailed above is the **planned target architecture**. In accordance with Phase 1 constraints, no Flask routes or active model pipelines are currently running.
+---
+
+## 4. Architectural Guardrails & Compliance
+
+1. **Active Engine Clarity:** Google Gemini Vision is the sole active defect detection engine for live citizen inspections. Legacy YOLO models are not active in production.
+2. **Preliminary Assessment Notice:** Defect severity is a preliminary visual assessment based on optical evidence. The system makes no claim of structural engineering certification or ASTM regulatory compliance.
+3. **Non-Destructive Storage:** Original photographic evidence is preserved verbatim. Visual annotations are generated as separate derivative assets.
+4. **Secret Key Isolation:** `GEMINI_API_KEY` is strictly read from environment variables on the backend and is never exposed in client JavaScript or API responses.

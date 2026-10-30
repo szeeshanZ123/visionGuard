@@ -639,7 +639,7 @@ def save_inspection(data: Dict[str, Any], db_path: str = DEFAULT_DB_PATH) -> Dic
 
     if detections:
         defect_count = len(detections)
-        types = sorted(list(set(d.get("distress_category") or d.get("class_name") or "Distress" for d in detections)))
+        types = sorted(list(set(d.get("distress_category") or d.get("class_name") or d.get("type") or "Distress" for d in detections)))
         defect_type = ", ".join(types)
         top_conf = max(float(d.get("confidence", 0.0)) for d in detections)
     elif "defect_count" in data:

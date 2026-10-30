@@ -4,8 +4,8 @@
 > **Document Name:** project_architecture.md  
 > **Repository Location:** Project Root (/project_architecture.md)  
 > **Platform Version:** VisionGuard AI 2.0 (Gemini-Powered Multimodal Platform)  
-> **Primary Runtime:** Python 3.11+ / Python 3.14 (WSGI Gunicorn / Waitress, Flask 3.1+)  
-> **AI Vision Core:** Google Gemini Multimodal Vision (gemini-2.5-flash, official google-genai SDK)  
+> **Primary Runtime:** Python 3.10+ / Python 3.14 (WSGI Gunicorn / Waitress, Flask 3.1+)  
+> **AI Vision Core:** Google Gemini Multimodal Vision (gemini-3.1-flash-lite, official google-genai SDK v2.20+)  
 > **Annotation Engine:** OpenCV (cv2) Visual Overlay Engine (Non-destructive)  
 > **Frontend:** Responsive HTML5, Tailwind CSS, Vanilla ES6+ JavaScript, Leaflet.js  
 > **Persistence & Storage:** Dual SQLite / Neon PostgreSQL & Local Disk / Cloudflare R2  
@@ -23,13 +23,13 @@ Public and residential infrastructure continually deteriorates due to environmen
 Traditional civil inspection practices rely on manual, visual, and paper-based walkthroughs that are slow, subjective, hazardous, and difficult to audit. Furthermore, communication barriers between citizens identifying local hazards and municipal authorities responsible for remediation result in untracked, unacknowledged grievances. VisionGuard AI addresses this challenge through an end-to-end computer-vision pipeline that automates defect localization, enforces data integrity without mock predictions, tracks maintenance remediation lifecycles, and assists citizens and inspectors in generating verifiable, official civic complaint drafts.
 
 ### 1.3 Project Objectives
-1. **Authentic AI Defect Detection:** Provide genuine, deep-learning-driven defect detection on high-resolution infrastructure images using trained YOLOv8 neural networks, strictly rejecting simulated, hardcoded, or fabricated predictions.
-2. **Dual-Domain Analysis:** Deliver dedicated inspection models and taxonomies for both **Road Infrastructure Surface Distress** (RDD2022 India dataset standard) and **Home & Building Defects** (masonry/wall cracks, damp stains, peeling paint, spalling).
-3. **High-Resolution Crack Continuity:** Implement sliding-window sliced inference (SAHI-style) to preserve fine, continuous crack morphology without downsampling loss.
-4. **Transparent Uncertainty & Engineering Safety Disclaimers:** Explicitly separate 2D statistical visual likelihood (confidence percentages) from physical civil engineering failure severity, pavement load capacity, cavity depth, or millimeter width.
-5. **Auditable Remediation & Work Order Management:** Provide an auditable lifecycle (Open, Assigned, Repair in Progress, Under Review, Resolved, Reopened) with technician task dispatch, calendar deadlines, and chronological activity logging.
-6. **Civic Complaint Assistance:** Generate formal, editable municipal and housing society complaint letters linked to verified inspections, complete with legal disclaimers, official submission guidance, and manual citizen submission tracking.
-7. **Cloud-Ready Dual Architecture:** Support zero-downtime deployment across lightweight local development (SQLite + Local Storage) and enterprise serverless cloud production (Neon PostgreSQL + Cloudflare R2).
+1. **Multimodal AI Defect Detection:** Provide genuine visual defect detection on infrastructure photographs using Google Gemini Multimodal Vision via the official `google-genai` SDK, identifying visible road and building distresses.
+2. **Multiple Defect Identification:** Localize and label multiple co-occurring defects within a single photograph, assigning unique IDs (`[D001]`, `[D002]`), normalized bounding coordinates, and defect descriptions.
+3. **Dual-Domain Inspection:** Support two specialized domains: **Road Infrastructure Distresses** (potholes, cracks, surface deterioration) and **Home & Building Defects** (wall cracks, dampness, peeling paint, plaster damage, concrete spalling).
+4. **Non-Destructive OpenCV Visual Overlays:** Validate normalized coordinates $[0.0, 1.0]$, map them to exact image dimensions, and generate high-contrast visual bounding boxes without modifying the original uploaded photograph.
+5. **Preliminary Severity Assessment & Safety Disclaimers:** Categorize candidate defects into preliminary visual severity levels (`Critical`, `High`, `Moderate`, `Low`) while clearly communicating that visual screenings do not constitute certified civil engineering or structural certifications.
+6. **Citizen Decision Pathways & Civic Grievance Generation:** Empower citizens with dual pathways—read safety precautions and municipal inspection guidance without filing, or submit a verified civic complaint draft with automated ReportLab PDF export.
+7. **Geospatial Tracking & Cloud-Ready Dual Architecture:** Plot verified civic distresses on an interactive Leaflet.js map, supporting dual persistence across lightweight local development (SQLite) and cloud serverless hosting (Neon PostgreSQL).
 
 ### 1.4 Main Users and Roles
 
@@ -115,10 +115,10 @@ The following table reflects technologies verified directly against dependency m
 | **Flask** | `>=3.0.0` | Backend web framework, REST API, routing & session auth | `app/server.py`, `wsgi.py` | Verified & Implemented |
 | **Waitress** | `>=3.0.0` | Production multi-threaded WSGI server for Windows | `wsgi.py` | Verified & Implemented |
 | **Gunicorn** | `>=23.0.0` | Production WSGI application server for Linux / Render | `wsgi.py`, `render.yaml` | Verified & Implemented |
-| **PyTorch (`torch`)** | `>=2.0.0` (CPU) | Deep learning tensor engine & inference execution | `requirements.txt`, `ai/detection/detector.py` | Verified & Implemented |
-| **Torchvision** | `>=0.15.0` | Computer vision transformations & neural utilities | `requirements.txt` | Verified & Implemented |
-| **Ultralytics YOLOv8**| `>=8.1.0` | Object detection architecture (`best.pt`, `home_best.pt`)| `ai/detection/detector.py`, `ai/models/` | Verified & Implemented |
-| **OpenCV (`headless`)**| `>=4.8.0` | Image decoding, BGR array handling, bounding box overlays| `ai/preprocessing/image_ops.py`, `detector.py` | Verified & Implemented |
+| **Google Gemini Vision**| `gemini-3.1-flash-lite` | Primary multimodal defect identification, localization & severity triage | `ai/gemini_service.py`, `app/server.py` | Active & Implemented |
+| **Google Gen AI SDK** | `>=2.20.0` (`google-genai`)| Official Python SDK for structured Gemini Multimodal Vision API calls | `ai/gemini_service.py`, `requirements.txt` | Active & Implemented |
+| **OpenCV (`headless`)**| `>=4.8.0` | Non-destructive image overlay, bounding box validation & base64 encoding| `ai/gemini_service.py`, `ai/preprocessing/` | Active & Implemented |
+| **Archived YOLOv8** | `>=8.1.0` | Historical baseline weights (`best.pt`, `home_best.pt`) for offline research | `ai/detection/detector.py`, `ai/models/` | Archived Baseline |
 | **Pillow (`PIL`)** | `>=10.0.0` | Image stream validation, mode detection & header checks | `ai/preprocessing/image_ops.py` | Verified & Implemented |
 | **ReportLab** | `>=4.0.0` | Dynamic PDF compilation (disclaimers, tables, headers) | `database/reports.py`, `complaints.py` | Verified & Implemented |
 | **SQLite3** | Built-in (DB-API) | Default local transactional relational persistence | `database/db.py`, `data/visionguard.db` | Verified & Implemented |
@@ -433,78 +433,51 @@ The following table documents every API endpoint implemented in `app/server.py`:
 
 ---
 
-## 7. AI and Image-Processing Architecture
+## 7. AI and Multimodal Image-Processing Architecture
 
-### 7.1 Detailed Image Processing Pipeline
+### 7.1 Verified End-to-End Multimodal Pipeline
+
+VisionGuard AI 2.0 executes an 11-step multimodal inspection and civic complaint pipeline:
 
 ```mermaid
 flowchart TD
-    Upload[Image Upload via Multipart Form] --> Validation[Stream Validation: Format, Size, PIL verify]
-    Validation --> Decode[OpenCV BGR Decoding: cv2.imdecode]
-    Decode --> SafetyClamp{Max Dimension > 1280px?}
-    SafetyClamp -- Yes --> Resize[Downscale to 1280px via cv2.INTER_AREA]
-    SafetyClamp -- No --> ModeCheck{Inspection Mode?}
-    Resize --> ModeCheck
-
-    ModeCheck -- Standard --> FullFrame[Single Full-Frame YOLOv8 Forward Pass]
-    ModeCheck -- Tiled / Sliced --> Slicer[SlicedInferenceEngine: 512x512 Tiles with 20% Overlap]
-    
-    Slicer --> TileInference[Authentic Forward Pass on Each Local Tile]
-    TileInference --> CoordShift[Translate Tile Coordinates to Global Space]
-    CoordShift --> NMSFusion[Class-Aware NMS & IoM Containment Fusion]
-    FullFrame --> NMSFusion
-
-    NMSFusion --> ConfFilter[Threshold Filtering >= confidence_threshold]
-    ConfFilter --> Deduplicate[Overlap Suppression: IoU 0.45, IoM 0.60]
-    Deduplicate --> Annotation[OpenCV Annotation: Colored Bounding Rectangles & Text Pills]
-    Annotation --> Base64[Base64 Encoding & Storage Backend Persistence]
-    Base64 --> Response[Structured JSON Response to Client]
+    A[Citizen Authentication & Session] --> B[Image Upload via Multipart Form]
+    B --> C[Stream Validation: Format, Size, PIL Verify]
+    C --> D[OpenCV Decoding & Resolution Clamping]
+    D --> E[Google Gemini Multimodal Vision Engine
+gemini-3.1-flash-lite]
+    E --> F[Structured JSON Defect Extraction]
+    F --> G[Bounding Box Normalization & Validation]
+    G --> H[OpenCV Non-Destructive Annotation Engine]
+    H --> I[AI Inspection Report Compilation]
+    I --> J{Citizen Decision Pathway}
+    J -->|Option A| K[Read Safety Guidance & Inspection Points]
+    J -->|Option B| L[Review & Register Complaint Draft]
+    L --> M[Database Persistence: SQLite / PostgreSQL]
+    M --> N[ReportLab Formal PDF Complaint Export]
+    M --> O[Citizen Tracking & Leaflet Map Pins]
 ```
 
-1. **Upload & Ingestion:** Client transmits raw image bytes via `multipart/form-data` to `POST /api/inspect`.
-2. **Stream Validation (`ai/preprocessing/image_ops.py:validate_image_stream`):**
-   - Validates file extension against `{'jpg', 'jpeg', 'png', 'bmp', 'webp'}`.
-   - Measures stream length (must be non-zero and `<= 15.0 MB`).
-   - Uses `PIL.Image.open()` and `Image.verify()` to catch corrupted payloads, extracting dimensions, aspect ratio, color mode, and channel count.
-3. **OpenCV Decoding (`ai/preprocessing/image_ops.py:load_image_as_opencv`):** Converts byte stream into an OpenCV BGR NumPy array (`cv2.imdecode(..., cv2.IMREAD_COLOR)`).
-4. **Resolution Safety Clamping (`app/server.py:1400`):** If image width or height exceeds 1280px, the image is proportionally downscaled (`scale = 1280.0 / max_dim`, `cv2.INTER_AREA`). This safeguards CPU forward passes against memory exhaustion on 512 MB hosting.
-5. **Model Checkpoint Loading (`ai/detection/detector.py:load_model`):**
-   - Resolves checkpoint path (`ai/models/best.pt` for Road; `ai/models/home_best.pt` for Home).
-   - Constrains PyTorch CPU threads (`torch.set_num_threads(1)`).
-   - Loads the model using `ultralytics.YOLO(resolved_path)`.
-   - Executes a zero-tensor compilation warmup pass (`torch.inference_mode()`).
-6. **Execution Modes:**
-   - **Standard Full-Frame (`detector.py:_detect_standard`):** Runs `model.predict(source=image_bgr, conf=conf_threshold, imgsz=640, verbose=False)`.
-   - **Tiled / Sliced Inference (`ai/detection/slicer.py:execute_sliced_inference`):** Generates overlapping 512x512 pixel slices with 20% overlap. Slices are individually inferred and shifted back into global pixel coordinates. Fuses global pass and local tile boxes using `apply_nms`.
-7. **Bounding Box Extraction & NMS Suppression:**
-   - Extracts bounding coordinates `[x1, y1, x2, y2]`, box width, box height, pixel area, and aspect ratio.
-   - Suppresses redundant same-class duplicate boxes using `suppress_overlapping_detections` with an IoU threshold of 0.45 and IoM (Intersection-over-Minimum / containment) threshold of 0.60.
-8. **OpenCV Visual Overlay Generation (`detector.py:draw_annotations`):**
-   - Draws bounding rectangle with category-specific BGR colors (`thickness=2`).
-   - Draws an opaque filled label pill (`cv2.rectangle(..., cv2.FILLED)`) containing defect class name and confidence percentage (e.g. `"Pothole: 87.4%"`).
-9. **Image Persistence & Base64 Delivery:**
-   - Saves original image to `data/uploads/` and annotated JPEG to `data/processed/` via `StorageBackend`.
-   - Encodes annotated image to Base64 data URL (`detector.py:encode_image_to_base64`) for zero-latency client rendering.
+#### Detailed Pipeline Stages:
+1. **Citizen Authentication:** Citizen logs in or registers via secure PBKDF2/scrypt hashed credentials with CSRF validation.
+2. **Image Upload:** Client uploads road or building photograph (JPEG, PNG, WEBP, up to 15MB) via `POST /api/inspect`.
+3. **Image Validation:** Server validates byte streams, checks PIL header integrity, and verifies that the payload contains valid image data.
+4. **Image Preprocessing & Clamping:** Decodes image using OpenCV. Images exceeding 1280px are proportionally downscaled using `cv2.INTER_AREA` to optimize network transmission and API memory usage.
+5. **Gemini Vision Analysis:** Transmits image and domain prompts to Google Gemini Vision (`gemini-3.1-flash-lite` with automatic fallback rotation) via the official `google-genai` SDK.
+6. **Structured Defect Extraction:** Gemini parses visual features and returns a strict JSON schema containing domain classification, candidate defects list, severity ratings, visual evidence rationale, and safety precautions.
+7. **Bounding Box Validation:** Server validates returned normalized coordinates $[0.0, 1.0]$. Inverted, out-of-bounds, or corrupt boxes are rejected.
+8. **OpenCV Non-Destructive Annotation:** Converts valid normalized coordinates to pixel coordinates, drawing high-contrast bounding boxes, defect IDs (`[D001]`), labels, and color-coded severity pills onto an image copy.
+9. **AI Inspection Report:** Assembles executive inspection summary, preliminary severity assessment, defect inventory, and safety guidance.
+10. **Citizen Decision Pathways:**
+    - **Option A (Read Guidance):** Citizen expands safety precautions, why defects matter, and on-site inspection points without registering a grievance.
+    - **Option B (Register Complaint):** Citizen confirms verified location and notes, persisting the inspection record to SQLite/PostgreSQL and generating an official ReportLab PDF.
+11. **Complaint Tracking & Map Integration:** Record is cataloged in the citizen's private ledger and plotted on the interactive Leaflet.js map.
 
-### 7.2 Authentic Defect Taxonomies
-
-#### Road Distress Taxonomy (RDD2022 India Dataset Standard)
-| Class ID | Internal Identifier | Display Name | BGR Color Code | Primary Visual Characteristics |
-| :---: | :--- | :--- | :--- | :--- |
-| `0` | `D00_longitudinal_crack` | Longitudinal Crack | `(0, 215, 255)` (Gold/Yellow) | Linear fractures running parallel to the direction of traffic travel. |
-| `1` | `D10_transverse_crack` | Transverse Crack | `(0, 140, 255)` (Orange) | Linear fractures running perpendicular to the roadway centerline. |
-| `2` | `D20_alligator_crack` | Alligator Crack | `(0, 0, 230)` (Crimson/Red) | Interconnected fatigue cracking forming polygonal mesh patterns resembling reptile skin. |
-| `3` | `D40_pothole` | Pothole | `(200, 50, 200)` (Magenta/Purple)| Bowl-shaped structural depressions, cavities, and asphalt surface ruptures. |
-
-#### Home & Building Defect Taxonomy
-| Class ID | Internal Identifier | Display Name | BGR Color Code | Primary Visual Characteristics |
-| :---: | :--- | :--- | :--- | :--- |
-| `0` | `wall_crack` | Wall Crack | `(0, 140, 255)` (Orange) | Diagonal, stepped, or vertical fractures in interior/exterior masonry or plaster. |
-| `1` | `damp_or_water_damage` | Damp / Water Damage | `(255, 144, 30)` (Sky Blue) | Moisture intrusion staining, efflorescence tide-marks, and seepage discoloration. |
-| `2` | `peeling_paint_or_plaster`| Peeling Paint / Plaster| `(0, 215, 255)` (Gold/Yellow) | Delamination, flaking, or blistering of paint films and surface coatings. |
-| `3` | `spalling_or_surface_damage`| Spalling / Surface Damage| `(0, 0, 220)` (Crimson/Red) | Substrate concrete/brick crumbling, delamination, and surface cavity pitting. |
-
----
+### 7.2 AI Engine Representation & Checkpoint Archival Policy
+- **Primary Operational Engine:** Google Gemini Multimodal Vision via the official `google-genai` Python SDK (v2.20+).
+- **Active Model Configuration:** Configurable via `GEMINI_MODEL`, defaulting to `gemini-3.1-flash-lite` (free-tier eligible, high throughput) with resilient fallback rotation across `gemini-flash-latest`, `gemini-3.8-flash`, and `gemini-2.5-flash`.
+- **Archived Research Weights:** Historical YOLOv8 weights (`ai/models/best.pt`, `ai/models/home_best.pt`) and local slicer logic (`ai/detection/slicer.py`) remain archived in the repository for offline research, comparative ablation studies, and potential future edge-device deployment. They are not active during production citizen defect detection.
+- **Preliminary Nature of Assessment:** Defect severities represent preliminary visual assessments based on photographic evidence. VisionGuard AI makes no claim of structural engineering certification or ASTM regulatory compliance.
 
 ## 8. Database Architecture
 

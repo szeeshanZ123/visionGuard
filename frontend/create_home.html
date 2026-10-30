@@ -159,14 +159,11 @@
                                         class="material-symbols-outlined text-[16px] text-transparent">check</span>
                                 </div>
                             </div>
-                            <p class="font-body-sm text-body-sm text-text-placeholder leading-relaxed mb-4">YOLOv8 Nano
-                                (RDD2022) — Automated identification of longitudinal, transverse, alligator cracks,
-                                rutting, and pothole subsidence on civil asphalt corridors.</p>
+                            <p class="font-body-sm text-body-sm text-text-placeholder leading-relaxed mb-4">Google Gemini Vision — Automated multimodal identification of potholes, longitudinal cracks, transverse cracks, alligator cracking, and surface deterioration.</p>
                             <div
                                 class="mt-auto pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 font-caption text-caption text-text-muted">
                                 <span class="flex items-center gap-1.5"><span
-                                        class="material-symbols-outlined text-[14px]">speed</span> Latency:
-                                    ~140ms</span><span class="font-medium text-slate-600">Model: v8n-rdd-v2.1</span>
+                                        class="material-symbols-outlined text-[14px]">auto_awesome</span> Multimodal Vision</span><span class="font-medium text-slate-600">Engine: Gemini Vision</span>
                             </div>
                         </div><!-- Card B — Home & Building Defect (Selected by default) -->
                         <div class="relative flex flex-col p-5 sm:p-6 rounded-2xl bg-blue-50/50 border-2 border-primary-container cursor-pointer transition-all shadow-sm hover:shadow-md group"
@@ -189,15 +186,11 @@
                                     id="check-building"><span class="material-symbols-outlined text-[16px]">check</span>
                                 </div>
                             </div>
-                            <p class="font-body-sm text-body-sm text-text-placeholder leading-relaxed mb-4">YOLOv8 Home
-                                Model — Specialized for structural diagnostics: wall fracture lines, sub-surface
-                                dampness, efflorescence, paint flaking, and concrete spalling.</p>
+                            <p class="font-body-sm text-body-sm text-text-placeholder leading-relaxed mb-4">Google Gemini Vision — Multimodal structural diagnostics for wall cracks, dampness &amp; water damage, peeling paint, plaster damage, and surface spalling.</p>
                             <div
                                 class="mt-auto pt-3 border-t border-blue-100 flex flex-wrap items-center justify-between gap-2 font-caption text-caption text-text-muted">
                                 <span class="flex items-center gap-1.5"><span
-                                        class="material-symbols-outlined text-[14px]">speed</span> Latency:
-                                    ~180ms</span><span class="font-medium text-slate-600">Model:
-                                    v8h-structural-v4</span>
+                                        class="material-symbols-outlined text-[14px]">auto_awesome</span> Multimodal Vision</span><span class="font-medium text-slate-600">Engine: Gemini Vision</span>
                             </div>
                         </div>
                     </div>
@@ -483,7 +476,7 @@
                                     <h3 class="font-label-md text-label-md font-semibold text-slate-800">Identified
                                         Defect
                                         Breakdown</h3>
-                                    <span class="text-xs text-slate-400 font-mono">ASTM & Multimodal Standard</span>
+                                    <span class="text-xs text-slate-400 font-mono">Multimodal Defect Standards</span>
                                 </div>
                                 <div id="result-detections-list" class="space-y-3 max-h-[340px] overflow-y-auto pr-1">
                                     <!-- Dynamic defect cards populated here -->
@@ -649,8 +642,7 @@
                     <div
                         class="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-2 sm:gap-4 text-center font-caption text-caption text-slate-500 max-w-xl">
                         <span class="inline-flex items-center gap-1.5"><span
-                                class="material-symbols-outlined text-[14px] text-emerald-600 shrink-0">security</span>Certified
-                            ASTM D6433 &amp; YOLOv8 Municipal Audit Engine</span><span
+                                class="material-symbols-outlined text-[14px] text-emerald-600 shrink-0">security</span>VisionGuard Multimodal AI — Powered by Google Gemini Vision</span><span
                             class="hidden sm:inline">•</span><span class="inline-flex items-center gap-1"><span
                                 class="material-symbols-outlined text-[14px] text-slate-400 shrink-0">lock</span>Data
                             encrypted in transit (TLS 1.3 256-bit)</span>
@@ -693,25 +685,7 @@
                 }
             }
 
-            function selectInspectionMode(mode) {
-                activeMode = mode;
-                const stdCard = document.getElementById('mode-standard');
-                const tiledCard = document.getElementById('mode-tiled');
-                const badgeStd = document.getElementById('badge-standard');
-                const badgeTiled = document.getElementById('badge-tiled');
-                if (mode === 'standard') {
-                    stdCard.className = 'p-3.5 rounded-xl bg-white border-2 border-primary-container cursor-pointer transition-all shadow-xs flex flex-col justify-between';
-                    tiledCard.className = 'p-3.5 rounded-xl bg-white border border-slate-200 opacity-80 cursor-pointer hover:border-slate-300 transition-all shadow-xs flex flex-col justify-between';
-                    badgeStd.classList.remove('hidden');
-                    badgeTiled.classList.add('hidden');
-                } else {
-                    tiledCard.className = 'p-3.5 rounded-xl bg-white border-2 border-primary-container cursor-pointer transition-all shadow-xs flex flex-col justify-between';
-                    stdCard.className = 'p-3.5 rounded-xl bg-white border border-slate-200 opacity-80 cursor-pointer hover:border-slate-300 transition-all shadow-xs flex flex-col justify-between';
-                    badgeTiled.classList.remove('hidden');
-                    badgeStd.classList.add('hidden');
-                }
-            }
-
+            
             function detectGPSLocation() {
                 const lat = document.getElementById('loc-lat');
                 const lng = document.getElementById('loc-lng');
@@ -1340,8 +1314,7 @@
         <div
             class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4 font-body-sm text-body-sm text-center md:text-left">
             <div class="flex flex-wrap items-center justify-center md:justify-start gap-2 sm:gap-3"><span
-                    class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-wider shrink-0">ASTM
-                    D6433 COMPLIANT SYSTEM</span><span class="text-[#64748B]">© 2025 VisionGuard AI Municipal
+                    class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-wider shrink-0">VISIONGUARD MULTIMODAL PLATFORM</span><span class="text-[#64748B]">© 2025 VisionGuard AI Municipal
                     Operations</span></div>
             <nav class="flex flex-wrap items-center justify-center gap-4 sm:gap-6"
                 data-active-classes="text-primary-container font-semibold"><a aria-current="page"

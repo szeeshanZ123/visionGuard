@@ -11,6 +11,12 @@ services:
         value: production
       - key: PYTHON_VERSION
         value: 3.11.9
+      - key: AI_PROVIDER
+        value: gemini
+      - key: GEMINI_MODEL
+        value: gemini-3.1-flash-lite
+      - key: GEMINI_API_KEY
+        sync: false
       - key: VISIONGUARD_SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
