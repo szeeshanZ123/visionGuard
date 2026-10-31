@@ -9,6 +9,13 @@ flask>=3.0.0
 waitress>=3.0.0
 gunicorn>=23.0.0
 streamlit>=1.30.0
+<<<<<<< HEAD
+=======
+
+# Multimodal Vision & Google Gen AI SDK
+google-genai>=2.0.0
+python-dotenv>=1.0.0
+>>>>>>> cfc1ca63437b8bef5fe70d8179369a9add77ec91
 
 # Computer Vision, Deep Learning & Image Preprocessing
 torch>=2.0.0

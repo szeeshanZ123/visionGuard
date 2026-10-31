@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="csrf-token" content="{{ csrf_token or '' }}">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>VisionGuard AI - Infrastructure Hazard &amp; Defect Inspection</title>
+    <!-- Tailwind CSS v3 with Plugins -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <!-- Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            navy: '#172B4D',
+                            dark: '#0f172a',
+                            muted: '#64748b'
+                        },
+                        canvas: '#EDF2FA'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'Manrope', 'system-ui', 'sans-serif']
+                    },
+                    borderRadius: {
+                        '2xl': '1rem',
+                        '3xl': '1.5rem',
+                        '4xl': '2rem'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Font -->
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap"
+        rel="stylesheet" />
+    <style data-purpose="custom-typography">
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #EDF2FA;
+            color: #172B4D;
+        }
+    </style>
+</head>
+
+<body class="bg-[#EDF2FA] text-[#172B4D] antialiased selection:bg-blue-600 selection:text-white">
+    <!-- BEGIN: NavigationBar -->
+    <header class="w-full max-w-7xl mx-auto px-4 pt-5 pb-3">
+        <nav
+            class="bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-full px-5 py-3 flex items-center justify-between shadow-sm">
+            <!-- Logo -->
+            <a class="flex items-center gap-2.5" href="/">
+                <div
+                    class="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/30">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+                        <path
+                            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                            stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+                    </svg>
+                </div>
+                <div class="flex flex-col">
+                    <span class="font-bold text-lg leading-tight tracking-tight text-slate-900">VisionGuard <span
+                            class="text-blue-600">AI</span></span>
+                    <span class="text-[10px] uppercase font-semibold tracking-wider text-slate-400">Civil &amp; Infra
+                        Vision</span>
+                </div>
+            </a>
+            <!-- Desktop Nav Links -->
+            <div class="hidden md:flex items-center space-x-7 text-sm font-medium text-slate-600">
+                <a class="hover:text-blue-600 transition" href="/report">Dashboard</a>
+                <a class="hover:text-blue-600 transition" href="/create_home">New Inspection</a>
+                <a class="hover:text-blue-600 transition" href="/report">Records</a>
+                <a class="hover:text-blue-600 transition" href="/map">Defect Map</a>
+            </div>
+            <!-- Action Buttons -->
+            <div class="flex items-center gap-2 sm:gap-3">
+                <a href="/create_home" class="bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold px-4 sm:px-5 py-2 sm:py-2.5 rounded-full transition-all duration-200 shadow-md shadow-blue-600/20 active:scale-95">
+                    Report Hazard
+                </a>
+                <a href="/login" id="nav-auth-btn" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-semibold px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-full transition-all border border-slate-200">
+                    Sign In
+                </a>
+            </div>
+        </nav>
+    </header>
+    <!-- END: NavigationBar -->
+    <main class="max-w-7xl mx-auto px-4 space-y-16 pb-16">
+        <!-- BEGIN: HeroSection -->
+        <section class="relative mt-2" data-purpose="hero-container">
+            <div
+                class="relative w-full h-[520px] md:h-[580px] rounded-3xl md:rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-200">
+                <!-- Background Imagery with Dark Overlay -->
+                <img alt="Civil Engineer performing highway pavement condition analysis"
+                    class="w-full h-full object-cover object-center"
+                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuA1WhdnFzh3N-YasWRRwde02Mg-gcXH-2l6OPwGQHXVkGYkvbH6xO8Fqx-5JC1HxtdP44P-EFiq8F8GiHe33s_tILArZ4Ih7xSztlUHXf2tpoKSMMzmyErmBbGH9QjD6n2DPwzzK7y2MvqlckztMzw7EUQ94cvq5VsuDGoUM-3orrQjxCqXm_sTOZm4f2-8C-pvdeLHV3vYuK_LW_kaJP1H5NY0G6mFc4Vjz2as2cHZ" />
+                <div class="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-900/70 to-transparent"></div>
+                <!-- Hero Content Overlay -->
+                <div class="absolute inset-0 flex flex-col justify-center px-8 md:px-16 max-w-2xl text-white">
+                    <div
+                        class="inline-flex items-center gap-2 bg-blue-500/20 border border-blue-400/40 text-blue-300 px-3.5 py-1 rounded-full text-xs font-semibold tracking-wide w-max mb-5 backdrop-blur-sm">
+                        <span class="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
+                        AI-POWERED INFRASTRUCTURE INSPECTION
+                    </div>
+                    <h1 class="text-3xl md:text-5xl font-extrabold tracking-tight leading-[1.15] mb-4">
+                        Report Infrastructure Hazards &amp; Defects in Seconds
+                    </h1>
+                    <p class="text-slate-300 text-sm md:text-base leading-relaxed mb-8">
+                        Document municipal roadway defects, assess structural cracks with computer vision, and organize
+                        verified photographic evidence into ready-to-dispatch repair work orders.
+                    </p>
+                    <div class="flex flex-wrap items-center gap-4">
+                        <a class="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm px-6 py-3.5 rounded-full shadow-lg shadow-blue-600/40 transition active:scale-95"
+                            href="/create_home">
+                            Report a Problem
+                        </a>
+                        <a class="bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-white/20 font-semibold text-sm px-6 py-3.5 rounded-full transition"
+                            href="/map">
+                            Explore Defect Map
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- END: HeroSection -->
+        <!-- BEGIN: CommonProblemsSection -->
+        <section class="pt-4" data-purpose="three-card-diagnostic-overview">
+            <div class="text-center max-w-2xl mx-auto mb-12">
+                <h2 class="text-2xl md:text-4xl font-extrabold text-slate-900 tracking-tight">
+                    We Help You Understand <span class="text-blue-600">Common Infrastructure</span> Problems
+                </h2>
+                <p class="text-slate-500 text-sm md:text-base mt-3">
+                    Explore supported defect classifications and organize standard evidence to dispatch road and
+                    structural repairs with zero ambiguity.
+                </p>
+            </div>
+            <!-- 3-Card Grid with Overlapping Elevated Centerpiece -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
+                <!-- Left Card: Road Surface Cracks -->
+                <div class="bg-white rounded-3xl p-7 border border-slate-200/80 shadow-sm hover:shadow-md transition">
+                    <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-5">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+                            <path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round"
+                                stroke-width="2"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-900 mb-2">Road Surface Cracks</h3>
+                    <p class="text-slate-500 text-xs leading-relaxed mb-6">
+                        Pavement fissures degrade rapid drainage and compromise foundation stability.
+                    </p>
+                    <ul class="space-y-3 text-xs text-slate-600 font-medium">
+                        <li class="flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span> Longitudinal and transverse joint
+                            cracks
+                        </li>
+                        <li class="flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span> Alligator fatigue cracking
+                            clusters
+                        </li>
+                        <li class="flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span> Sub-base settlement &amp; edge
+                            cracking
+                        </li>
+                        <li class="flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span> Rutting and hydroplaning hazards
+                        </li>
+                    </ul>
+                </div>
+                <!-- Center Card (Elevated Blue Card) -->
+                <div
+                    class="bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-3xl p-8 shadow-xl shadow-blue-600/30 transform lg:-translate-y-2 border border-blue-500 relative overflow-hidden">
+                    <div
+                        class="absolute -right-10 -bottom-10 w-44 h-44 bg-white/10 rounded-full blur-2xl pointer-events-none">
+                    </div>
+                    <!-- Mini Inspector Photo Badge -->
+                    <div
+                        class="flex items-center gap-3 bg-white/15 backdrop-blur-md px-3 py-2 rounded-2xl w-max mb-6 border border-white/20">
+                        <img alt="Certified Inspector" class="w-7 h-7 rounded-full object-cover"
+                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuAlqZcMG80rPN0eB1ix-t3qveVNsCpFqcXOcD8Y-t1jZJlZU9g0XuXkXg5WjNMNbW7Tx_4UF9XrHb986BwxgKxtdCd_rwtJnttKDS0wVio0ha8DGkNWYUUXEieKm5DaPbAEvB14949bAMpFaPWnf7X7vAaOdgTfOZCthZIJ8dzQa6cYUt3wkSE5qZACDNzdhdJrKGjyvxGCyJBOJd2nKqTIEIB2JhD3X1P3rs6zXBMC" />
+                        <span class="text-xs font-semibold">Trained on 1.2M+ Civil Hazards</span>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3 tracking-tight">AI-Assisted Inspection &amp; Triage</h3>
+                    <p class="text-blue-100 text-xs leading-relaxed mb-6">
+                        VisionGuard Multimodal AI, powered by Google Gemini Vision, detects surface boundary distress, localizes defects, and
+                        auto-populate municipal ticket severity.
+                    </p>
+                    <div
+                        class="space-y-3 text-xs text-blue-50 font-medium bg-black/10 p-4 rounded-2xl border border-white/10">
+                        <div class="flex items-center justify-between">
+                            <span>Automatic Defect Bounding Boxes</span>
+                            <span class="font-bold text-white">99.2%</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span>Pothole Volume Estimation</span>
+                            <span class="font-bold text-white">Instant</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span>GIS Geotag Synchronization</span>
+                            <span class="font-bold text-white">Sub-Meter</span>
+                        </div>
+                    </div>
+                    <button
+                        class="mt-6 w-full bg-white text-blue-700 font-bold text-xs py-3 rounded-full hover:bg-blue-50 transition shadow-sm">
+                        Run Instant AI Diagnosis
+                    </button>
+                </div>
+                <!-- Right Card: Home & Building Defects -->
+                <div class="bg-white rounded-3xl p-7 border border-slate-200/80 shadow-sm hover:shadow-md transition">
+                    <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-5">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+                            <path
+                                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                                stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-900 mb-2">Home &amp; Building Defects</h3>
+                    <p class="text-slate-500 text-xs leading-relaxed mb-6">
+                        Structural degradation indicators affecting facades, retaining walls, and foundations.
+                    </p>
+                    <ul class="space-y-3 text-xs text-slate-600 font-medium">
+                        <li class="flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span> Foundation diagonal shear lines
+                        </li>
+                        <li class="flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span> Brick masonry spalling &amp;
+                            mortar decay
+                        </li>
+                        <li class="flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span> Roof truss deflection &amp;
+                            moisture signs
+                        </li>
+                        <li class="flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span> Retaining wall hydrostatic
+                            displacement
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+        <!-- END: CommonProblemsSection -->
+        <!-- BEGIN: InspectionServiceGrid -->
+        <section class="pt-4" data-purpose="service-defect-grid" id="services">
+            <div class="text-center max-w-2xl mx-auto mb-12">
+                <h2 class="text-2xl md:text-4xl font-extrabold text-slate-900 tracking-tight">
+                    Inspect and Service All <span class="text-blue-600">Major Defects</span>
+                </h2>
+                <p class="text-slate-500 text-sm md:text-base mt-3">
+                    Explore specialized computer-vision pipelines engineered for field teams, municipal inspectors, and
+                    homeowners.
+                </p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- Card 1: Pothole Severity Detection -->
+                <div
+                    class="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-sm flex flex-col justify-between group hover:shadow-lg transition">
+                    <div>
+                        <div class="h-44 rounded-2xl overflow-hidden mb-4 bg-slate-100">
+                            <img alt="Pothole Severity Inspection"
+                                class="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                                src="https://lh3.googleusercontent.com/aida-public/AB6AXuDBDc2U7d4hWzd-QnLQbFpvVtty_V_nctJWUGmQSoz_hxnwQfHoBYXIK9EuO6bHhEOZPoZp7fZ3g2PGQDa4htr6v8Y0gb21ySGEswGF856_BwkitYkzPT1XD3wzlRPBSmAdOf0HYw-nkWyEsRdlriW9uwtEC764yCXuuDFcDDocy0G-M_Z4XHokAu2-B-4wbjV234d8e1Hl2Mx5gWLRmRTm4uXeva8-poCzc-MdBj5O" />
+                        </div>
+                        <h3 class="font-bold text-base text-slate-900 mb-1">Pothole Severity Detection</h3>
+                        <p class="text-xs text-slate-500 leading-relaxed mb-4">
+                            Real-time measurement of cavity surface area, depth classification, and priority dispatch
+                            score.
+                        </p>
+                    </div>
+                    <div
+                        class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-blue-600">
+                        <span>Critical Severity Rating</span>
+                        <span class="bg-blue-50 px-2 py-1 rounded-md">ASTM D6433</span>
+                    </div>
+                </div>
+                <!-- Card 2: Structural Crack Analysis -->
+                <div
+                    class="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-sm flex flex-col justify-between group hover:shadow-lg transition">
+                    <div>
+                        <div class="h-44 rounded-2xl overflow-hidden mb-4 bg-slate-100">
+                            <img alt="Structural Crack Measurement"
+                                class="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                                src="https://lh3.googleusercontent.com/aida-public/AB6AXuDDqJjvktIOZuL5FYu7HYKK70awtzjnWgluGo-09AjS5styFHJZ_kng77mXWiELSVZXwyFtZ5UGBMGmVm7S0BNZabR9aJSMyjXGNTzdmqNWFWHP29hYQVLw1n07XuPExENVUQJWF_oApPa4Rf55OAjtsaZtzYMMI2dXx0v43hhjj3cjPkh6xamLeqPMkPzNio1JFr_r4PMC0wl_MLMgbaC7P1d04CnRJ-idzQewiS0B" />
+                        </div>
+                        <h3 class="font-bold text-base text-slate-900 mb-1">Structural Crack Analysis</h3>
+                        <p class="text-xs text-slate-500 leading-relaxed mb-4">
+                            Sub-millimeter crack aperture quantification across bridges, viaducts, and load-bearing
+                            walls.
+                        </p>
+                    </div>
+                    <div
+                        class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-blue-600">
+                        <span>Micron Calibrated</span>
+                        <span class="bg-blue-50 px-2 py-1 rounded-md">ISO 9001</span>
+                    </div>
+                </div>
+                <!-- Card 3: Commercial & Municipal Infrastructure -->
+                <div
+                    class="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-sm flex flex-col justify-between group hover:shadow-lg transition">
+                    <div>
+                        <div class="h-44 rounded-2xl overflow-hidden mb-4 bg-slate-100">
+                            <img alt="Commercial Highway Surveying"
+                                class="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBFKsC1kw_0rQahAMaWyl74mxSHaDjO7R3qCYz5xBBY1MaIyH1KtxMVD5WbKxM2f_grPuiPeqlnTSdU_Teaf3Yr8OC1xeSzLSxONtuqWPmLOkAIJdFgtRK3trqM0kHi6qOMQxj-6-qm2zpx9zXOPo_0yJEasXZnffrFW_sTUwEtzujuRQeyj2TQ4AKGmVLmDhVO19G9UNEBjyo49HAL4hdYgQXTvcNm3MNO6oXUXZBX" />
+                        </div>
+                        <h3 class="font-bold text-base text-slate-900 mb-1">Commercial &amp; Municipal Infra</h3>
+                        <p class="text-xs text-slate-500 leading-relaxed mb-4">
+                            Fleet-grade video analysis for city-wide road network asset audits and capital improvement
+                            planning.
+                        </p>
+                    </div>
+                    <div class="pt-3">
+                        <button
+                            class="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold py-2.5 rounded-full transition">
+                            View All Services
+                        </button>
+                    </div>
+                </div>
+                <!-- Card 4: Residential Building Defects -->
+                <div
+                    class="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-sm flex flex-col justify-between group hover:shadow-lg transition">
+                    <div>
+                        <div class="h-44 rounded-2xl overflow-hidden mb-4 bg-slate-100">
+                            <img alt="Building Defect Inspection"
+                                class="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBLLgOShjVUVmMTnZJFbedH1yJaqocI66mW8Oo79bveU64073iOpgGg9dKwXcP9-39evS_kX5aENgYl1RKnSZ-EeBVWd9E4kNeEcGcN6qRkwXz6afJ45m7csAEXeV4da1bWPqIJz-bt6moLUgvMfQPBlG3RCf4MsIpf9TuIibyii73H7Bk6IChlmsL9ECAQGTta67xuNH-FCOZSCd1xADC3fWAnshfkQAbp0NAzXgIC" />
+                        </div>
+                        <h3 class="font-bold text-base text-slate-900 mb-1">Residential Building Defects</h3>
+                        <p class="text-xs text-slate-500 leading-relaxed mb-4">
+                            Automated photographic inspections for residential roofs, moisture ingress, and foundation
+                            leveling.
+                        </p>
+                    </div>
+                    <div
+                        class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-500">
+                        <span class="flex items-center gap-1.5 text-blue-600">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Ready for Export
+                        </span>
+                        <span class="bg-slate-100 px-2 py-1 rounded-md text-slate-600">PDF / GeoJSON</span>
+                    </div>
+                </div>
+            </div>
+            <!-- Trust Badge Banner -->
+            <div
+                class="mt-8 bg-blue-50/70 border border-blue-100 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="flex -space-x-2">
+                        <img alt="Inspector 1" class="w-8 h-8 rounded-full border-2 border-white object-cover"
+                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuCL7fu2fuSw8BLMtaJRVRT4dfRjW9pBMaQjHk_CxSWgW5Qt338l9SPeyLs4sRgE2K41YbkFi5wTM55Zu-yn0tYAazVNVjODUOmtt_sN9bmwgmTp3JJjqTVm6eP8z2c2VqjnkQRGdyEyivDjsnDMnmvkCyiWK-RB5-AtUI2-g9iqHayAsByP9ptbXcQN7bIjYyCYpMnCKFOZmWMSCZTFNev36lDcQ985VKWY73dyJZhI" />
+                        <img alt="Inspector 2" class="w-8 h-8 rounded-full border-2 border-white object-cover"
+                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBg5JMuAHETM-gFVFYEKiTMXxmPqtic9RL6mvlI1YPQNqyKwfz4Wxn8YQ2Jvk0-RL7lKtStpxp7enn--5Qep5MKCaUaqd_Fg22undE0N08AbMdB5fi1EeoxvHl7zgLjLJw_iDsQCZYR5blxGwZ6h-Gk_2JGLdJPHuB1ivRL0xsBvkAtW9Ri9OYWykua78klZoGDQrwxwM88aOBz7t0fp_DQcMRxuP4PDX2bXkYJM3s8" />
+                        <img alt="Inspector 3" class="w-8 h-8 rounded-full border-2 border-white object-cover"
+                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuDvENye6XBZh8H4t-jXHZD0M2bXeLf_ie4UHRtbuIFS1DUzzzHDoujBbgmX-SkUsUciAPTxmDq6fSlJn22DqHpDj-wC_q58ZMCqBBzf8PyG6JD8wreIhXnt4EdXr4S5DPbUW7bxxTA6mGwPppxOGJ36jJEQxcjgxNcOCBInlHWEWx1F_PYXlrnzTv1fLNBWCfUiVcFWx_FRxaStKuRuX3UsQ0Auv_myfGoYy6Rp_7Rk" />
+                    </div>
+                    <span class="text-xs font-semibold text-slate-700">Supported by 460+ Active Municipal Workers and
+                        Civil Technicians.</span>
+                </div>
+                <a class="text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline" href="/login?tab=register">
+                    Join Municipal Partner Program →
+                </a>
+            </div>
+        </section>
+        <!-- END: InspectionServiceGrid -->
+        <!-- BEGIN: FullWidthBannerSearch -->
+        <section class="pt-2" data-purpose="geo-search-banner" id="map">
+            <div
+                class="relative w-full rounded-3xl md:rounded-[2.5rem] overflow-hidden shadow-xl border border-slate-200">
+                <img alt="Road Scanning and Inspection Telemetry" class="w-full h-80 md:h-96 object-cover"
+                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuB3rLDv2QqD2ZqeiDpuxm1_Tl7rncqvrVPUiu4fi7AZQE_Nw1v2e2osqz1q4a4XTgOh_464m43FHPO6swhHJJdcjnNda9DpF4qNmLpkSh5qNyn43p1XLCorNKvk5wTHpefGrQkfR5CkVDuNemuHLJH8qfF4t66K22njvanV6Xs-vMVDg2DQprBSCC5Enijt8Qs0bLPDKVQRXZiDzcB65lAdU3oBQD5nAXMoYw1R0CHb" />
+                <div class="absolute inset-0 bg-gradient-to-r from-slate-950/95 via-slate-900/80 to-slate-900/40"></div>
+                <div
+                    class="absolute inset-0 flex flex-col items-center justify-center text-center px-4 max-w-3xl mx-auto">
+                    <h2 class="text-2xl md:text-4xl font-extrabold text-white tracking-tight mb-3">
+                        Document Infrastructure Problems with Confidence
+                    </h2>
+                    <p class="text-slate-300 text-xs md:text-sm max-w-xl mb-7 leading-relaxed">
+                        Bring photographs, AI computer vision telemetry, and municipal work orders together into one
+                        unified inspection system.
+                    </p>
+                    <!-- Input Pill Bar -->
+                    <form id="hero-geo-search"
+                        class="w-full max-w-md bg-white/10 backdrop-blur-md p-1.5 rounded-full border border-white/30 flex items-center shadow-lg"
+                        onsubmit="handleHeroSearch(event)">
+                        <input id="hero-geo-input"
+                            class="w-full bg-transparent border-0 text-white placeholder-slate-300 text-xs md:text-sm px-4 focus:ring-0 focus:outline-none"
+                            placeholder="Enter City, Ward, or Highway ID (e.g. Bandra, Mumbai)" type="text" />
+                        <button
+                            class="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs md:text-sm px-5 py-2.5 rounded-full whitespace-nowrap transition active:scale-95 shadow-md shadow-blue-600/30"
+                            type="submit">
+                            Find Region
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </section>
+        <!-- END: FullWidthBannerSearch -->
+        <!-- BEGIN: WhyChooseSection -->
+        <section class="pt-6" data-purpose="why-choose-us-split">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+                <!-- Left Column: Value Proposition & Interactive Accordion -->
+                <div class="lg:col-span-6 space-y-6">
+                    <div>
+                        <h2 class="text-2xl md:text-4xl font-extrabold text-slate-900 tracking-tight">
+                            Why Choose <span class="text-blue-600">VisionGuard AI</span> to Inspect
+                        </h2>
+                        <p class="text-slate-500 text-sm mt-3">
+                            Reliable infrastructure reporting with verified accuracy every single time.
+                        </p>
+                    </div>
+                    <!-- Feature Stack / Accordions -->
+                    <div class="space-y-4 pt-2">
+                        <!-- Item 1: Active Expanded Card -->
+                        <div class="bg-white rounded-2xl p-5 border border-blue-200 shadow-sm relative">
+                            <div class="flex items-center justify-between cursor-pointer">
+                                <div class="flex items-center gap-3">
+                                    <div
+                                        class="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+                                            <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round"
+                                                stroke-linejoin="round" stroke-width="2"></path>
+                                        </svg>
+                                    </div>
+                                    <h4 class="font-bold text-slate-900 text-sm">Flexible Scheduling and Quick Reports
+                                    </h4>
+                                </div>
+                                <div
+                                    class="w-7 h-7 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs">
+                                    <svg class="w-3.5 h-3.5 rotate-180 transition" fill="none" stroke="currentColor"
+                                        viewbox="0 0 24 24">
+                                        <path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round"
+                                            stroke-width="2.5"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-3 pl-12 leading-relaxed">
+                                We promptly assess your uploaded evidence, explain detected anomalies, and provide clear
+                                upfront metrics ready for municipal submission.
+                            </p>
+                        </div>
+                        <!-- Item 2 -->
+                        <div
+                            class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm flex items-center justify-between hover:border-blue-300 transition cursor-pointer">
+                            <div class="flex items-center gap-3">
+                                <div
+                                    class="w-9 h-9 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+                                        <path
+                                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                                            stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                                    </svg>
+                                </div>
+                                <h4 class="font-bold text-slate-900 text-sm">Transparent AI Confidence Scores</h4>
+                            </div>
+                            <div
+                                class="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs">
+                                ↗
+                            </div>
+                        </div>
+                        <!-- Item 3 -->
+                        <div
+                            class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm flex items-center justify-between hover:border-blue-300 transition cursor-pointer">
+                            <div class="flex items-center gap-3">
+                                <div
+                                    class="w-9 h-9 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+                                        <path
+                                            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                                            stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                                    </svg>
+                                </div>
+                                <h4 class="font-bold text-slate-900 text-sm">Trusted Verification &amp; Municipal Export
+                                </h4>
+                            </div>
+                            <div
+                                class="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs">
+                                ↗
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Right Column: Visual Portrait -->
+                <div class="lg:col-span-6 flex justify-center">
+                    <div
+                        class="relative w-full max-w-md h-[460px] rounded-3xl overflow-hidden shadow-xl border border-slate-200">
+                        <img alt="Civil Inspector examining structural data" class="w-full h-full object-cover"
+                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuDs93lkRKRlllH7wOQMguYWbutwLMGEIoMpT3jwfiXywqIsATvMspSk35AiYWegRlzDjvEZ8KMpodMziHY8QogAlJnxIuwKghjdI9a7H-tp3q5ASV71Kl57ayMFvlylyu9o_CUMs2fwWsfuHwCqmJ_zlXTe6RH_CYdPbHiaYMb371Ta4JRlpaGXgLxyi7ofNxNamxrOTpIjGbO1BciHrPZicFrod9iTv0-I2ysr3SIJ" />
+                        <div class="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent">
+                        </div>
+                        <div
+                            class="absolute bottom-5 left-5 right-5 bg-white/90 backdrop-blur-md p-4 rounded-2xl border border-white/40 flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-bold text-slate-900">Engineer Field Validation</p>
+                                <p class="text-[11px] text-slate-500">Certified by Department of Transportation
+                                    Standards</p>
+                            </div>
+                            <span class="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- END: WhyChooseSection -->
+        <!-- BEGIN: ResourceCardsSection -->
+        <section class="pt-4" data-purpose="inspection-resources" id="resources">
+            <div class="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
+                <div>
+                    <h2 class="text-2xl md:text-4xl font-extrabold text-slate-900 tracking-tight">
+                        Get Quick Help Access <span class="text-blue-600">Useful Resources</span>
+                    </h2>
+                    <p class="text-slate-500 text-sm mt-2 max-w-xl">
+                        Use our helpful guides to document hazards accurately, understand severity indices, and avoid
+                        delayed repair approvals.
+                    </p>
+                </div>
+            </div>
+            <!-- 3 Vertical Visual Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Resource 1 -->
+                <div
+                    class="relative h-80 rounded-3xl overflow-hidden group shadow-md border border-slate-200 cursor-pointer">
+                    <img alt="Inspection photography guide"
+                        class="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuAbSBMy5pu9snWhtNM8_Txqn99dXRO5dWKvkOC6-YOiwN9SgU055uo-I1Npuz9mQ6vg6pYR_4WwzF_dgLRylBfFogvpw7iqQxxtFzh7w6_fNq1GJLsT2UJTsSFGniU5ama45PPQ1R4RWFm4pcn9LGYM-zYR7apk7pIDnSf2STacw9s5W43Q0TQwGMn4O3wfACqVBO6adUkw1ylXjX15BGfJC_PkCOtZN-U-Dv7kw23V" />
+                    <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent"></div>
+                    <div class="absolute bottom-0 inset-x-0 p-6 text-white">
+                        <span
+                            class="text-[10px] font-bold uppercase tracking-wider text-blue-400 mb-1 inline-block">Best
+                            Practices</span>
+                        <h3 class="text-base font-bold leading-snug">How to Capture a Useful Inspection Photo</h3>
+                        <p class="text-xs text-slate-300 mt-2 line-clamp-2">Ensure proper focal distance, oblique angle
+                            lighting, and scale markers for maximum model certainty.</p>
+                    </div>
+                </div>
+                <!-- Resource 2 -->
+                <div
+                    class="relative h-80 rounded-3xl overflow-hidden group shadow-md border border-slate-200 cursor-pointer">
+                    <img alt="AI confidence metrics"
+                        class="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuA1zFD-dpoRv1CSDfBlrfTX1TgAvs70Ir6JgzZLZO1B2P6rDweIm1azwrz0jNj9_WoYznF6yRqIFSxxvvM_mZgaDI4eH-5_Uo_O_Zhjx3RSmpmSFu1Aq9m3r3gY9SINSO17mKr8tCzov4QnloVsvqZdK4QBe0x3gnLYPWEvKjoIkgZvtARVox-XjG7uZp6JEPQeD8tvs5IxIS09Z7znTIKEUL9LX3KLR7FShLJgfhpY" />
+                    <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent"></div>
+                    <div class="absolute bottom-0 inset-x-0 p-6 text-white">
+                        <span
+                            class="text-[10px] font-bold uppercase tracking-wider text-blue-400 mb-1 inline-block">Model
+                            Telemetry</span>
+                        <h3 class="text-base font-bold leading-snug">Understanding AI Confidence Scores</h3>
+                        <p class="text-xs text-slate-300 mt-2 line-clamp-2">Learn what probabilistic thresholds mean for
+                            public safety categorization and dispatch timelines.</p>
+                    </div>
+                </div>
+                <!-- Resource 3 -->
+                <div
+                    class="relative h-80 rounded-3xl overflow-hidden group shadow-md border border-slate-200 cursor-pointer">
+                    <img alt="Preparing Hazard Reports"
+                        class="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuC9beS8uX0oMHiqaCdkY2Y4qZdvFmrkSfJvzeWBJvt1TEUQRiR4asfbrtI9DvTfDmXblgOFpLOGupdZVIzVQHHwiMnR7Ol_QCVNvfLIfD8Qh3ClyZa7hynOCy9v7gkD21LvCqGW83sTZkBgVjEyx5BUtIo36F1cJLAcJzPl54Kd-l3vZBFaACh7gDodLSeDawIQ7THVhIDPZbGS8gh7ByIxWRXN3Ko_siu1dh5SWvdA" />
+                    <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent"></div>
+                    <div class="absolute bottom-0 inset-x-0 p-6 text-white">
+                        <span
+                            class="text-[10px] font-bold uppercase tracking-wider text-blue-400 mb-1 inline-block">Documentation</span>
+                        <h3 class="text-base font-bold leading-snug">Preparing an Infrastructure Hazard Report</h3>
+                        <p class="text-xs text-slate-300 mt-2 line-clamp-2">Step-by-step export workflow to send
+                            actionable packets directly to city engineering departments.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="text-center mt-8">
+                <a class="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-6 py-3 rounded-full transition shadow-sm"
+                    href="#all-resources">
+                    View All Resources →
+                </a>
+            </div>
+        </section>
+        <!-- END: ResourceCardsSection -->
+        <!-- BEGIN: FAQAndSupportSection -->
+        <section class="pt-6" data-purpose="faq-and-support">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                <!-- Left Column: FAQ Accordion List -->
+                <div class="lg:col-span-7 space-y-3 order-2 lg:order-1">
+                    <!-- Accordion 1 (Expanded) -->
+                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+                        <div class="flex items-center justify-between cursor-pointer">
+                            <h4 class="font-bold text-slate-900 text-sm">What is VisionGuard AI?</h4>
+                            <div
+                                class="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs">
+                                −
+                            </div>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-3 leading-relaxed">
+                            VisionGuard Multimodal AI is a Google Gemini-powered infrastructure defect inspection platform that identifies potholes,
+                            structural cracks, and property defects from photos and video feeds, outputting triage-grade
+                            data for public works.
+                        </p>
+                    </div>
+                    <!-- Accordion 2 -->
+                    <div
+                        class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex items-center justify-between cursor-pointer hover:border-blue-300 transition">
+                        <h4 class="font-bold text-slate-900 text-sm">Which defects can the AI analyze?</h4>
+                        <div
+                            class="w-6 h-6 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold">
+                            ↗
+                        </div>
+                    </div>
+                    <!-- Accordion 3 -->
+                    <div
+                        class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex items-center justify-between cursor-pointer hover:border-blue-300 transition">
+                        <h4 class="font-bold text-slate-900 text-sm">What does an AI confidence score mean?</h4>
+                        <div
+                            class="w-6 h-6 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold">
+                            ↗
+                        </div>
+                    </div>
+                    <!-- Accordion 4 -->
+                    <div
+                        class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex items-center justify-between cursor-pointer hover:border-blue-300 transition">
+                        <h4 class="font-bold text-slate-900 text-sm">Can I review and export previous inspections?</h4>
+                        <div
+                            class="w-6 h-6 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold">
+                            ↗
+                        </div>
+                    </div>
+                    <!-- Accordion 5 -->
+                    <div
+                        class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex items-center justify-between cursor-pointer hover:border-blue-300 transition">
+                        <h4 class="font-bold text-slate-900 text-sm">How does municipal verification work?</h4>
+                        <div
+                            class="w-6 h-6 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold">
+                            ↗
+                        </div>
+                    </div>
+                </div>
+                <!-- Right Column: Heading & Support Box -->
+                <div class="lg:col-span-5 flex flex-col justify-between space-y-6 order-1 lg:order-2">
+                    <div>
+                        <h2 class="text-2xl md:text-4xl font-extrabold text-slate-900 tracking-tight">
+                            Questions <br /><span class="text-blue-600">Answered FAQ</span>
+                        </h2>
+                        <p class="text-slate-500 text-xs md:text-sm mt-3 leading-relaxed">
+                            Our AI inspection models provide professional, continuous triage you can always trust. Learn
+                            how our system integrates with regional road databases.
+                        </p>
+                        <div class="mt-4">
+                            <button
+                                class="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-5 py-2.5 rounded-full transition shadow-sm">
+                                View All FAQ
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Direct Support Card -->
+                    <div
+                        class="bg-blue-600 text-white rounded-3xl p-6 shadow-xl shadow-blue-600/20 border border-blue-500">
+                        <div class="flex items-center gap-3 mb-4">
+                            <img alt="Lead Engineer" class="w-11 h-11 rounded-full border-2 border-white object-cover"
+                                src="https://lh3.googleusercontent.com/aida-public/AB6AXuAVWUXOrkT1jscCgTKymvbXcQswvRFU6P-yePmqhp3x1QqiYmEaC2_C4ywThrA2Lm1YH4EFTky7SFS1DqebWkccbofiLim8E3HtuoK7D6bHCeApU8Tdu1NBwpxBsuKpd6BvdIOjggP6n24vf2TX8p4t57JUoTxYmBvXEkBBNJpJc8UtVT1oz8KRS9twlo9KyKmSQQakJkigK_QIEoZaLTMPeCSmil4EdvSU0qUcK6Ma" />
+                            <div>
+                                <h5 class="text-sm font-bold">Have more questions?</h5>
+                                <p class="text-[11px] text-blue-100">Book a live demo or contact our civil engineers</p>
+                            </div>
+                        </div>
+                        <button
+                            class="w-full bg-white hover:bg-blue-50 text-blue-700 font-bold text-xs py-3 rounded-full transition shadow-sm">
+                            Let's Talk Infrastructure
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- END: FAQAndSupportSection -->
+        <!-- BEGIN: BrandPanel -->
+        <section class="pt-4" data-purpose="network-brand-panel">
+            <div
+                class="bg-white rounded-3xl md:rounded-[2.5rem] p-8 md:p-12 border border-slate-200/80 shadow-sm flex flex-col lg:flex-row items-center justify-between gap-8">
+                <!-- Left: Statement -->
+                <div class="max-w-xl text-center lg:text-left">
+                    <h3 class="text-xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
+                        VisionGuard AI, part of <br class="hidden sm:inline" />Municipal Infrastructure Network
+                    </h3>
+                    <p class="text-slate-500 text-xs md:text-sm mt-3 leading-relaxed">
+                        Rely on our trusted local inspection intelligence for public works, residential compliance, and
+                        civil asset maintenance across North America.
+                    </p>
+                    <div class="flex items-center justify-center lg:justify-start gap-4 mt-6">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Certified
+                            Standards</span>
+                        <div class="h-4 w-[1px] bg-slate-200"></div>
+                        <span class="text-xs font-bold text-slate-700">AASHTO / ASTM Compliant</span>
+                    </div>
+                </div>
+                <!-- Right: App Downloads & CTA -->
+                <div
+                    class="bg-slate-50 border border-slate-200 rounded-3xl p-6 w-full lg:w-80 flex flex-col items-center text-center">
+                    <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">Download Field
+                        Inspector App</span>
+                    <div class="flex gap-2.5 w-full mb-4">
+                        <button
+                            class="flex-1 bg-slate-900 hover:bg-slate-800 text-white rounded-xl py-2 px-3 text-[11px] font-semibold flex items-center justify-center gap-1.5 transition">
+                            App Store
+                        </button>
+                        <button
+                            class="flex-1 bg-slate-900 hover:bg-slate-800 text-white rounded-xl py-2 px-3 text-[11px] font-semibold flex items-center justify-center gap-1.5 transition">
+                            Google Play
+                        </button>
+                    </div>
+                    <p class="text-[11px] text-slate-500 mb-3">VisionGuard is all you need to remember.</p>
+                    <a class="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                        href="#discover">
+                        Discover Network →
+                    </a>
+                </div>
+            </div>
+        </section>
+        <!-- END: BrandPanel -->
+    </main>
+    <!-- BEGIN: SiteFooter -->
+    <footer class="bg-white border-t border-slate-200 pt-14 pb-10 text-slate-600 text-xs" data-purpose="main-footer">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
+                <!-- Col 1: Brand & Bio -->
+                <div class="col-span-2 space-y-4">
+                    <div class="flex items-center gap-2">
+                        <div
+                            class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+                                <path
+                                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                                    stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+                            </svg>
+                        </div>
+                        <span class="font-bold text-base text-slate-900 tracking-tight">VisionGuard <span
+                                class="text-blue-600">AI</span></span>
+                    </div>
+                    <p class="text-slate-500 leading-relaxed max-w-sm">
+                        AI-driven road surface assessment, defect localization, and civil infrastructure inspection
+                        platform for safer communities.
+                    </p>
+                    <div class="flex items-center space-x-3 text-slate-400 pt-1">
+                        <a class="hover:text-blue-600 transition" href="#">Twitter</a>
+                        <a class="hover:text-blue-600 transition" href="#">LinkedIn</a>
+                        <a class="hover:text-blue-600 transition" href="#">GitHub</a>
+                        <a class="hover:text-blue-600 transition" href="#">YouTube</a>
+                    </div>
+                </div>
+                <!-- Col 2: Company -->
+                <div class="space-y-3">
+                    <h5 class="font-bold text-slate-900 uppercase tracking-wider text-[11px]">Company</h5>
+                    <ul class="space-y-2 text-slate-500 font-medium">
+                        <li><a class="hover:text-blue-600 transition" href="#">The Inspection App</a></li>
+                        <li><a class="hover:text-blue-600 transition" href="#">Why Us</a></li>
+                        <li><a class="hover:text-blue-600 transition" href="#">About Us</a></li>
+                        <li><a class="hover:text-blue-600 transition" href="#">Careers</a></li>
+                    </ul>
+                </div>
+                <!-- Col 3: Services -->
+                <div class="space-y-3">
+                    <h5 class="font-bold text-slate-900 uppercase tracking-wider text-[11px]">Services</h5>
+                    <ul class="space-y-2 text-slate-500 font-medium">
+                        <li><a class="hover:text-blue-600 transition" href="#">Road Crack Triage</a></li>
+                        <li><a class="hover:text-blue-600 transition" href="#">Pothole Volume Index</a></li>
+                        <li><a class="hover:text-blue-600 transition" href="#">Building Facades</a></li>
+                        <li><a class="hover:text-blue-600 transition" href="#">Municipal Dispatch</a></li>
+                    </ul>
+                </div>
+                <!-- Col 4: Resources -->
+                <div class="space-y-3">
+                    <h5 class="font-bold text-slate-900 uppercase tracking-wider text-[11px]">Resources</h5>
+                    <ul class="space-y-2 text-slate-500 font-medium">
+                        <li><a class="hover:text-blue-600 transition" href="#">Documentation</a></li>
+                        <li><a class="hover:text-blue-600 transition" href="#">API Reference</a></li>
+                        <li><a class="hover:text-blue-600 transition" href="#">Defect Taxonomy</a></li>
+                        <li><a class="hover:text-blue-600 transition" href="#">Site Map</a></li>
+                    </ul>
+                </div>
+            </div>
+            <!-- Bottom Bar -->
+            <div
+                class="pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between text-slate-400 gap-4 text-[11px]">
+                <p>© 2025 VisionGuard AI Inc. All rights reserved.</p>
+                <div class="flex items-center space-x-6">
+                    <a class="hover:text-slate-600 transition" href="#">Privacy Policy</a>
+                    <a class="hover:text-slate-600 transition" href="#">Terms of Service</a>
+                    <a class="hover:text-slate-600 transition" href="#">Security Compliance</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+    <!-- END: SiteFooter -->
+    <script>
+        function handleHeroSearch(e) {
+            e.preventDefault();
+            const input = document.getElementById('hero-geo-input');
+            const q = (input ? input.value : '').trim();
+            window.location.href = '/map' + (q ? ('?q=' + encodeURIComponent(q)) : '');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetch('/api/auth/status')
+                .then(r => r.json())
+                .then(data => {
+                    if (data && data.csrf_token) {
+                        try { sessionStorage.setItem('vg_csrf_token', data.csrf_token); } catch (e) {}
+                        const m = document.querySelector('meta[name="csrf-token"]');
+                        if (m) m.setAttribute('content', data.csrf_token);
+                    }
+                    if (data && data.authenticated && data.user) {
+                        const isStaff = (data.user.role === 'admin' || data.user.role === 'inspector' || data.user.role === 'maintenance');
+                        const authBtn = document.getElementById('nav-auth-btn');
+                        if (authBtn) {
+                            authBtn.href = isStaff ? '/app' : '/create_home';
+                            authBtn.title = `${data.user.username} (${data.user.role}) - Click for ${isStaff ? 'Operations Dashboard' : 'Inspection Studio'}`;
+                            authBtn.innerHTML = `
+                                <span class="flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                    <span class="font-bold">${data.user.username}</span>
+                                    <span class="text-[10px] text-slate-500 uppercase">(${data.user.role || 'citizen'})</span>
+                                </span>
+                            `;
+                        }
+                        // Update desktop Dashboard link for staff vs citizen
+                        const navLinks = document.querySelectorAll('header nav a');
+                        navLinks.forEach(a => {
+                            if (a.textContent.trim() === 'Dashboard') {
+                                a.href = isStaff ? '/app' : '/report';
+                                a.textContent = isStaff ? 'Operations Dashboard' : 'My Reports';
+                            }
+                        });
+                    }
+                })
+                .catch(() => {});
+        });
+    </script>
+</body>
+
+</html>

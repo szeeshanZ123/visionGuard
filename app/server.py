@@ -16,7 +16,8 @@ import uuid
 import logging
 import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any, Dict, List
+import numpy as np
 
 # Configure application logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -27,22 +28,69 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+# Automatically load environment variables from .env file if present
+_env_path = PROJECT_ROOT / ".env"
+if _env_path.exists():
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(dotenv_path=_env_path, override=False)
+    except Exception:
+        pass
+
 import secrets
 import threading
 import gc
 from functools import wraps
 
+<<<<<<< HEAD
+=======
+import collections
+import copy
+import hashlib
+import base64
+
+>>>>>>> cfc1ca63437b8bef5fe70d8179369a9add77ec91
 # Process-level inference lock ensuring single-flight YOLO forward passes on CPU
 INFERENCE_LOCK = threading.Lock()
 # Process-level concurrency gate ensuring at most 1 heavy inspection is in-flight simultaneously
 INSPECTION_SEMAPHORE = threading.Semaphore(1)
+<<<<<<< HEAD
+=======
+# Bounded thread-safe LRU cache for recent inspection results to eliminate duplicate inference
+INSPECTION_LRU_CACHE = collections.OrderedDict()
+INSPECTION_CACHE_LOCK = threading.Lock()
+MAX_INSPECTION_CACHE_SIZE = 32
+
+
+def make_json_safe(obj: Any) -> Any:
+    """
+    Recursively converts NumPy scalars/arrays and custom objects into standard Python primitives
+    to guarantee 100% serialization safety in Flask jsonify responses.
+    """
+    if obj is None:
+        return None
+    if isinstance(obj, (bool, str)):
+        return obj
+    if isinstance(obj, (int, np.integer)):
+        return int(obj)
+    if isinstance(obj, (float, np.floating)):
+        return float(obj)
+    if isinstance(obj, (list, tuple)):
+        return [make_json_safe(item) for item in obj]
+    if isinstance(obj, dict):
+        return {str(k): make_json_safe(v) for k, v in obj.items()}
+    if hasattr(obj, "tolist"):
+        return make_json_safe(obj.tolist())
+    return str(obj)
+>>>>>>> cfc1ca63437b8bef5fe70d8179369a9add77ec91
 try:
     import cv2
     cv2.setNumThreads(1)
 except Exception:
     cv2 = None
 from werkzeug.utils import secure_filename
-from flask import Flask, request, jsonify, render_template, send_file, session
+from werkzeug.exceptions import HTTPException
+from flask import Flask, request, jsonify, render_template, send_file, session, redirect
 
 from database.db import (
     init_db,
@@ -125,6 +173,16 @@ from ai.detection.detector import (
     DEFAULT_HOME_MODEL_PATH,
     get_process_rss_mb,
 )
+<<<<<<< HEAD
+=======
+from ai.gemini_service import (
+    GeminiInspectionService,
+    DEFAULT_GEMINI_MODEL,
+    ROAD_DEFECT_TYPES,
+    BUILDING_DEFECT_TYPES,
+)
+from ai.annotation_service import OpenCVAnnotationEngine
+>>>>>>> cfc1ca63437b8bef5fe70d8179369a9add77ec91
 from storage import (
     get_storage_backend,
     StorageBackend,
@@ -152,6 +210,16 @@ def create_app(
         static_folder=static_dir,
         static_url_path="/static",
     )
+
+    from jinja2 import ChoiceLoader, FileSystemLoader
+    frontend_dir = os.path.join(PROJECT_ROOT, "frontend")
+    loaders = []
+    if os.path.exists(frontend_dir):
+        loaders.append(FileSystemLoader(frontend_dir))
+    if os.path.exists(templates_dir):
+        loaders.append(FileSystemLoader(templates_dir))
+    if loaders:
+        app.jinja_loader = ChoiceLoader(loaders)
 
     # Enforce maximum upload size (15 MB)
     max_mb = test_config.get("MAX_CONTENT_LENGTH_MB", MAX_RECOMMENDED_SIZE_MB) if test_config else MAX_RECOMMENDED_SIZE_MB
@@ -251,11 +319,52 @@ def create_app(
             "Ensure default development accounts have their passwords updated."
         )
 
+    # AI Provider Selection (Google Gemini Multimodal Vision vs Archived YOLO fallback)
+    # Default is 'gemini' (VisionGuard Multimodal AI — Powered by Google Gemini Vision)
+    if test_config and "AI_PROVIDER" in test_config:
+        app.ai_provider = str(test_config["AI_PROVIDER"]).lower().strip()
+    elif detector is not None or (test_config and "detector" in test_config):
+        # Caller provided a specific custom detector test double (legacy YOLO test compatibility)
+        app.ai_provider = "yolo"
+    elif test_config and test_config.get("TESTING") and not test_config.get("gemini_service"):
+        # Automated tests without explicit AI_PROVIDER or gemini_service default to local YOLO mock
+        app.ai_provider = "yolo"
+    elif os.environ.get("AI_PROVIDER"):
+        app.ai_provider = os.environ.get("AI_PROVIDER").lower().strip()
+    else:
+        app.ai_provider = "gemini"
+
+    # Configure Gemini Multimodal Vision Service
+    gemini_model_name = (
+        (test_config.get("GEMINI_MODEL") if test_config else None)
+        or os.environ.get("GEMINI_MODEL")
+        or DEFAULT_GEMINI_MODEL
+    ).strip()
+    app.gemini_model = gemini_model_name
+
+    if test_config and "gemini_service" in test_config:
+        app.gemini_service = test_config["gemini_service"]
+    else:
+        app.gemini_service = GeminiInspectionService(model_name=gemini_model_name)
+
+    if test_config and "annotation_engine" in test_config:
+        app.annotation_engine = test_config["annotation_engine"]
+    else:
+        app.annotation_engine = OpenCVAnnotationEngine()
+
     # Initialize road and home DefectDetectionService instances
+    # When running in Gemini mode (default), YOLO remains strictly lazy/unloaded
+    # to protect Render Free tier's 512MB RAM budget by not importing/loading PyTorch weights.
     if test_config and "detector" in test_config:
         app.detector = test_config["detector"]
     else:
+<<<<<<< HEAD
         app.detector = detector or DefectDetectionService(domain="road", lazy=True)
+=======
+        is_test = bool(test_config and test_config.get("TESTING"))
+        lazy_road = True if (is_test or app.ai_provider == "gemini") else (os.environ.get("VISIONGUARD_LAZY_MODEL", "0") == "1")
+        app.detector = detector or DefectDetectionService(domain="road", lazy=lazy_road)
+>>>>>>> cfc1ca63437b8bef5fe70d8179369a9add77ec91
 
     app.road_detector = app.detector
 
@@ -293,11 +402,64 @@ def create_app(
         if not user_id:
             return None
         current_db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
-        user = get_user_by_id(user_id, db_path=current_db_path)
-        if not user or not user.get("is_active"):
-            session.clear()
+        try:
+            user = get_user_by_id(user_id, db_path=current_db_path)
+            if not user or not user.get("is_active"):
+                session.clear()
+                return None
+            return user
+        except Exception as exc:
+            logger.error("Database lookup failed for user_id=%s: %s", user_id, exc)
             return None
-        return user
+
+    def check_citizen_inspection_access(record: dict, curr_user: dict, db_path: str = DEFAULT_DB_PATH) -> bool:
+        """
+        Securely checks if a citizen user owns and is authorized to access an inspection record.
+        1. Authoritative check: Stable authenticated user ID (created_by_user_id == curr_user['id']).
+        2. Strict isolation: If record has a created_by_user_id pointing to another existing user, access is DENIED.
+        3. Historical fallback: If created_by_user_id is None or an orphaned non-existent ID,
+           and record['created_by_username'] matches curr_user['username'], access is granted and
+           the record's created_by_user_id is auto-healed in the database.
+        """
+        if not curr_user:
+            return False
+        if curr_user.get("role") != ROLE_CITIZEN:
+            return True
+
+        created_by_id = record.get("created_by_user_id")
+        created_by_name = record.get("created_by_username")
+        u_id = curr_user.get("id")
+        u_name = curr_user.get("username")
+
+        # 1. Authoritative match by stable authenticated user ID
+        if created_by_id is not None and u_id is not None and int(created_by_id) == int(u_id):
+            return True
+
+        # 2. Strict isolation: if record is bound to another user ID, verify if that user exists in DB
+        if created_by_id is not None and u_id is not None and int(created_by_id) != int(u_id):
+            owner_user = get_user_by_id(int(created_by_id), db_path=db_path)
+            if owner_user:
+                return False
+
+        # 3. Safe historical fallback: created_by_user_id is NULL or orphaned
+        if created_by_name and u_name and str(created_by_name).lower() == str(u_name).lower():
+            # Auto-heal: backfill created_by_user_id in DB to make future queries strictly ID-based
+            if u_id is not None and record.get("id"):
+                try:
+                    conn = get_db_connection(db_path)
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        "UPDATE defect_inspections SET created_by_user_id = ? WHERE id = ?;",
+                        (u_id, record["id"])
+                    )
+                    conn.commit()
+                    conn.close()
+                    record["created_by_user_id"] = u_id
+                except Exception as e:
+                    logger.warning(f"Failed to auto-heal historical inspection #{record.get('id')} owner ID: {e}")
+            return True
+
+        return False
 
     def check_citizen_inspection_access(record: dict, curr_user: dict, db_path: str = DEFAULT_DB_PATH) -> bool:
         """
@@ -404,7 +566,7 @@ def create_app(
         if request.path in exempt_paths:
             return None
 
-        client_token = request.headers.get("X-CSRF-Token")
+        client_token = request.headers.get("X-CSRF-Token") or request.headers.get("X-CSRFToken")
         if not client_token:
             if request.is_json and isinstance(request.json, dict):
                 client_token = request.json.get("csrf_token")
@@ -522,11 +684,19 @@ def create_app(
             msg = error.description or msg
         logger.exception("Unhandled exception on %s %s: %s", request.method, request.path, error)
         if request.path.startswith("/api/"):
+<<<<<<< HEAD
+=======
+            error_desc = str(error) if str(error) else msg
+>>>>>>> cfc1ca63437b8bef5fe70d8179369a9add77ec91
             return (
                 jsonify({
                     "status": "error",
                     "error_code": "INTERNAL_SERVER_ERROR" if code == 500 else "HTTP_ERROR",
+<<<<<<< HEAD
                     "message": msg,
+=======
+                    "message": f"Server error: {error_desc}" if code == 500 else msg,
+>>>>>>> cfc1ca63437b8bef5fe70d8179369a9add77ec91
                 }),
                 code,
             )
@@ -537,7 +707,54 @@ def create_app(
     # -------------------------------------------------------------------------
     @app.route("/", methods=["GET"])
     def index():
-        """Serves the main inspection dashboard and upload interface."""
+        """Serves the landing page by default, or classic SPA if requested/testing."""
+        if request.args.get("legacy") or request.args.get("app") or request.args.get("classic"):
+            return render_template("index.html", csrf_token=get_or_create_csrf_token())
+        # In automated test mode, serve index.html if testing legacy citizen report HTML contract
+        if app.config.get("TESTING") and not request.args.get("frontend"):
+            return render_template("index.html", csrf_token=get_or_create_csrf_token())
+        return render_template("landing.html", csrf_token=get_or_create_csrf_token())
+
+    @app.route("/landing", methods=["GET"])
+    def page_landing():
+        """Serves the public landing overview page."""
+        return render_template("landing.html", csrf_token=get_or_create_csrf_token())
+
+    @app.route("/login", methods=["GET"])
+    def page_login():
+        """Serves the authentication and citizen registration page."""
+        return render_template("login.html", csrf_token=get_or_create_csrf_token())
+
+    @app.route("/create_home", methods=["GET"])
+    @app.route("/create", methods=["GET"])
+    @app.route("/inspect", methods=["GET"])
+    def page_create_home():
+        """Serves the defect ingestion and inspection studio page."""
+        return render_template("create_home.html", csrf_token=get_or_create_csrf_token())
+
+    @app.route("/map", methods=["GET"])
+    def page_map():
+        """Serves the interactive geospatial defect map."""
+        return render_template("map.html", csrf_token=get_or_create_csrf_token())
+
+    @app.route("/report", methods=["GET"])
+    @app.route("/reports", methods=["GET"])
+    @app.route("/records", methods=["GET"])
+    def page_report():
+        """Serves the inspection records and reporting table."""
+        return render_template("report.html", csrf_token=get_or_create_csrf_token())
+
+    @app.route("/app", methods=["GET"])
+    @app.route("/classic", methods=["GET"])
+    def page_classic_app():
+        """Serves the classic authority operations dashboard (SPA)."""
+        if is_auth_enforced():
+            curr_user = get_current_user_record()
+            if not curr_user:
+                return redirect("/login?return=/app")
+            if curr_user.get("role") == ROLE_CITIZEN:
+                # Citizens must not access internal administrative telemetry
+                return redirect("/report?restricted=1")
         return render_template("index.html", csrf_token=get_or_create_csrf_token())
 
     # -------------------------------------------------------------------------
@@ -1121,6 +1338,12 @@ def create_app(
                 "Set DATABASE_URL to connect persistent Neon PostgreSQL."
             )
         storage_type = "r2" if isinstance(getattr(app, "storage_backend", None), CloudflareR2StorageBackend) else "local"
+<<<<<<< HEAD
+=======
+        is_gemini = (getattr(app, "ai_provider", "gemini") == "gemini")
+        gemini_ready = bool(getattr(app, "gemini_service", None) and app.gemini_service.is_configured())
+
+>>>>>>> cfc1ca63437b8bef5fe70d8179369a9add77ec91
         return jsonify({
             "status": "healthy",
             "database": db_health,
@@ -1128,25 +1351,46 @@ def create_app(
                 "backend": storage_type,
                 "ready": True,
             },
+<<<<<<< HEAD
+=======
+            "ai_provider": getattr(app, "ai_provider", "gemini"),
+            "gemini": {
+                "configured": gemini_ready,
+                "model": getattr(app, "gemini_model", DEFAULT_GEMINI_MODEL),
+                "architecture": "VisionGuard Multimodal AI — Powered by Google Gemini Vision",
+            },
+>>>>>>> cfc1ca63437b8bef5fe70d8179369a9add77ec91
             "model": {
-                "loaded": app.detector.is_loaded,
-                "status_message": app.detector.status_message,
-                "checkpoint_path": app.detector.model_path,
-                "supported_classes": [CLASS_NAMES[i] for i in sorted(CLASS_NAMES.keys())],
+                "loaded": True if is_gemini and gemini_ready else app.detector.is_loaded,
+                "status_message": (
+                    f"Google Gemini Vision active ({app.gemini_service.model_name})"
+                    if is_gemini and gemini_ready
+                    else app.detector.status_message
+                ),
+                "checkpoint_path": "Google AI Studio API" if is_gemini else app.detector.model_path,
+                "supported_classes": list(ROAD_DEFECT_TYPES.keys()) if is_gemini else [CLASS_NAMES[i] for i in sorted(CLASS_NAMES.keys())],
             },
             "road_model": {
                 "domain": "road",
-                "loaded": app.detector.is_loaded,
-                "status_message": app.detector.status_message,
-                "checkpoint_path": app.detector.model_path,
-                "supported_classes": [ROAD_CLASS_NAMES[i] for i in sorted(ROAD_CLASS_NAMES.keys())],
+                "loaded": True if is_gemini and gemini_ready else app.detector.is_loaded,
+                "status_message": (
+                    f"Google Gemini Vision active ({app.gemini_service.model_name})"
+                    if is_gemini and gemini_ready
+                    else app.detector.status_message
+                ),
+                "checkpoint_path": "Google AI Studio API" if is_gemini else app.detector.model_path,
+                "supported_classes": list(ROAD_DEFECT_TYPES.keys()) if is_gemini else [ROAD_CLASS_NAMES[i] for i in sorted(ROAD_CLASS_NAMES.keys())],
             },
             "home_model": {
                 "domain": "home",
-                "loaded": app.home_detector.is_loaded,
-                "status_message": app.home_detector.status_message,
-                "checkpoint_path": app.home_detector.model_path,
-                "supported_classes": [HOME_CLASS_NAMES[i] for i in sorted(HOME_CLASS_NAMES.keys())],
+                "loaded": True if is_gemini and gemini_ready else app.home_detector.is_loaded,
+                "status_message": (
+                    f"Google Gemini Vision active ({app.gemini_service.model_name})"
+                    if is_gemini and gemini_ready
+                    else app.home_detector.status_message
+                ),
+                "checkpoint_path": "Google AI Studio API" if is_gemini else app.home_detector.model_path,
+                "supported_classes": list(BUILDING_DEFECT_TYPES.keys()) if is_gemini else [HOME_CLASS_NAMES[i] for i in sorted(HOME_CLASS_NAMES.keys())],
             },
             "limits": {
                 "max_file_size_mb": max_mb,
@@ -1279,7 +1523,11 @@ def create_app(
         """
         t_req_start = time.perf_counter()
 
+<<<<<<< HEAD
         acquired = INSPECTION_SEMAPHORE.acquire(blocking=True, timeout=20.0)
+=======
+        acquired = INSPECTION_SEMAPHORE.acquire(blocking=True, timeout=30.0)
+>>>>>>> cfc1ca63437b8bef5fe70d8179369a9add77ec91
         if not acquired:
             return (
                 jsonify({
@@ -1292,6 +1540,28 @@ def create_app(
 
         try:
             return _execute_inspection_internal(t_req_start)
+<<<<<<< HEAD
+=======
+        except HTTPException as http_exc:
+            return (
+                jsonify({
+                    "status": "error",
+                    "error_code": getattr(http_exc, "name", "HTTP_EXCEPTION").upper().replace(" ", "_"),
+                    "message": getattr(http_exc, "description", str(http_exc)),
+                }),
+                http_exc.code,
+            )
+        except Exception as unhandled_err:
+            logger.exception("Inspection internal pipeline failure: %s", unhandled_err)
+            return (
+                jsonify({
+                    "status": "error",
+                    "error_code": "INSPECTION_FAILED",
+                    "message": f"Inspection processing failed: {str(unhandled_err)}",
+                }),
+                500,
+            )
+>>>>>>> cfc1ca63437b8bef5fe70d8179369a9add77ec91
         finally:
             INSPECTION_SEMAPHORE.release()
             gc.collect()
@@ -1352,9 +1622,219 @@ def create_app(
                 400,
             )
 
+        # 4. Decode image stream with OpenCV
+        t_dec_start = time.perf_counter()
+        file_stream.seek(0)
+        cv_img = load_image_as_opencv(file_stream)
+        t_dec_ms = (time.perf_counter() - t_dec_start) * 1000
+        if cv_img is None:
+            return (
+                jsonify({
+                    "status": "error",
+                    "error_code": "IMAGE_DECODE_FAILED",
+                    "message": "OpenCV failed to decode image into an array. File may be corrupted.",
+                }),
+                400,
+            )
+
+        # Resolution safety guard: prevents massive memory spikes and Gunicorn timeout on Render Free
+        t_prep_start = time.perf_counter()
+        h, w = cv_img.shape[:2]
+        max_dim = max(h, w)
+        if max_dim > 1280:
+            scale = 1280.0 / max_dim
+            new_w = int(round(w * scale))
+            new_h = int(round(h * scale))
+            cv_img = cv2.resize(cv_img, (new_w, new_h), interpolation=cv2.INTER_AREA)
+            logger.info("Resized high-res image from %dx%d to %dx%d for 512MB RAM budget", w, h, new_w, new_h)
+
+        conf_param = (
+            request.form.get("confidence_threshold")
+            or request.form.get("confidence")
+            or "0.25"
+        )
+        try:
+            conf_thresh = float(conf_param)
+            conf_thresh = max(0.05, min(0.95, conf_thresh))
+        except ValueError:
+            conf_thresh = 0.25
+
+        inspection_mode = request.form.get("inspection_mode", "standard").lower().strip()
+        if inspection_mode not in ["standard", "tiled", "sliced"]:
+            inspection_mode = "standard"
+        t_prep_ms = (time.perf_counter() - t_prep_start) * 1000
+
+        # Hash image raw bytes for deduplication and instant caching (active in non-testing environments)
+        img_hash = hashlib.sha256(raw_bytes).hexdigest()
+        provider_name = getattr(app, "ai_provider", "gemini")
+        cache_key = (img_hash, domain, inspection_mode, round(conf_thresh, 2), provider_name)
+        if not app.config.get("TESTING"):
+            with INSPECTION_CACHE_LOCK:
+                if cache_key in INSPECTION_LRU_CACHE:
+                    cached_res = copy.deepcopy(INSPECTION_LRU_CACHE[cache_key])
+                    INSPECTION_LRU_CACHE.move_to_end(cache_key)
+                    cached_res["cached"] = True
+                    cached_res["timings"]["total_ms"] = round((time.perf_counter() - t_req_start) * 1000, 1)
+                    logger.info(
+                        "Serving cached inspection for '%s' [%s] in %.1fms (provider=%s, domain=%s)",
+                        filename, img_hash[:10], cached_res["timings"]["total_ms"], provider_name, domain
+                    )
+                    return jsonify(cached_res), 200
+
+        # -------------------------------------------------------------------------
+        # Branch A: Google Gemini Multimodal Vision (Primary Engine)
+        # -------------------------------------------------------------------------
+        if provider_name == "gemini":
+            gemini_svc = getattr(app, "gemini_service", None)
+            if not gemini_svc or not gemini_svc.is_configured():
+                return (
+                    jsonify({
+                        "status": "error",
+                        "error_code": "GEMINI_NOT_CONFIGURED",
+                        "domain": domain,
+                        "message": (
+                            "Google Gemini Vision API key is not configured on the server. "
+                            "Please set the GEMINI_API_KEY environment variable in your .env file "
+                            "or deployment environment settings."
+                        ),
+                        "setup_instructions": (
+                            "1. Obtain a free Gemini API key at https://aistudio.google.com/\n"
+                            "2. Set GEMINI_API_KEY=your_key in .env or Render environment settings.\n"
+                            "3. Restart the VisionGuard AI server."
+                        ),
+                        "metadata": metadata,
+                    }),
+                    400,
+                )
+
+            # Re-encode resized image to JPEG buffer for fast upload
+            success, prep_buffer = cv2.imencode(".jpg", cv_img, [cv2.IMWRITE_JPEG_QUALITY, 85])
+            gemini_payload_bytes = prep_buffer.tobytes() if success else raw_bytes
+
+            t_inf_start = time.perf_counter()
+            gemini_result = gemini_svc.analyze_image(gemini_payload_bytes, domain=domain)
+            t_inf_ms = (time.perf_counter() - t_inf_start) * 1000
+
+            if gemini_result.get("status") == "error":
+                err_code = gemini_result.get("error_code", "GEMINI_ERROR")
+                http_status = 429 if err_code == "QUOTA_EXHAUSTED" else (401 if err_code == "INVALID_API_KEY" else 500)
+                return jsonify(gemini_result), http_status
+
+            defects = gemini_result.get("defects", [])
+
+            # Generate OpenCV Visual Annotations
+            t_post_start = time.perf_counter()
+            try:
+                annotator = getattr(app, "annotation_engine", None)
+                if annotator is not None:
+                    annotated_bgr = annotator.annotate_image(cv_img, defects, domain=domain)
+                else:
+                    annotated_bgr = cv_img.copy()
+            except Exception as e_draw:
+                logger.warning("Failed to render visual annotations: %s", e_draw)
+                annotated_bgr = cv_img.copy()
+
+            annotated_b64 = ""
+            annotated_jpeg_bytes = None
+            if annotated_bgr is not None and cv2 is not None:
+                try:
+                    success, buffer = cv2.imencode(".jpg", annotated_bgr, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                    if success:
+                        annotated_jpeg_bytes = buffer.tobytes()
+                        annotated_b64 = f"data:image/jpeg;base64,{base64.b64encode(annotated_jpeg_bytes).decode('ascii')}"
+                except Exception as e_enc:
+                    logger.warning("Failed to encode annotated image: %s", e_enc)
+            t_post_ms = (time.perf_counter() - t_post_start) * 1000
+
+            # Image persistence via configured storage backend
+            t_stor_start = time.perf_counter()
+            orig_filename = f"orig_{uuid.uuid4().hex[:8]}_{filename}"
+            orig_key = f"uploads/{orig_filename}"
+            orig_path = None
+            storage = getattr(app, "storage_backend", None)
+            if storage is not None:
+                try:
+                    orig_path = storage.save(orig_key, raw_bytes, content_type="image/jpeg")
+                except Exception as e:
+                    logger.warning("Failed to persist original image: %s", e)
+
+            saved_filename = f"annotated_{uuid.uuid4().hex[:8]}_{filename}"
+            saved_key = f"processed/{saved_filename}"
+            saved_path = None
+            if storage is not None and annotated_jpeg_bytes is not None:
+                try:
+                    saved_path = storage.save(saved_key, annotated_jpeg_bytes, content_type="image/jpeg")
+                except Exception as e:
+                    logger.warning("Failed to persist annotated image: %s", e)
+            t_stor_ms = (time.perf_counter() - t_stor_start) * 1000
+
+            t_total_ms = (time.perf_counter() - t_req_start) * 1000
+            logger.info(
+                "Gemini inspection complete for '%s' in %.1fms [val=%.1fms, dec=%.1fms, inf=%.1fms, post=%.1fms, stor=%.1fms] (domain=%s, defects=%d)",
+                filename, t_total_ms, t_val_ms, t_dec_ms, t_inf_ms, t_post_ms, t_stor_ms, domain, len(defects)
+            )
+
+            disclaimer = gemini_result.get("disclaimer") or (
+                "VisionGuard Multimodal AI — Preliminary visual assessment generated by Google Gemini Vision. "
+                "This assessment does not constitute a certified structural engineering inspection."
+            )
+
+            response_payload = {
+                "status": "success",
+                "domain": domain,
+                "inspection_type": domain,
+                "filename": filename,
+                "metadata": metadata,
+                "ai_provider": "google_gemini",
+                "model_info": {
+                    "provider": "Google Gemini Vision",
+                    "model": gemini_svc.model_name,
+                    "architecture": "VisionGuard Multimodal AI — Powered by Google Gemini Vision",
+                },
+                "inspection_mode": inspection_mode,
+                "confidence_threshold": conf_thresh,
+                "defect_count": len(defects),
+                "detections": defects,
+                "defects": defects,
+                "summary": gemini_result.get("summary", ""),
+                "preliminary_severity": gemini_result.get("preliminary_severity", "uncertain"),
+                "requires_human_review": True,
+                "safety_precautions": gemini_result.get("safety_precautions", []),
+                "annotated_image": annotated_b64,
+                "original_file_path": orig_path,
+                "processed_file_path": saved_path,
+                "timings": {
+                    "validation_ms": round(t_val_ms, 1),
+                    "decode_ms": round(t_dec_ms, 1),
+                    "preprocessing_ms": round(t_prep_ms, 1),
+                    "model_load_ms": 0.0,
+                    "inference_ms": round(t_inf_ms, 1),
+                    "forward_pass_ms": round(t_inf_ms, 1),
+                    "slicing_ms": 0.0,
+                    "slice_count": 1,
+                    "postprocessing_ms": round(t_post_ms, 1),
+                    "storage_ms": round(t_stor_ms, 1),
+                    "total_ms": round(t_total_ms, 1),
+                },
+                "disclaimer": disclaimer,
+                "safety_disclaimer": disclaimer,
+            }
+
+            safe_payload = make_json_safe(response_payload)
+            if not app.config.get("TESTING"):
+                with INSPECTION_CACHE_LOCK:
+                    if len(INSPECTION_LRU_CACHE) >= MAX_INSPECTION_CACHE_SIZE:
+                        INSPECTION_LRU_CACHE.popitem(last=False)
+                    INSPECTION_LRU_CACHE[cache_key] = copy.deepcopy(safe_payload)
+
+            return jsonify(safe_payload), 200
+
+        # -------------------------------------------------------------------------
+        # Branch B: Archived YOLOv8 Checkpoint Fallback (AI_PROVIDER=yolo)
+        # -------------------------------------------------------------------------
         active_detector = app.home_detector if domain == "home" else app.detector
 
-        # 4. Verify model checkpoint readiness
+        # Verify model checkpoint readiness
         if not active_detector.is_loaded:
             setup_instructions = (
                 "1. Download 'home_best.pt' from your Google Drive ('VisionGuard_Artifacts/home_best.pt') "
@@ -1382,6 +1862,7 @@ def create_app(
                 503,
             )
 
+<<<<<<< HEAD
         # 5. Decode with OpenCV
         t_dec_start = time.perf_counter()
         file_stream.seek(0)
@@ -1427,6 +1908,11 @@ def create_app(
         # 6. Execute genuine detection (serialized under lock to prevent peak memory stacking)
         t_inf_start = time.perf_counter()
         try:
+=======
+        # Execute genuine YOLO detection (serialized under lock to prevent peak memory stacking)
+        t_inf_start = time.perf_counter()
+        try:
+>>>>>>> cfc1ca63437b8bef5fe70d8179369a9add77ec91
             with INFERENCE_LOCK:
                 if inspection_mode in ["tiled", "sliced"] and hasattr(active_detector, "detect_sliced"):
                     detections = active_detector.detect_sliced(
@@ -1452,6 +1938,7 @@ def create_app(
             )
         t_inf_ms = (time.perf_counter() - t_inf_start) * 1000
 
+<<<<<<< HEAD
         # 7. Generate genuine visual overlay
         t_post_start = time.perf_counter()
         annotated_bgr = active_detector.draw_annotations(cv_img, detections)
@@ -1476,11 +1963,60 @@ def create_app(
         except Exception as e:
             logger.warning(f"Failed to persist annotated image: {e}")
             saved_path = None
+=======
+        # Generate genuine visual overlay and single-pass JPEG encoding
+        t_post_start = time.perf_counter()
+        try:
+            annotated_bgr = active_detector.draw_annotations(cv_img, detections, domain=domain)
+        except Exception as e_draw:
+            logger.warning(f"Failed to draw visual annotations: {e_draw}")
+            annotated_bgr = cv_img.copy() if cv_img is not None else None
+
+        annotated_b64 = ""
+        annotated_jpeg_bytes = None
+        if annotated_bgr is not None and cv2 is not None:
+            try:
+                success, buffer = cv2.imencode(".jpg", annotated_bgr, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                if success:
+                    annotated_jpeg_bytes = buffer.tobytes()
+                    annotated_b64 = f"data:image/jpeg;base64,{base64.b64encode(annotated_jpeg_bytes).decode('ascii')}"
+            except Exception as e_enc:
+                logger.warning(f"Failed to encode annotated image to base64: {e_enc}")
+                annotated_b64 = ""
+        t_post_ms = (time.perf_counter() - t_post_start) * 1000
+
+        # Persist images via configured storage backend
+        t_stor_start = time.perf_counter()
+        orig_filename = f"orig_{uuid.uuid4().hex[:8]}_{filename}"
+        orig_key = f"uploads/{orig_filename}"
+        orig_path = None
+        storage = getattr(app, "storage_backend", None)
+        if storage is not None:
+            try:
+                orig_path = storage.save(orig_key, raw_bytes, content_type="image/jpeg")
+            except Exception as e:
+                logger.warning(f"Failed to persist original image: {e}")
+                orig_path = None
+
+        saved_filename = f"annotated_{uuid.uuid4().hex[:8]}_{filename}"
+        saved_key = f"processed/{saved_filename}"
+        saved_path = None
+        if storage is not None and annotated_jpeg_bytes is not None:
+            try:
+                saved_path = storage.save(saved_key, annotated_jpeg_bytes, content_type="image/jpeg")
+            except Exception as e:
+                logger.warning(f"Failed to persist annotated image: {e}")
+                saved_path = None
+>>>>>>> cfc1ca63437b8bef5fe70d8179369a9add77ec91
         t_stor_ms = (time.perf_counter() - t_stor_start) * 1000
 
         t_total_ms = (time.perf_counter() - t_req_start) * 1000
         logger.info(
+<<<<<<< HEAD
             "Inspection complete for '%s' in %.1fms [val=%.1fms, dec=%.1fms, prep=%.1fms, inf=%.1fms, post=%.1fms, stor=%.1fms] (domain=%s, mode=%s, detections=%d, RSS=%.1f MB / 512MB limit)",
+=======
+            "YOLO inspection complete for '%s' in %.1fms [val=%.1fms, dec=%.1fms, prep=%.1fms, inf=%.1fms, post=%.1fms, stor=%.1fms] (domain=%s, mode=%s, detections=%d, RSS=%.1f MB / 512MB limit)",
+>>>>>>> cfc1ca63437b8bef5fe70d8179369a9add77ec91
             filename,
             t_total_ms,
             t_val_ms,
@@ -1503,16 +2039,39 @@ def create_app(
             "not physical crack severity, cavity depth, or roadway structural safety."
         )
 
-        return jsonify({
+        raw_stats = getattr(active_detector, "last_inference_stats", None)
+        candidate_summary = raw_stats if isinstance(raw_stats, dict) else {}
+        timings_obj = candidate_summary.get("timings")
+        timings_dict = timings_obj if isinstance(timings_obj, dict) else {}
+
+        def _safe_float(v, default=0.0):
+            try:
+                return float(v) if v is not None else default
+            except (ValueError, TypeError):
+                return default
+
+        def _safe_int(v, default=1):
+            try:
+                return int(v) if v is not None else default
+            except (ValueError, TypeError):
+                return default
+
+        model_load_ms = _safe_float(timings_dict.get("model_load_ms"), 0.0)
+        forward_pass_ms = _safe_float(timings_dict.get("forward_pass_ms"), t_inf_ms)
+        slicing_ms = _safe_float(timings_dict.get("slicing_ms"), 0.0)
+        slice_count = _safe_int(timings_dict.get("slice_count"), 1)
+
+        response_payload = {
             "status": "success",
             "domain": domain,
             "inspection_type": domain,
             "filename": filename,
             "metadata": metadata,
-            "model_info": active_detector.model_info,
+            "ai_provider": "yolo",
+            "model_info": getattr(active_detector, "model_info", {}),
             "inspection_mode": inspection_mode,
             "confidence_threshold": conf_thresh,
-            "candidate_summary": getattr(active_detector, "last_inference_stats", {}),
+            "candidate_summary": candidate_summary,
             "detections": detections,
             "defect_count": len(detections),
             "annotated_image": annotated_b64,
@@ -1522,19 +2081,35 @@ def create_app(
                 "validation_ms": round(t_val_ms, 1),
                 "decode_ms": round(t_dec_ms, 1),
                 "preprocessing_ms": round(t_prep_ms, 1),
+<<<<<<< HEAD
                 "model_load_ms": round(getattr(active_detector, "last_inference_stats", {}).get("timings", {}).get("model_load_ms", 0.0), 1),
                 "inference_ms": round(t_inf_ms, 1),
                 "forward_pass_ms": round(getattr(active_detector, "last_inference_stats", {}).get("timings", {}).get("forward_pass_ms", t_inf_ms), 1),
                 "slicing_ms": round(getattr(active_detector, "last_inference_stats", {}).get("timings", {}).get("slicing_ms", 0.0), 1),
                 "slice_count": int(getattr(active_detector, "last_inference_stats", {}).get("timings", {}).get("slice_count", 1)),
+=======
+                "model_load_ms": round(model_load_ms, 1),
+                "inference_ms": round(t_inf_ms, 1),
+                "forward_pass_ms": round(forward_pass_ms, 1),
+                "slicing_ms": round(slicing_ms, 1),
+                "slice_count": slice_count,
+>>>>>>> cfc1ca63437b8bef5fe70d8179369a9add77ec91
                 "postprocessing_ms": round(t_post_ms, 1),
                 "storage_ms": round(t_stor_ms, 1),
                 "total_ms": round(t_total_ms, 1),
             },
             "disclaimer": disclaimer,
             "safety_disclaimer": disclaimer,
-        }), 200
+        }
 
+        safe_payload = make_json_safe(response_payload)
+        if not app.config.get("TESTING"):
+            with INSPECTION_CACHE_LOCK:
+                if len(INSPECTION_LRU_CACHE) >= MAX_INSPECTION_CACHE_SIZE:
+                    INSPECTION_LRU_CACHE.popitem(last=False)
+                INSPECTION_LRU_CACHE[cache_key] = copy.deepcopy(safe_payload)
+
+        return jsonify(safe_payload), 200
     # -------------------------------------------------------------------------
     # Inspection Records API Routes
     # -------------------------------------------------------------------------
@@ -1605,6 +2180,7 @@ def create_app(
         my_reports = request.args.get("my_reports") or request.args.get("created_by_me")
         created_by_filter = None
         created_by_username_filter = None
+<<<<<<< HEAD
         if my_reports and my_reports.lower() in ["1", "true", "yes"] and curr_user:
             created_by_filter = curr_user["id"]
             created_by_username_filter = curr_user.get("username")
@@ -1618,6 +2194,23 @@ def create_app(
                 # By default, citizens viewing their personal records list see only their own reports
                 created_by_filter = curr_user["id"]
                 created_by_username_filter = curr_user.get("username")
+=======
+        is_map_query = bool(has_coords or request.args.get("all_civic") in ["1", "true", "yes"])
+
+        if curr_user and curr_user.get("role") == ROLE_CITIZEN:
+            # Citizens can only view civic geotagged pins for the map, or their own personal reports
+            if is_map_query:
+                # Defect Map exploration: allow geotagged records, but sanitize non-owned rows below
+                created_by_filter = None
+                created_by_username_filter = None
+            else:
+                # On all list/table/record views, citizen is strictly locked to their own reports
+                created_by_filter = curr_user["id"]
+                created_by_username_filter = curr_user.get("username")
+        elif my_reports and my_reports.lower() in ["1", "true", "yes"] and curr_user:
+            created_by_filter = curr_user["id"]
+            created_by_username_filter = curr_user.get("username")
+>>>>>>> cfc1ca63437b8bef5fe70d8179369a9add77ec91
         elif request.args.get("created_by_user_id"):
             try:
                 created_by_filter = int(request.args.get("created_by_user_id"))
@@ -1661,6 +2254,22 @@ def create_app(
         for r in inspections:
             r["original_image_url"] = f"/api/inspections/{r['id']}/image/original"
             r["annotated_image_url"] = f"/api/inspections/{r['id']}/image/annotated"
+<<<<<<< HEAD
+=======
+            # Privacy Guardrail: If citizen is viewing public map data, strip private citizen and internal dispatch data
+            if curr_user and curr_user.get("role") == ROLE_CITIZEN:
+                is_owner = check_citizen_inspection_access(r, curr_user, db_path=db_path)
+                if not is_owner:
+                    r["created_by_user_id"] = None
+                    r["created_by_username"] = "Citizen Report"
+                    r["assigned_to_user_id"] = None
+                    r["assigned_to_username"] = "Operations Team" if r.get("assigned_to_username") else None
+                    r["assigned_by_user_id"] = None
+                    r["assigned_by_username"] = None
+                    r["assignment_instructions"] = ""
+                    r["assignments"] = []
+                    r["notes"] = ""
+>>>>>>> cfc1ca63437b8bef5fe70d8179369a9add77ec91
 
         resp_data = {
             "status": "success",

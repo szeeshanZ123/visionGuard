@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # VisionGuard AI — System Architecture & Technical Specification
 
 > **Document Classification:** Comprehensive System Architecture & Engineering Baseline  
@@ -8,6 +9,19 @@
 > **Frontend:** Semantic HTML5, Vanilla CSS3, Vanilla ES6+ JavaScript, Leaflet.js  
 > **Deep Learning Core:** Ultralytics YOLOv8 (PyTorch CPU/CUDA, OpenCV, Pillow)  
 > **Persistence & Storage:** Dual SQLite / Neon PostgreSQL & Local / Cloudflare R2 S3  
+=======
+# VisionGuard AI 2.0 -- System Architecture & Technical Specification
+
+> **Document Classification:** Comprehensive System Architecture & Engineering Baseline  
+> **Document Name:** project_architecture.md  
+> **Repository Location:** Project Root (/project_architecture.md)  
+> **Platform Version:** VisionGuard AI 2.0 (Gemini-Powered Multimodal Platform)  
+> **Primary Runtime:** Python 3.11+ / Python 3.14 (WSGI Gunicorn / Waitress, Flask 3.1+)  
+> **AI Vision Core:** Google Gemini Multimodal Vision (gemini-2.5-flash, official google-genai SDK)  
+> **Annotation Engine:** OpenCV (cv2) Visual Overlay Engine (Non-destructive)  
+> **Frontend:** Responsive HTML5, Tailwind CSS, Vanilla ES6+ JavaScript, Leaflet.js  
+> **Persistence & Storage:** Dual SQLite / Neon PostgreSQL & Local Disk / Cloudflare R2  
+>>>>>>> cfc1ca63437b8bef5fe70d8179369a9add77ec91
 
 ---
 

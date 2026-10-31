@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="csrf-token" content="{{ csrf_token or '' }}">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <meta content="web_standard" name="shell-type" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap"
+        rel="stylesheet" />
+    <style>
+        @layer base {
+
+            html,
+            body {
+                margin: 0;
+                padding: 0;
+                font-family: 'Inter', sans-serif;
+            }
+
+            body {
+                overscroll-behavior: none;
+            }
+        }
+
+        ::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+</head>
+
+<body class="bg-slate-50 font-sans text-slate-800 antialiased min-h-screen flex flex-col">
+    <!-- Top Global Header (Strict Light Theme) -->
+    <header class="sticky top-0 w-full z-50 bg-white border-b border-slate-200 shadow-sm transition-all">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-wrap lg:flex-nowrap items-center justify-between gap-3 sm:gap-4 py-3 sm:py-3.5">
+                <!-- Logo & Branding -->
+                <a href="/" class="flex items-center gap-3 shrink-0 hover:opacity-95 transition-opacity">
+                    <div
+                        class="flex items-center justify-center w-10 h-10 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 shadow-sm">
+                        <span class="material-symbols-outlined text-[24px]">shield</span>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="font-bold text-base sm:text-lg text-slate-900 tracking-tight">VisionGuard
+                                AI</span>
+                            <span
+                                class="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">CIVIL</span>
+                        </div>
+                        <p class="text-xs text-slate-500 font-medium">Infrastructure Inspection</p>
+                    </div>
+                </a>
+                <!-- Global Search Bar (Responsive & Fluid) -->
+                <div class="order-3 lg:order-2 w-full lg:max-w-md xl:max-w-lg">
+                    <div class="relative flex items-center w-full">
+                        <span
+                            class="material-symbols-outlined absolute left-3.5 text-[18px] text-slate-400 pointer-events-none">search</span>
+                        <input
+                            class="w-full h-10 pl-10 pr-4 bg-slate-50 hover:bg-slate-100/80 focus:bg-white text-slate-900 placeholder-slate-400 border border-slate-200 focus:border-blue-500 rounded-full text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all shadow-none"
+                            placeholder="Search inspection IDs, asset tags, road segments..." type="search" />
+                    </div>
+                </div>
+                <!-- Right Side Actions & Profile -->
+                <div class="order-2 lg:order-3 flex items-center gap-2 sm:gap-3 shrink-0 ml-auto lg:ml-0">
+                    <a href="/create_home"
+                        class="inline-flex items-center gap-1.5 px-3.5 sm:px-4 h-10 bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs sm:text-sm rounded-full shadow-sm shadow-blue-500/20 active:scale-[0.98] transition-all">
+                        <span class="material-symbols-outlined text-[18px]">add</span>
+                        <span class="font-semibold">+ New Report</span>
+                    </a>
+                    <button
+                        class="w-10 h-10 rounded-full bg-white hover:bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-colors"
+                        title="Help &amp; Documentation" type="button">
+                        <span class="material-symbols-outlined text-[20px]">help_outline</span>
+                    </button>
+                    <div class="flex items-center gap-2.5 pl-1 sm:pl-2 border-l border-slate-200">
+                        <div class="text-right hidden sm:block">
+                            <div id="report-username" class="text-xs font-semibold text-slate-900 leading-tight">Citizen Auditor</div>
+                            <div id="report-role" class="text-[11px] text-slate-500 leading-tight">Municipal Portal</div>
+                        </div>
+                        <a href="/login" id="report-user-avatar"
+                            class="w-9 h-9 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-700 shadow-sm font-semibold text-xs hover:bg-blue-200 transition-colors" title="Account Status">
+                            <span class="material-symbols-outlined text-[20px]">person</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Secondary Sub-Navigation Bar (Light Theme) -->
+        <div class="bg-white border-t border-slate-100 shadow-[inset_0_-1px_0_rgba(0,0,0,0.04)]">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-11 flex items-center justify-between overflow-x-auto">
+                <nav class="flex items-center gap-4 sm:gap-6 shrink-0 py-1"
+                    data-active-classes="text-blue-600 font-semibold border-b-2 border-blue-600">
+                    <a aria-current="page"
+                        class="text-blue-600 font-semibold text-xs sm:text-sm border-b-2 border-blue-600 pb-1.5 pt-1 -mb-[3px] transition-colors flex items-center gap-1.5"
+                        href="/report">
+                        <span class="material-symbols-outlined text-[17px]">inventory_2</span>
+                        <span>Inspection Records</span>
+                    </a>
+                    <span class="text-slate-200 text-xs">/</span>
+                    <a class="text-slate-500 hover:text-slate-900 font-medium text-xs sm:text-sm pb-1.5 pt-1 transition-colors flex items-center gap-1.5"
+                        href="/map">
+                        <span class="material-symbols-outlined text-[17px]">map</span>
+                        <span>Defect Map</span>
+                    </a>
+                    <span class="text-slate-200 text-xs">/</span>
+                    <a class="text-slate-500 hover:text-slate-900 font-medium text-xs sm:text-sm pb-1.5 pt-1 transition-colors flex items-center gap-1.5"
+                        href="/create_home">
+                        <span class="material-symbols-outlined text-[17px]">sensors</span>
+                        <span>New Inspection</span>
+                    </a>
+                </nav>
+                <div class="hidden sm:flex items-center gap-2 pl-4 shrink-0">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span class="text-[11px] font-semibold text-slate-600 tracking-wide uppercase">Node Active • Live
+                        Sync</span>
+                </div>
+            </div>
+        </div>
+    </header>
+    <!-- Main Content Area -->
+    <main class="flex-1 w-full bg-slate-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
+            <!-- 1. Breadcrumb -->
+            <nav aria-label="Breadcrumb" class="flex items-center text-xs font-medium text-slate-500 space-x-2">
+                <a class="hover:text-blue-600 transition-colors flex items-center gap-1" href="/">
+                    <span class="material-symbols-outlined text-[16px]">home</span>
+                    <span>Home</span>
+                </a>
+                <span class="text-slate-300">/</span>
+                <span aria-current="page" class="text-slate-900 font-semibold">My Reports / Inspection Records</span>
+            </nav>
+            <!-- 2. Page Introduction & Actions -->
+            <header class="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-1">
+                <div class="space-y-1">
+                    <h1 class="text-2xl sm:text-[28px] font-bold tracking-tight text-slate-900 leading-snug">
+                        Inspection Records <span class="text-blue-600">&amp; Work Orders</span>
+                    </h1>
+                    <p class="text-xs sm:text-sm text-slate-500 font-normal">
+                        Historical registry of structural inspections and persisted work orders.
+                    </p>
+                </div>
+                <!-- Right-side actions -->
+                <div class="flex items-center gap-2.5 shrink-0">
+                    <button
+                        class="inline-flex items-center justify-center gap-2 px-4 min-h-[42px] text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 rounded-full shadow-sm transition-all active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                        id="exportBtn" type="button">
+                        <span class="material-symbols-outlined text-[18px] text-slate-600">download</span>
+                        <span>Export CSV</span>
+                    </button>
+                    <button
+                        class="inline-flex items-center justify-center gap-1.5 px-4 min-h-[42px] text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 rounded-full shadow-sm transition-all active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                        id="refreshBtn" type="button">
+                        <span class="material-symbols-outlined text-[18px] text-slate-600"
+                            id="refreshIcon">refresh</span>
+                        <span id="refreshText">Refresh</span>
+                    </button>
+                </div>
+            </header>
+            <!-- 3. Section: Metric Summary -->
+            <section aria-labelledby="metric-heading" class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400" id="metric-heading">
+                        Metric Summary
+                    </h2>
+                    <span class="text-[11px] text-slate-500 font-medium flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        Live SQLite Telemetry
+                    </span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- Card 1: Total Inspections -->
+                    <div
+                        class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow transition-shadow flex flex-col justify-between">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Total
+                                Inspections</span>
+                            <span class="p-2 rounded-xl bg-blue-50 text-blue-600 border border-blue-100/60">
+                                <span class="material-symbols-outlined text-[20px]">layers</span>
+                            </span>
+                        </div>
+                        <div class="mt-4 flex items-baseline gap-2">
+                            <span id="metric-total-count" class="text-3xl font-extrabold text-slate-900 tracking-tight">14</span>
+                            <span class="text-xs text-slate-400 font-medium">records</span>
+                        </div>
+                        <div
+                            class="mt-3 pt-3 border-t border-slate-100 flex items-center gap-1.5 text-xs text-slate-600 font-medium">
+                            <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                            <span>Persisted in SQLite</span>
+                        </div>
+                    </div>
+                    <!-- Card 2: Open / Action Required -->
+                    <div
+                        class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow transition-shadow flex flex-col justify-between">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Open / Action
+                                Required</span>
+                            <span class="p-2 rounded-xl bg-amber-50 text-amber-600 border border-amber-100/60">
+                                <span class="material-symbols-outlined text-[20px]">warning</span>
+                            </span>
+                        </div>
+                        <div class="mt-4 flex items-baseline gap-2">
+                            <span id="metric-open-count" class="text-3xl font-extrabold text-slate-900 tracking-tight">3</span>
+                            <span
+                                class="text-xs text-amber-700 bg-amber-50 border border-amber-200/50 px-2 py-0.5 rounded-full font-medium">Critical
+                                focus</span>
+                        </div>
+                        <div class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                            <span class="text-slate-500 font-medium">Awaiting review</span>
+                            <span
+                                class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100/80 text-amber-800">
+                                Pending Dispatch
+                            </span>
+                        </div>
+                    </div>
+                    <!-- Card 3: Under Review / Repair -->
+                    <div
+                        class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow transition-shadow flex flex-col justify-between">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Under Review /
+                                Repair</span>
+                            <span class="p-2 rounded-xl bg-cyan-50 text-cyan-600 border border-cyan-100/60">
+                                <span class="material-symbols-outlined text-[20px]">engineering</span>
+                            </span>
+                        </div>
+                        <div class="mt-4 flex items-baseline gap-2">
+                            <span id="metric-review-count" class="text-3xl font-extrabold text-slate-900 tracking-tight">4</span>
+                            <span class="text-xs text-slate-400 font-medium">in-flight</span>
+                        </div>
+                        <div class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                            <span class="text-slate-500 font-medium">Work in progress</span>
+                            <span
+                                class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-100">
+                                Civil Team 04
+                            </span>
+                        </div>
+                    </div>
+                    <!-- Card 4: Resolved -->
+                    <div
+                        class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow transition-shadow flex flex-col justify-between">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Resolved</span>
+                            <span class="p-2 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100/60">
+                                <span class="material-symbols-outlined text-[20px]">task_alt</span>
+                            </span>
+                        </div>
+                        <div class="mt-4 flex items-baseline gap-2">
+                            <span id="metric-resolved-count" class="text-3xl font-extrabold text-slate-900 tracking-tight">7</span>
+                            <span
+                                class="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200/50 px-2 py-0.5 rounded-full font-medium">50.0%
+                                completion</span>
+                        </div>
+                        <div class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                            <span class="text-slate-500 font-medium">Workflow closed</span>
+                            <span
+                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100/80 text-emerald-800">
+                                <span class="material-symbols-outlined text-[13px]">verified</span>
+                                Audited
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <!-- 4. Section: Filter & Search Toolbar -->
+            <section aria-labelledby="filter-heading" class="space-y-3">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400" id="filter-heading">
+                    Filter &amp; Search Toolbar
+                </h2>
+                <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-sm">
+                    <form class="flex flex-col lg:flex-row items-stretch lg:items-center gap-3" id="filterForm">
+                        <!-- Search input -->
+                        <div class="relative flex-1 min-w-[240px]">
+                            <span
+                                class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[18px] text-slate-400 pointer-events-none">
+                                search
+                            </span>
+                            <input
+                                class="w-full h-[42px] pl-10 pr-4 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                                id="searchInput" placeholder="Search road, area, city..." type="text" />
+                        </div>
+                        <!-- Dropdown Selects -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:items-center gap-3">
+                            <!-- Target Domain dropdown -->
+                            <div class="relative">
+                                <select
+                                    class="w-full lg:w-48 h-[42px] pl-3.5 pr-8 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-700 font-medium appearance-none focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
+                                    id="domainSelect">
+                                    <option value="ALL">All Domains</option>
+                                    <option value="ROAD">Road &amp; Infrastructure</option>
+                                    <option value="BUILDING">Residential &amp; Building</option>
+                                </select>
+                                <span
+                                    class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-[18px] text-slate-400 pointer-events-none">
+                                    expand_more
+                                </span>
+                            </div>
+                            <!-- Status dropdown -->
+                            <div class="relative">
+                                <select
+                                    class="w-full lg:w-48 h-[42px] pl-3.5 pr-8 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-700 font-medium appearance-none focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
+                                    id="statusSelect">
+                                    <option value="ALL">All Statuses</option>
+                                    <option value="OPEN">Open / Action Required</option>
+                                    <option value="REVIEW">Under Review / Repair</option>
+                                    <option value="RESOLVED">Resolved</option>
+                                </select>
+                                <span
+                                    class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-[18px] text-slate-400 pointer-events-none">
+                                    expand_more
+                                </span>
+                            </div>
+                        </div>
+                        <!-- Reset Button -->
+                        <button
+                            class="h-[42px] px-4 inline-flex items-center justify-center gap-1.5 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-600 rounded-xl text-xs sm:text-sm font-semibold transition-all shrink-0 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                            id="resetBtn" type="button">
+                            <span class="material-symbols-outlined text-[16px]">restart_alt</span>
+                            <span>Reset</span>
+                        </button>
+                    </form>
+                </div>
+            </section>
+            <!-- 5. Section: Inspection Registry Table -->
+            <section aria-labelledby="registry-heading" class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400" id="registry-heading">
+                        Inspection Registry Table
+                    </h2>
+                    <span id="table-entry-count" class="text-xs text-slate-500 font-medium">Loading inspection registry...</span>
+                </div>
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                    <!-- Responsive horizontal scroll wrapper -->
+                    <div class="overflow-x-auto w-full">
+                        <table class="w-full text-left border-collapse min-w-[760px]" id="inspectionTable">
+                            <thead>
+                                <tr
+                                    class="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                                    <th class="py-3.5 px-4 lg:px-5" scope="col">Date &amp; Time</th>
+                                    <th class="py-3.5 px-4 lg:px-5" scope="col">Road / Location</th>
+                                    <th class="py-3.5 px-4 lg:px-5" scope="col">Distress Count</th>
+                                    <th class="py-3.5 px-4 lg:px-5" scope="col">Defect Category</th>
+                                    <th class="py-3.5 px-4 lg:px-5" scope="col">Mode</th>
+                                    <th class="py-3.5 px-4 lg:px-5 text-right" scope="col">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 text-xs sm:text-[13px] text-slate-700"
+                                id="tableBody">
+                                <!-- Row 1 -->
+                                <tr class="hover:bg-slate-50/80 transition-colors group" data-domain="ROAD"
+                                    data-status="OPEN" data-text="western express hwy pillar 42 mumbai">
+                                    <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap font-medium text-slate-800">
+                                        Oct 24, 2024 <span class="text-slate-400">•</span> 14:32
+                                    </td>
+                                    <td class="py-3.5 px-4 lg:px-5 font-semibold text-slate-900">
+                                        Western Express Hwy, Pillar 42, Mumbai
+                                        <span class="block text-[11px] font-normal text-slate-400">Chainage 14+200
+                                            Northbound</span>
+                                    </td>
+                                    <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap">
+                                        <span
+                                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-100">
+                                            5 defects
+                                        </span>
+                                    </td>
+                                    <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap">
+                                        <span
+                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200/50">
+                                            <span class="material-symbols-outlined text-[13px]">add_road</span>
+                                            Road Surface Distress
+                                        </span>
+                                    </td>
+                                    <td
+                                        class="py-3.5 px-4 lg:px-5 whitespace-nowrap text-slate-500 font-mono text-[11px]">
+                                        Tiled Slicing (1024px)
+                                    </td>
+                                    <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap text-right">
+                                        <span
+                                            class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
+                                            Open
+                                        </span>
+                                    </td>
+                                </tr>
+                                <!-- Row 2 -->
+                                <tr class="hover:bg-slate-50/80 transition-colors group" data-domain="BUILDING"
+                                    data-status="REVIEW" data-text="block b apt 302 exterior facade">
+                                    <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap font-medium text-slate-800">
+                                        Oct 24, 2024 <span class="text-slate-400">•</span> 11:15
+                                    </td>
+                                    <td class="py-3.5 px-4 lg:px-5 font-semibold text-slate-900">
+                                        Block B, Apt 302, Exterior facade
+                                        <span class="block text-[11px] font-normal text-slate-400">Greenwood Heights,
+                                            Sector 9</span>
+                                    </td>
+                                    <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap">
+                                        <span
+                                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-100">
+                                            3 defects
+                                        </span>
+                                    </td>
+                                    <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap">
+                                        <span
+                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-indigo-50 text-indigo-800 border border-indigo-200/50">
+                                            <span class="material-symbols-outlined text-[13px]">apartment</span>
+                                            Home &amp; Building
+                                        </span>
+                                    </td>
+                                    <td
+                                        class="py-3.5 px-4 lg:px-5 whitespace-nowrap text-slate-500 font-mono text-[11px]">
+                                        Standard (Fast)
+                                    </td>
+                                    <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap text-right">
+                                        <span
+                                            class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-800">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                                            Under Review
+                                        </span>
+                                    </td>
+                                </tr>
+                                <!-- Row 3 -->
+                                <tr class="hover:bg-slate-50/80 transition-colors group" data-domain="ROAD"
+                                    data-status="RESOLVED" data-text="ring road flyover span 4 new delhi">
+                                    <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap font-medium text-slate-800">
+                                        Oct 23, 2024 <span class="text-slate-400">•</span> 16:45
+                                    </td>
+                                    <td class="py-3.5 px-4 lg:px-5 font-semibold text-slate-900">
+                                        Ring Road Flyover, Span 4, New Delhi
+                                        <span class="block text-[11px] font-normal text-slate-400">Expansion joint
+                                            alignment</span>
+                                    </td>
+                                    <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap">
+                                        <span
+                                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                                            1 defect
+                                        </span>
+                                    </td>
+                                    <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap">
+                                        <span
+                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200/50">
+                                            <span class="material-symbols-outlined text-[13px]">add_road</span>
+                                            Road Surface Distress
+                                        </span>
+                                    </td>
+                                    <td
+                                        class="py-3.5 px-4 lg:px-5 whitespace-nowrap text-slate-500 font-mono text-[11px]">
+                                        Tiled Slicing (1024px)
+                                    </td>
+                                    <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap text-right">
+                                        <span
+                                            class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                                            Resolved
+                                        </span>
+                                    </td>
+                                </tr>
+                                <!-- Row 4 -->
+                                <tr class="hover:bg-slate-50/80 transition-colors group" data-domain="ROAD"
+                                    data-status="OPEN" data-text="sv road junction 14 bandra west">
+                                    <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap font-medium text-slate-800">
+                                        Oct 23, 2024 <span class="text-slate-400">•</span> 09:20
+                                    </td>
+                                    <td class="py-3.5 px-4 lg:px-5 font-semibold text-slate-900">
+                                        SV Road Junction 14, Bandra West
+                                        <span class="block text-[11px] font-normal text-slate-400">Subsurface alligator
+                                            cracking</span>
+                                    </td>
+                                    <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap">
+                                        <span
+                                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-100">
+                                            4 defects
+                                        </span>
+                                    </td>
+                                    <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap">
+                                        <span
+                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200/50">
+                                            <span class="material-symbols-outlined text-[13px]">add_road</span>
+                                            Road Surface Distress
+                                        </span>
+                                    </td>
+                                    <td
+                                        class="py-3.5 px-4 lg:px-5 whitespace-nowrap text-slate-500 font-mono text-[11px]">
+                                        Standard (Fast)
+                                    </td>
+                                    <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap text-right">
+                                        <span
+                                            class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
+                                            Open
+                                        </span>
+                                    </td>
+                                </tr>
+                                <!-- Row 5 -->
+                                <tr class="hover:bg-slate-50/80 transition-colors group" data-domain="BUILDING"
+                                    data-status="REVIEW" data-text="metro tower basement parking b2 pune">
+                                    <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap font-medium text-slate-800">
+                                        Oct 22, 2024 <span class="text-slate-400">•</span> 17:10
+                                    </td>
+                                    <td class="py-3.5 px-4 lg:px-5 font-semibold text-slate-900">
+                                        Metro Tower Basement Parking B2, Pune
+                                        <span class="block text-[11px] font-normal text-slate-400">Water seepage &amp;
+                                            spalling</span>
+                                    </td>
+                                    <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap">
+                                        <span
+                                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-100">
+                                            2 defects
+                                        </span>
+                                    </td>
+                                    <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap">
+                                        <span
+                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-indigo-50 text-indigo-800 border border-indigo-200/50">
+                                            <span class="material-symbols-outlined text-[13px]">apartment</span>
+                                            Home &amp; Building
+                                        </span>
+                                    </td>
+                                    <td
+                                        class="py-3.5 px-4 lg:px-5 whitespace-nowrap text-slate-500 font-mono text-[11px]">
+                                        Tiled Slicing (1024px)
+                                    </td>
+                                    <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap text-right">
+                                        <span
+                                            class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-800">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                                            Under Review
+                                        </span>
+                                    </td>
+                                </tr>
+                                <!-- Row 6 -->
+                                <tr class="hover:bg-slate-50/80 transition-colors group" data-domain="ROAD"
+                                    data-status="RESOLVED" data-text="nh48 toll plaza approach km 38">
+                                    <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap font-medium text-slate-800">
+                                        Oct 22, 2024 <span class="text-slate-400">•</span> 13:05
+                                    </td>
+                                    <td class="py-3.5 px-4 lg:px-5 font-semibold text-slate-900">
+                                        NH48 Toll Plaza Approach, Km 38
+                                        <span class="block text-[11px] font-normal text-slate-400">Pothole cold patch
+                                            resurfaced</span>
+                                    </td>
+                                    <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap">
+                                        <span
+                                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                                            2 defects
+                                        </span>
+                                    </td>
+                                    <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap">
+                                        <span
+                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200/50">
+                                            <span class="material-symbols-outlined text-[13px]">add_road</span>
+                                            Road Surface Distress
+                                        </span>
+                                    </td>
+                                    <td
+                                        class="py-3.5 px-4 lg:px-5 whitespace-nowrap text-slate-500 font-mono text-[11px]">
+                                        Standard (Fast)
+                                    </td>
+                                    <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap text-right">
+                                        <span
+                                            class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                                            Resolved
+                                        </span>
+                                    </td>
+                                </tr>
+                                <!-- Row 7 -->
+                                <tr class="hover:bg-slate-50/80 transition-colors group" data-domain="BUILDING"
+                                    data-status="RESOLVED" data-text="civic health centre perimeter wall navi mumbai">
+                                    <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap font-medium text-slate-800">
+                                        Oct 21, 2024 <span class="text-slate-400">•</span> 10:48
+                                    </td>
+                                    <td class="py-3.5 px-4 lg:px-5 font-semibold text-slate-900">
+                                        Civic Health Centre, Perimeter Wall, Navi Mumbai
+                                        <span class="block text-[11px] font-normal text-slate-400">Masonry structural
+                                            crack sealed</span>
+                                    </td>
+                                    <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap">
+                                        <span
+                                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                                            1 defect
+                                        </span>
+                                    </td>
+                                    <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap">
+                                        <span
+                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-indigo-50 text-indigo-800 border border-indigo-200/50">
+                                            <span class="material-symbols-outlined text-[13px]">apartment</span>
+                                            Home &amp; Building
+                                        </span>
+                                    </td>
+                                    <td
+                                        class="py-3.5 px-4 lg:px-5 whitespace-nowrap text-slate-500 font-mono text-[11px]">
+                                        Standard (Fast)
+                                    </td>
+                                    <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap text-right">
+                                        <span
+                                            class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                                            Resolved
+                                        </span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- 6. Empty State Handling (hidden by default) -->
+                    <div class="hidden flex-col items-center justify-center p-12 text-center bg-white" id="emptyState">
+                        <div
+                            class="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-3 border border-slate-200">
+                            <span class="material-symbols-outlined text-[28px]">search_off</span>
+                        </div>
+                        <h3 class="text-sm font-bold text-slate-800">No Matching Records Found</h3>
+                        <p class="text-xs text-slate-500 max-w-sm mt-1 mb-4">
+                            No inspection orders match the current keyword and filter configuration. Try clearing your
+                            filters.
+                        </p>
+                        <button
+                            class="px-4 py-2 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors border border-blue-100"
+                            id="clearFiltersBtn" type="button">
+                            Clear Active Filters
+                        </button>
+                    </div>
+                    <!-- 7. Pagination & Record Count -->
+                    <div
+                        class="border-t border-slate-200 px-4 sm:px-6 py-3.5 bg-white flex flex-col sm:flex-row items-center justify-between gap-3">
+                        <div class="text-xs text-slate-500 font-medium order-2 sm:order-1 text-center sm:text-left">
+                            Showing <span class="font-bold text-slate-800" id="visibleRange">1–7</span> of <span
+                                class="font-bold text-slate-800">14</span> records
+                        </div>
+                        <div class="flex items-center gap-1.5 order-1 sm:order-2">
+                            <button
+                                class="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-slate-200 text-xs font-semibold text-slate-300 bg-slate-50 cursor-not-allowed select-none"
+                                disabled="" type="button">
+                                <span class="material-symbols-outlined text-[16px]">chevron_left</span>
+                                <span>Prev</span>
+                            </button>
+                            <span
+                                class="px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 border border-blue-200 rounded-full">
+                                Page 1 of 2
+                            </span>
+                            <button
+                                class="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-slate-200 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 hover:border-slate-300 shadow-sm transition-all active:scale-[0.98]"
+                                type="button">
+                                <span>Next</span>
+                                <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+    <!-- Global Footer (Strict Light Theme) -->
+    <footer class="w-full bg-white border-t border-slate-200 py-6 mt-auto">
+        <div
+            class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex flex-col sm:flex-row items-center gap-3 text-center sm:text-left">
+                <div
+                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/60">
+                    <span class="material-symbols-outlined text-[16px] text-emerald-600">verified</span>
+                    <span class="text-[11px] font-semibold uppercase tracking-wide">ASTM D6433 Compliant Protocol</span>
+                </div>
+                <span class="text-xs text-slate-500">
+                    © 2025 VisionGuard AI Municipal Infrastructure Authority. All rights reserved.
+                </span>
+            </div>
+            <div class="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-xs text-slate-500">
+                <a class="hover:text-slate-900 transition-colors" href="#">Audit Log</a>
+                <a class="hover:text-slate-900 transition-colors" href="#">Municipal Privacy Policy</a>
+                <a class="hover:text-slate-900 transition-colors" href="#">Terms of Service</a>
+                <a class="hover:text-slate-900 transition-colors" href="#">Security Disclosures</a>
+            </div>
+        </div>
+    </footer>
+    <!-- Interactive Filtering & Micro-interactions Script -->
+    <script>
+        (function () {
+            const searchInput = document.getElementById('searchInput');
+            const domainSelect = document.getElementById('domainSelect');
+            const statusSelect = document.getElementById('statusSelect');
+            const resetBtn = document.getElementById('resetBtn');
+            const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+            const tableBody = document.getElementById('tableBody');
+            const emptyState = document.getElementById('emptyState');
+            const visibleRange = document.getElementById('visibleRange');
+            const refreshBtn = document.getElementById('refreshBtn');
+            const refreshIcon = document.getElementById('refreshIcon');
+            const exportBtn = document.getElementById('exportBtn');
+            const tableCountSpan = document.getElementById('table-entry-count');
+
+            let allRowsData = [];
+
+            function filterTable() {
+                const query = (searchInput.value || '').trim().toLowerCase();
+                const selectedDomain = domainSelect.value.toUpperCase();
+                const selectedStatus = statusSelect.value.toUpperCase();
+
+                const rows = tableBody.querySelectorAll('tr');
+                let visibleCount = 0;
+
+                rows.forEach(row => {
+                    const rowText = (row.getAttribute('data-text') || '').toLowerCase();
+                    const rowDomain = (row.getAttribute('data-domain') || '').toUpperCase();
+                    const rowStatus = (row.getAttribute('data-status') || '').toUpperCase();
+
+                    const matchesQuery = !query || rowText.includes(query);
+                    const matchesDomain = selectedDomain === 'ALL' || rowDomain === selectedDomain;
+                    
+                    let matchesStatus = (selectedStatus === 'ALL');
+                    if (!matchesStatus) {
+                        if (selectedStatus === 'OPEN' && (rowStatus === 'OPEN' || rowStatus === 'ACTION REQUIRED')) matchesStatus = true;
+                        else if (selectedStatus === 'REVIEW' && (rowStatus === 'REVIEW' || rowStatus === 'UNDER REVIEW' || rowStatus === 'IN PROGRESS' || rowStatus === 'ASSIGNED')) matchesStatus = true;
+                        else if (selectedStatus === 'RESOLVED' && rowStatus === 'RESOLVED') matchesStatus = true;
+                    }
+
+                    if (matchesQuery && matchesDomain && matchesStatus) {
+                        row.style.display = '';
+                        visibleCount++;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+
+                if (visibleCount === 0) {
+                    if (tableBody.parentElement) tableBody.parentElement.style.display = 'none';
+                    if (emptyState) {
+                        emptyState.classList.remove('hidden');
+                        emptyState.classList.add('flex');
+                    }
+                    if (visibleRange) visibleRange.textContent = '0–0';
+                } else {
+                    if (tableBody.parentElement) tableBody.parentElement.style.display = '';
+                    if (emptyState) {
+                        emptyState.classList.add('hidden');
+                        emptyState.classList.remove('flex');
+                    }
+                    if (visibleRange) visibleRange.textContent = `1–${visibleCount}`;
+                }
+
+                if (tableCountSpan) {
+                    tableCountSpan.textContent = `Showing ${visibleCount} of ${rows.length} total entries`;
+                }
+            }
+
+            function resetAll() {
+                searchInput.value = '';
+                domainSelect.value = 'ALL';
+                statusSelect.value = 'ALL';
+                filterTable();
+            }
+
+            searchInput.addEventListener('input', filterTable);
+            domainSelect.addEventListener('change', filterTable);
+            statusSelect.addEventListener('change', filterTable);
+            resetBtn.addEventListener('click', resetAll);
+            if (clearFiltersBtn) clearFiltersBtn.addEventListener('click', resetAll);
+
+            // Fetch live inspection records from backend
+            async function loadLiveInspections() {
+                try {
+                    const res = await fetch('/api/inspections?limit=100');
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    if (data.status === 'success' && data.inspections && data.inspections.length > 0) {
+                        renderTableRows(data.inspections);
+                        updateMetricCardsFromData(data.inspections);
+                    }
+                } catch (e) {
+                    console.warn('Error loading live inspections:', e);
+                }
+            }
+
+            async function loadStats() {
+                try {
+                    // Check auth status to determine role-appropriate metrics source
+                    const authRes = await fetch('/api/auth/status');
+                    const authData = await authRes.json().catch(() => ({}));
+                    const isStaff = authData && authData.user && (authData.user.role === 'admin' || authData.user.role === 'inspector' || authData.user.role === 'maintenance');
+
+                    if (isStaff) {
+                        const res = await fetch('/api/dashboard/stats');
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data.status === 'success' && data.stats) {
+                                const s = data.stats;
+                                if (s.total_records !== undefined) document.getElementById('metric-total-count').innerText = s.total_records;
+                                if (s.open_records !== undefined) document.getElementById('metric-open-count').innerText = s.open_records;
+                                if (s.in_progress_records !== undefined) document.getElementById('metric-review-count').innerText = s.in_progress_records;
+                                if (s.resolved_records !== undefined) document.getElementById('metric-resolved-count').innerText = s.resolved_records;
+                                return;
+                            }
+                        }
+                    } else if (authData && authData.authenticated && authData.user?.role === 'citizen') {
+                        // For citizens, fetch authentic citizen summary metrics
+                        const res = await fetch('/api/citizen/summary');
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data.status === 'success' && data.summary) {
+                                const s = data.summary;
+                                if (s.total_reports !== undefined) document.getElementById('metric-total-count').innerText = s.total_reports;
+                                if (s.open_reports !== undefined) document.getElementById('metric-open-count').innerText = s.open_reports;
+                                if (s.in_progress_reports !== undefined) document.getElementById('metric-review-count').innerText = s.in_progress_reports;
+                                if (s.resolved_reports !== undefined) document.getElementById('metric-resolved-count').innerText = s.resolved_reports;
+                                return;
+                            }
+                        }
+                    }
+                } catch (e) {}
+            }
+
+            function updateMetricCardsFromData(inspections) {
+                const total = inspections.length;
+                let openCount = 0;
+                let reviewCount = 0;
+                let resolvedCount = 0;
+
+                inspections.forEach(item => {
+                    const st = (item.status || '').toLowerCase();
+                    if (st === 'open') openCount++;
+                    else if (st === 'resolved') resolvedCount++;
+                    else reviewCount++;
+                });
+
+                document.getElementById('metric-total-count').innerText = total;
+                document.getElementById('metric-open-count').innerText = openCount;
+                document.getElementById('metric-review-count').innerText = reviewCount;
+                document.getElementById('metric-resolved-count').innerText = resolvedCount;
+            }
+
+            function renderTableRows(inspections) {
+                tableBody.innerHTML = '';
+                inspections.forEach((item, idx) => {
+                    const domain = (item.inspection_type || item.domain || 'road').toUpperCase();
+                    const status = (item.status || 'Open').toUpperCase();
+                    const defects = item.defect_count !== undefined ? item.defect_count : (item.detections ? item.detections.length : 0);
+                    
+                    const dateStr = item.created_at ? item.created_at.slice(0, 10) : '2025-10-24';
+                    const timeStr = item.created_at ? item.created_at.slice(11, 16) : '12:00';
+                    const location = item.road_name || item.area || 'Civil Asset Corridor';
+                    const city = item.city || 'Mumbai';
+
+                    let statusBadgeClass = 'bg-amber-100 text-amber-800';
+                    let statusDot = 'bg-amber-600';
+                    if (status === 'RESOLVED') {
+                        statusBadgeClass = 'bg-emerald-100 text-emerald-800';
+                        statusDot = 'bg-emerald-600';
+                    } else if (status === 'UNDER REVIEW' || status === 'REVIEW' || status === 'IN PROGRESS' || status === 'ASSIGNED') {
+                        statusBadgeClass = 'bg-blue-100 text-blue-800';
+                        statusDot = 'bg-blue-600';
+                    }
+
+                    const row = document.createElement('tr');
+                    row.className = 'hover:bg-slate-50/80 transition-colors group';
+                    row.setAttribute('data-domain', domain === 'HOME' ? 'BUILDING' : domain);
+                    row.setAttribute('data-status', status);
+                    row.setAttribute('data-text', `${location} ${city} ${item.id} ${domain} ${status}`);
+
+                    row.innerHTML = `
+                        <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap font-medium text-slate-800">
+                            ${dateStr} <span class="text-slate-400">•</span> ${timeStr}
+                        </td>
+                        <td class="py-3.5 px-4 lg:px-5 font-semibold text-slate-900">
+                            ${location}, ${city}
+                            <span class="block text-[11px] font-normal text-slate-400">Record #VG-${item.id} • Lat: ${parseFloat(item.latitude || 19.076).toFixed(4)}, Lng: ${parseFloat(item.longitude || 72.877).toFixed(4)}</span>
+                        </td>
+                        <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold ${defects > 0 ? 'bg-rose-50 text-rose-700 border border-rose-100' : 'bg-emerald-50 text-emerald-700 border border-emerald-100'}">
+                                ${defects} defect${defects === 1 ? '' : 's'}
+                            </span>
+                        </td>
+                        <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap">
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold ${domain === 'HOME' || domain === 'BUILDING' ? 'bg-indigo-50 text-indigo-800 border border-indigo-200/50' : 'bg-amber-50 text-amber-800 border border-amber-200/50'}">
+                                <span class="material-symbols-outlined text-[13px]">${domain === 'HOME' || domain === 'BUILDING' ? 'domain' : 'add_road'}</span>
+                                ${domain === 'HOME' || domain === 'BUILDING' ? 'Building Defect' : 'Road Surface Distress'}
+                            </span>
+                        </td>
+                        <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap text-slate-500 font-mono text-[11px]">
+                            ${item.inspection_mode || 'Standard (Fast)'}
+                        </td>
+                        <td class="py-3.5 px-4 lg:px-5 whitespace-nowrap text-right">
+                            <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-semibold ${statusBadgeClass}">
+                                <span class="w-1.5 h-1.5 rounded-full ${statusDot}"></span>
+                                ${item.status || 'Open'}
+                            </span>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+
+                filterTable();
+            }
+
+            // Refresh interaction
+            refreshBtn.addEventListener('click', () => {
+                refreshIcon.classList.add('animate-spin');
+                refreshBtn.setAttribute('disabled', 'true');
+                Promise.all([loadLiveInspections(), loadStats()]).finally(() => {
+                    setTimeout(() => {
+                        refreshIcon.classList.remove('animate-spin');
+                        refreshBtn.removeAttribute('disabled');
+                    }, 500);
+                });
+            });
+
+            // Export CSV Download Trigger
+            exportBtn.addEventListener('click', async () => {
+                const spanText = exportBtn.querySelector('span:last-child');
+                const originalText = spanText.textContent;
+                spanText.textContent = 'Generating CSV...';
+                
+                try {
+                    const res = await fetch('/api/reports/export/csv');
+                    if (res.ok) {
+                        const blob = await res.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `visionguard_inspections_${Date.now()}.csv`;
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        window.URL.revokeObjectURL(url);
+                        spanText.textContent = 'Downloaded ✓';
+                    } else if (res.status === 403) {
+                        spanText.textContent = 'Restricted';
+                        alert('Full municipal fleet export requires Inspector or Authority credentials. Contact Municipal Dispatch.');
+                    } else {
+                        // Fallback client-side CSV generation from active table rows
+                        exportClientTableAsCsv();
+                        spanText.textContent = 'Downloaded ✓';
+                    }
+                } catch (e) {
+                    exportClientTableAsCsv();
+                    spanText.textContent = 'Downloaded ✓';
+                }
+
+                setTimeout(() => {
+                    spanText.textContent = originalText;
+                }, 2000);
+            });
+
+            function exportClientTableAsCsv() {
+                const rows = tableBody.querySelectorAll('tr');
+                let csv = 'Date,Time,Location,City,Defects,Domain,Mode,Status\n';
+                rows.forEach(r => {
+                    if (r.style.display !== 'none') {
+                        const cells = r.querySelectorAll('td');
+                        if (cells.length >= 6) {
+                            const date = cells[0].innerText.replace(/\n/g, ' ').replace(/,/g, '');
+                            const loc = cells[1].innerText.replace(/\n/g, ' ').replace(/,/g, ' ');
+                            const defects = cells[2].innerText.trim();
+                            const domain = cells[3].innerText.trim();
+                            const mode = cells[4].innerText.trim();
+                            const status = cells[5].innerText.trim();
+                            csv += `"${date}","","${loc}","Mumbai","${defects}","${domain}","${mode}","${status}"\n`;
+                        }
+                    }
+                });
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `visionguard_records_${Date.now()}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+            }
+
+            // Sync user auth status in header & CSRF token
+            fetch('/api/auth/status')
+                .then(r => r.json())
+                .then(data => {
+                    if (data && data.csrf_token) {
+                        try { sessionStorage.setItem('vg_csrf_token', data.csrf_token); } catch (e) {}
+                        const m = document.querySelector('meta[name="csrf-token"]');
+                        if (m) m.setAttribute('content', data.csrf_token);
+                    }
+                    if (data && data.authenticated && data.user) {
+                        const nameEl = document.getElementById('report-username');
+                        const roleEl = document.getElementById('report-role');
+                        const avatarEl = document.getElementById('report-user-avatar');
+                        if (nameEl) nameEl.innerText = data.user.username;
+                        if (roleEl) roleEl.innerText = (data.user.role || 'citizen').toUpperCase();
+                        if (avatarEl) {
+                            const isStaff = (data.user.role === 'admin' || data.user.role === 'inspector' || data.user.role === 'maintenance');
+                            avatarEl.href = isStaff ? '/app' : '/report';
+                            avatarEl.title = `${data.user.username} (${data.user.role}) - ${isStaff ? 'Operations Dashboard' : 'My Reports'}`;
+                        }
+                        if (data.user.role === 'citizen') {
+                            const h1 = document.querySelector('h1');
+                            if (h1 && h1.textContent.includes('Municipal Defect Records')) {
+                                h1.textContent = 'My Defect Reports';
+                            }
+                        }
+                    } else {
+                        const nameEl = document.getElementById('report-username');
+                        const roleEl = document.getElementById('report-role');
+                        const avatarEl = document.getElementById('report-user-avatar');
+                        if (nameEl) nameEl.innerText = 'Guest';
+                        if (roleEl) roleEl.innerText = 'Sign In';
+                        if (avatarEl) avatarEl.href = '/login?return=/report';
+                    }
+                })
+                .catch(() => {});
+
+            // Initialize
+            loadLiveInspections();
+            loadStats();
+        })();
+    </script>
+</body>
+
+</html>
