@@ -461,6 +461,21 @@ CREATE TABLE IF NOT EXISTS maintenance_activity_log (
     FOREIGN KEY (inspection_id) REFERENCES defect_inspections(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS inspection_updates (
+    id SERIAL PRIMARY KEY,
+    inspection_id INTEGER NOT NULL,
+    user_id INTEGER,
+    username TEXT,
+    update_type TEXT NOT NULL,
+    comment TEXT,
+    image_path TEXT,
+    verification_status TEXT DEFAULT 'pending_verification',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (inspection_id) REFERENCES defect_inspections(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_updates_insp ON inspection_updates (inspection_id);
+
 CREATE TABLE IF NOT EXISTS system_metadata (
     key TEXT PRIMARY KEY,
     value TEXT,

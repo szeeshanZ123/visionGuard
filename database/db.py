@@ -269,6 +269,23 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
         if col_name not in existing_cd_cols:
             cursor.execute(f"ALTER TABLE complaint_drafts ADD COLUMN {col_name} {col_type};")
 
+    # Table for citizen report updates and progress tracking
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS inspection_updates (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        inspection_id INTEGER NOT NULL,
+        user_id INTEGER,
+        username TEXT,
+        update_type TEXT NOT NULL,
+        comment TEXT,
+        image_path TEXT,
+        verification_status TEXT DEFAULT 'pending_verification',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (inspection_id) REFERENCES defect_inspections(id) ON DELETE CASCADE
+    );
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_inspection_updates_insp ON inspection_updates (inspection_id);")
+
     # Table for system audit logs / metadata
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS system_metadata (
@@ -534,6 +551,102 @@ def get_inspection_activity(inspection_id: int, db_path: str = DEFAULT_DB_PATH) 
             item["created_at"] = item["created_at"].isoformat()
         result.append(item)
     return result
+
+
+ALLOWED_CITIZEN_UPDATE_TYPES = {
+    "work_started": "Work Started",
+    "road_repaired": "Road Repaired",
+    "issue_still_exists": "Issue Still Exists",
+    "issue_worse": "Issue Has Become Worse",
+    "issue_has_become_worse": "Issue Has Become Worse",
+}
+
+
+def add_inspection_update(
+    inspection_id: int,
+    update_type: str,
+    user_id: Optional[int] = None,
+    username: Optional[str] = None,
+    comment: Optional[str] = None,
+    image_path: Optional[str] = None,
+    verification_status: str = "pending_verification",
+    db_path: str = DEFAULT_DB_PATH
+) -> int:
+    """Inserts a citizen progress update for an existing inspection."""
+    init_db(db_path)
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    INSERT INTO inspection_updates (
+        inspection_id, user_id, username, update_type,
+        comment, image_path, verification_status
+    ) VALUES (?, ?, ?, ?, ?, ?, ?);
+    """, (
+        inspection_id, user_id, username, update_type,
+        (comment or "").strip() if comment else None,
+        image_path,
+        verification_status or "pending_verification"
+    ))
+    update_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return update_id
+
+
+def get_inspection_updates(
+    inspection_id: int,
+    db_path: str = DEFAULT_DB_PATH
+) -> List[Dict[str, Any]]:
+    """Returns all citizen progress updates for an inspection ordered chronologically."""
+    init_db(db_path)
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    SELECT id, inspection_id, user_id, username, update_type,
+           comment, image_path, verification_status, created_at
+    FROM inspection_updates
+    WHERE inspection_id = ?
+    ORDER BY created_at ASC, id ASC;
+    """, (inspection_id,))
+    rows = cursor.fetchall()
+    conn.close()
+
+    result = []
+    for r in rows:
+        item = dict(r)
+        if isinstance(item.get("created_at"), (datetime.datetime, datetime.date)):
+            item["created_at"] = item["created_at"].isoformat()
+        item["update_type_label"] = ALLOWED_CITIZEN_UPDATE_TYPES.get(item.get("update_type"), item.get("update_type"))
+        result.append(item)
+    return result
+
+
+def get_inspection_update_by_id(
+    update_id: int,
+    db_path: str = DEFAULT_DB_PATH
+) -> Optional[Dict[str, Any]]:
+    """Fetches a specific inspection update by ID."""
+    init_db(db_path)
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    SELECT id, inspection_id, user_id, username, update_type,
+           comment, image_path, verification_status, created_at
+    FROM inspection_updates
+    WHERE id = ?;
+    """, (update_id,))
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return None
+    item = dict(row)
+    if isinstance(item.get("created_at"), (datetime.datetime, datetime.date)):
+        item["created_at"] = item["created_at"].isoformat()
+    item["update_type_label"] = ALLOWED_CITIZEN_UPDATE_TYPES.get(item.get("update_type"), item.get("update_type"))
+    return item
 
 
 def row_to_dict(row: Any, ref_date: Optional[datetime.date] = None) -> Dict[str, Any]:
@@ -1236,6 +1349,10 @@ def get_inspection_by_id(
         res["complaint_status"] = "none"
 
     conn.close()
+
+    # Attach citizen reported updates
+    res["citizen_updates"] = get_inspection_updates(inspection_id, db_path=db_path)
+
     return res
 
 

@@ -528,6 +528,10 @@
                             <option value="hidden">Hidden</option>
                         </select>
                     </div>
+                    <button type="button" id="report-modal-update-btn" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-all" title="Update Defect Condition">
+                        <span class="material-symbols-outlined text-[16px]">edit_note</span>
+                        <span class="hidden sm:inline">Update Report</span>
+                    </button>
                     <button type="button" id="report-modal-download-pdf-btn" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all" title="Download Report PDF">
                         <span class="material-symbols-outlined text-[16px]">picture_as_pdf</span>
                         <span class="hidden sm:inline">Download PDF</span>
@@ -730,6 +734,22 @@
                             </table>
                         </div>
                     </div>
+                    <!-- 6. Chronological Defect Lifecycle & Citizen Progress Timeline -->
+                    <div id="report-modal-timeline-section" class="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                        <div class="bg-slate-50 px-4 py-2.5 border-b border-slate-200 text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center justify-between">
+                            <span class="flex items-center gap-1.5">
+                                <span class="material-symbols-outlined text-[16px] text-slate-500">timeline</span>
+                                Defect Lifecycle &amp; Citizen Progress Timeline
+                            </span>
+                            <button type="button" id="report-modal-timeline-add-btn" class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors">
+                                <span class="material-symbols-outlined text-[14px]">add</span>
+                                <span>Add Update</span>
+                            </button>
+                        </div>
+                        <div class="p-4 sm:p-5" id="report-modal-timeline-container">
+                            <div class="py-6 text-center text-slate-400 text-xs">Loading timeline...</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -766,6 +786,116 @@
             <img id="zoom-image-img" src="" alt="High-resolution zoomed defect inspection" class="max-w-full max-h-[82vh] rounded-xl border border-slate-700 object-contain shadow-2xl bg-black">
         </div>
     </div>
+    <!-- Modal 3: Citizen Defect Progress Update Modal -->
+    <div id="citizen-update-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-3 sm:p-4 hidden">
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <!-- Header -->
+            <div class="px-5 py-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800 shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-blue-400">
+                        <span class="material-symbols-outlined text-[20px]">edit_note</span>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-white tracking-tight">Update Defect Progress</h3>
+                        <p id="citizen-update-modal-subtitle" class="text-xs text-slate-400">Inspection Record #--</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeCitizenUpdateModal()" class="w-8 h-8 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 flex items-center justify-center transition-colors">
+                    <span class="material-symbols-outlined text-[20px]">close</span>
+                </button>
+            </div>
+
+            <!-- Form Body -->
+            <form id="citizen-update-form" class="p-5 sm:p-6 space-y-4 overflow-y-auto max-h-[75vh]">
+                <input type="hidden" id="citizen-update-inspection-id" value="">
+
+                <!-- Condition Selection -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                        Current Real-World Condition <span class="text-rose-500">*</span>
+                    </label>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5" id="update-condition-options">
+                        <label class="flex items-start gap-2.5 p-3 rounded-xl border border-slate-200 hover:border-blue-400 bg-slate-50/50 hover:bg-blue-50/30 cursor-pointer transition-all">
+                            <input type="radio" name="update_type" value="work_started" class="mt-0.5 text-blue-600 focus:ring-blue-500" required>
+                            <div>
+                                <span class="block text-xs font-bold text-slate-800">Work Started</span>
+                                <span class="block text-[11px] text-slate-500 leading-tight">Remediation crews or equipment active</span>
+                            </div>
+                        </label>
+                        <label class="flex items-start gap-2.5 p-3 rounded-xl border border-slate-200 hover:border-emerald-400 bg-slate-50/50 hover:bg-emerald-50/30 cursor-pointer transition-all">
+                            <input type="radio" name="update_type" value="road_repaired" class="mt-0.5 text-emerald-600 focus:ring-emerald-500">
+                            <div>
+                                <span class="block text-xs font-bold text-slate-800">Road Repaired</span>
+                                <span class="block text-[11px] text-slate-500 leading-tight">Finished (Awaiting verification)</span>
+                            </div>
+                        </label>
+                        <label class="flex items-start gap-2.5 p-3 rounded-xl border border-slate-200 hover:border-amber-400 bg-slate-50/50 hover:bg-amber-50/30 cursor-pointer transition-all">
+                            <input type="radio" name="update_type" value="issue_still_exists" class="mt-0.5 text-amber-600 focus:ring-amber-500">
+                            <div>
+                                <span class="block text-xs font-bold text-slate-800">Issue Still Exists</span>
+                                <span class="block text-[11px] text-slate-500 leading-tight">Defect remains unaddressed</span>
+                            </div>
+                        </label>
+                        <label class="flex items-start gap-2.5 p-3 rounded-xl border border-slate-200 hover:border-rose-400 bg-slate-50/50 hover:bg-rose-50/30 cursor-pointer transition-all">
+                            <input type="radio" name="update_type" value="issue_worse" class="mt-0.5 text-rose-600 focus:ring-rose-500">
+                            <div>
+                                <span class="block text-xs font-bold text-slate-800">Issue Has Become Worse</span>
+                                <span class="block text-[11px] text-slate-500 leading-tight">Cavity deepened or widened</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Description / Comment -->
+                <div>
+                    <label for="citizen-update-comment" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                        Description / Citizen Remarks (Optional)
+                    </label>
+                    <textarea id="citizen-update-comment" rows="3" class="w-full text-xs rounded-xl border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-800 placeholder-slate-400 p-2.5 transition-all" placeholder="Enter observations (e.g., fresh bitumen rolled, barricades present, surface crumbling)..."></textarea>
+                </div>
+
+                <!-- Photo Upload -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                        Updated Photograph (Optional)
+                    </label>
+                    <input type="file" id="citizen-update-photo" accept="image/jpeg,image/png,image/webp" class="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
+                    <div id="citizen-update-photo-preview" class="hidden mt-2 relative inline-block">
+                        <img id="citizen-update-preview-img" src="" alt="Preview" class="h-24 w-auto rounded-lg object-cover border border-slate-200">
+                        <button type="button" id="citizen-update-remove-photo" class="absolute -top-2 -right-2 bg-rose-600 text-white rounded-full p-0.5 shadow hover:bg-rose-700">
+                            <span class="material-symbols-outlined text-[14px]">close</span>
+                        </button>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-1">JPEG, PNG, or WebP format up to 10MB.</p>
+                </div>
+
+                <!-- Notice Banner -->
+                <div class="p-3 rounded-xl bg-blue-50/70 border border-blue-100 flex items-start gap-2.5 text-xs text-blue-900">
+                    <span class="material-symbols-outlined text-[18px] text-blue-600 shrink-0 mt-0.5">info</span>
+                    <span>Citizen updates are logged as community progress reports awaiting municipal inspector verification. Official resolution is verified according to engineering standards.</span>
+                </div>
+
+                <!-- Feedback / Error Banner -->
+                <div id="citizen-update-error" class="hidden p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 font-medium"></div>
+                <div id="citizen-update-success" class="hidden p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-700 font-medium flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                    <span id="citizen-update-success-msg">Update saved successfully! Refreshing...</span>
+                </div>
+
+                <!-- Footer Buttons -->
+                <div class="pt-3 border-t border-slate-200 flex items-center justify-end gap-2.5">
+                    <button type="button" onclick="closeCitizenUpdateModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors border border-slate-200">
+                        Cancel
+                    </button>
+                    <button type="submit" id="citizen-update-submit-btn" class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-sm transition-all active:scale-[0.98]">
+                        <span class="material-symbols-outlined text-[16px]">send</span>
+                        <span>Submit Update</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
 
     <!-- Interactive Filtering, History & Report Access Script -->
     <script>
@@ -957,6 +1087,14 @@
                                 <span class="material-symbols-outlined text-[14px]">visibility</span>
                                 <span>View Details</span>
                             </button>
+                            <button type="button" class="btn-update-report inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors" data-id="${item.id}" title="Update Real-World Progress">
+                                <span class="material-symbols-outlined text-[14px]">edit_note</span>
+                                <span>Update</span>
+                            </button>
+                            <button type="button" class="btn-view-timeline inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition-colors" data-id="${item.id}" title="View Defect Lifecycle Timeline">
+                                <span class="material-symbols-outlined text-[14px]">timeline</span>
+                                <span>Timeline</span>
+                            </button>
                             <button type="button" class="btn-download-pdf inline-flex items-center justify-center p-1 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-slate-200 transition-colors" data-id="${item.id}" title="Download Formal Report PDF">
                                 <span class="material-symbols-outlined text-[15px]">picture_as_pdf</span>
                             </button>
@@ -980,6 +1118,20 @@
                     btn.addEventListener('click', () => {
                         const id = btn.getAttribute('data-id');
                         if (id) openInspectionReportModal(id);
+                    });
+                });
+
+                tableBody.querySelectorAll('.btn-update-report').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const id = btn.getAttribute('data-id');
+                        if (id) openCitizenUpdateModal(id);
+                    });
+                });
+
+                tableBody.querySelectorAll('.btn-view-timeline').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const id = btn.getAttribute('data-id');
+                        if (id) openInspectionReportModal(id, true);
                     });
                 });
 
@@ -1008,7 +1160,7 @@
             // ==========================================
             // Full Inspection Report Modal Controller
             // ==========================================
-            window.openInspectionReportModal = async function (id) {
+            window.openInspectionReportModal = async function (id, scrollToTimeline = false) {
                 const modal = document.getElementById('inspection-report-modal');
                 const loading = document.getElementById('report-modal-loading');
                 const errorBox = document.getElementById('report-modal-error');
@@ -1322,6 +1474,246 @@
                     });
                 }
             }
+
+                // Load timeline
+                loadAndRenderTimeline(id, scrollToTimeline);
+
+                // Wire modal header update button & timeline add button
+                const modalUpdateBtn = document.getElementById('report-modal-update-btn');
+                if (modalUpdateBtn) {
+                    modalUpdateBtn.onclick = () => openCitizenUpdateModal(id);
+                }
+                const timelineAddBtn = document.getElementById('report-modal-timeline-add-btn');
+                if (timelineAddBtn) {
+                    timelineAddBtn.onclick = () => openCitizenUpdateModal(id);
+                }
+
+            
+            // ==========================================
+            // Citizen Update & Timeline Controllers
+            // ==========================================
+            let currentInspectionId = null;
+
+            window.openCitizenUpdateModal = function (inspectionId) {
+                const modal = document.getElementById('citizen-update-modal');
+                if (!modal) return;
+                currentInspectionId = inspectionId;
+                document.getElementById('citizen-update-inspection-id').value = inspectionId;
+                document.getElementById('citizen-update-modal-subtitle').textContent = `Inspection Record #${inspectionId}`;
+                document.getElementById('citizen-update-form').reset();
+                document.getElementById('citizen-update-error').classList.add('hidden');
+                document.getElementById('citizen-update-success').classList.add('hidden');
+                document.getElementById('citizen-update-photo-preview').classList.add('hidden');
+                document.getElementById('citizen-update-preview-img').src = '';
+                modal.classList.remove('hidden');
+            };
+
+            window.closeCitizenUpdateModal = function () {
+                const modal = document.getElementById('citizen-update-modal');
+                if (modal) modal.classList.add('hidden');
+            };
+
+            // Photo preview and remove
+            const photoInput = document.getElementById('citizen-update-photo');
+            const previewContainer = document.getElementById('citizen-update-photo-preview');
+            const previewImg = document.getElementById('citizen-update-preview-img');
+            const removePhotoBtn = document.getElementById('citizen-update-remove-photo');
+
+            if (photoInput) {
+                photoInput.addEventListener('change', function () {
+                    const file = this.files && this.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = function (e) {
+                            previewImg.src = e.target.result;
+                            previewContainer.classList.remove('hidden');
+                        };
+                        reader.readAsDataURL(file);
+                    } else {
+                        previewContainer.classList.add('hidden');
+                    }
+                });
+            }
+
+            if (removePhotoBtn) {
+                removePhotoBtn.addEventListener('click', function () {
+                    if (photoInput) photoInput.value = '';
+                    previewContainer.classList.add('hidden');
+                    previewImg.src = '';
+                });
+            }
+
+            // Citizen Update Form Submission
+            const updateForm = document.getElementById('citizen-update-form');
+            if (updateForm) {
+                updateForm.addEventListener('submit', async function (e) {
+                    e.preventDefault();
+                    const inspId = document.getElementById('citizen-update-inspection-id').value;
+                    const errorBox = document.getElementById('citizen-update-error');
+                    const successBox = document.getElementById('citizen-update-success');
+                    const submitBtn = document.getElementById('citizen-update-submit-btn');
+
+                    errorBox.classList.add('hidden');
+                    successBox.classList.add('hidden');
+
+                    const selectedType = document.querySelector('input[name="update_type"]:checked');
+                    if (!selectedType) {
+                        errorBox.textContent = 'Please select the current real-world condition.';
+                        errorBox.classList.remove('hidden');
+                        return;
+                    }
+
+                    const formData = new FormData();
+                    formData.append('update_type', selectedType.value);
+                    const comment = document.getElementById('citizen-update-comment').value.trim();
+                    if (comment) formData.append('comment', comment);
+
+                    const file = photoInput && photoInput.files && photoInput.files[0];
+                    if (file) formData.append('image', file);
+
+                    const csrfToken = getCsrfToken();
+                    if (csrfToken) formData.append('csrf_token', csrfToken);
+
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<span class="material-symbols-outlined text-[16px] animate-spin">progress_activity</span><span>Submitting...</span>';
+
+                    try {
+                        const headers = {};
+                        if (csrfToken) headers['X-CSRF-Token'] = csrfToken;
+
+                        const resp = await fetch(`/api/inspections/${inspId}/updates`, {
+                            method: 'POST',
+                            headers: headers,
+                            body: formData
+                        });
+                        const data = await resp.json();
+
+                        if (!resp.ok || data.status === 'error') {
+                            throw new Error(data.message || 'Failed to submit update.');
+                        }
+
+                        successBox.querySelector('#citizen-update-success-msg').textContent = data.message || 'Update saved successfully!';
+                        successBox.classList.remove('hidden');
+
+                        setTimeout(() => {
+                            closeCitizenUpdateModal();
+                            // Refresh timeline if details modal is open
+                            const reportModal = document.getElementById('inspection-report-modal');
+                            if (reportModal && !reportModal.classList.contains('hidden')) {
+                                loadAndRenderTimeline(inspId);
+                            }
+                            // Refresh inspection table records
+                            loadStats();
+                        }, 1200);
+                    } catch (err) {
+                        errorBox.textContent = err.message || 'An unexpected error occurred.';
+                        errorBox.classList.remove('hidden');
+                    } finally {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<span class="material-symbols-outlined text-[16px]">send</span><span>Submit Update</span>';
+                    }
+                });
+            }
+
+            // Function to load and render timeline items
+            window.loadAndRenderTimeline = async function (inspectionId, scrollTo = false) {
+                const container = document.getElementById('report-modal-timeline-container');
+                if (!container) return;
+
+                container.innerHTML = '<div class="py-6 text-center text-slate-400 text-xs flex items-center justify-center gap-2"><span class="material-symbols-outlined text-[16px] animate-spin">progress_activity</span><span>Loading chronological progress timeline...</span></div>';
+
+                try {
+                    const resp = await fetch(`/api/inspections/${inspectionId}/updates`);
+                    const data = await resp.json();
+
+                    if (!resp.ok || data.status !== 'success') {
+                        container.innerHTML = '<div class="py-4 text-center text-rose-500 text-xs">Failed to load timeline.</div>';
+                        return;
+                    }
+
+                    const timeline = data.timeline || [];
+                    if (timeline.length === 0) {
+                        container.innerHTML = '<div class="py-4 text-center text-slate-400 text-xs">No progress updates recorded yet.</div>';
+                        return;
+                    }
+
+                    let html = '<div class="relative pl-6 space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">';
+                    timeline.forEach((item, idx) => {
+                        const dateStr = item.date ? item.date.slice(0, 10) : '2026-10-31';
+                        const timeStr = item.date && item.date.length > 15 ? item.date.slice(11, 16) : '';
+                        const isOfficial = !item.is_citizen;
+                        const isOriginal = item.event_type === 'initial_report';
+
+                        let dotColor = 'bg-blue-600 ring-blue-100';
+                        let icon = 'flag';
+                        let badgeBg = 'bg-blue-50 text-blue-700 border-blue-200';
+
+                        if (item.badge_color === 'emerald' || item.verification_status === 'verified') {
+                            dotColor = 'bg-emerald-600 ring-emerald-100';
+                            icon = 'verified';
+                            badgeBg = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                        } else if (item.badge_color === 'amber' || item.update_type === 'road_repaired') {
+                            dotColor = 'bg-amber-500 ring-amber-100';
+                            icon = 'pending_actions';
+                            badgeBg = 'bg-amber-50 text-amber-800 border-amber-200';
+                        } else if (item.badge_color === 'indigo' || item.update_type === 'work_started') {
+                            dotColor = 'bg-indigo-600 ring-indigo-100';
+                            icon = 'construction';
+                            badgeBg = 'bg-indigo-50 text-indigo-700 border-indigo-200';
+                        } else if (item.badge_color === 'rose' || item.update_type === 'issue_worse') {
+                            dotColor = 'bg-rose-600 ring-rose-100';
+                            icon = 'warning';
+                            badgeBg = 'bg-rose-50 text-rose-700 border-rose-200';
+                        }
+
+                        html += `
+                            <div class="relative group">
+                                <div class="absolute -left-6 top-1 w-4 h-4 rounded-full ${dotColor} ring-4 flex items-center justify-center text-white">
+                                    <span class="material-symbols-outlined text-[10px]">${icon}</span>
+                                </div>
+                                <div class="bg-slate-50/80 hover:bg-slate-50 border border-slate-200/80 rounded-xl p-3.5 transition-colors">
+                                    <div class="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-xs font-bold text-slate-900">${escapeHtml(item.title)}</span>
+                                            <span class="px-2 py-0.5 rounded text-[10px] font-bold border ${badgeBg}">
+                                                ${escapeHtml(item.badge)}
+                                            </span>
+                                        </div>
+                                        <span class="text-[11px] font-mono text-slate-400">${dateStr} ${timeStr ? '• ' + timeStr : ''}</span>
+                                    </div>
+                                    <div class="text-[11px] text-slate-500 mb-2 flex items-center gap-2">
+                                        <span>Logged by: <strong class="text-slate-700">${escapeHtml(item.by || 'Citizen Reporter')}</strong></span>
+                                        <span class="text-slate-300">•</span>
+                                        <span class="italic text-[10px]">${isOfficial ? 'Official Municipal Record' : 'Citizen Community Update'}</span>
+                                    </div>
+                                    ${item.comment ? `<p class="text-xs text-slate-700 leading-relaxed bg-white p-2.5 rounded-lg border border-slate-200/60 mb-2">${escapeHtml(item.comment)}</p>` : ''}
+                                    ${item.image_url ? `
+                                        <div class="mt-2">
+                                            <button type="button" onclick="zoomImage('${item.image_url}', '${escapeHtml(item.title)} - Photographic Proof')" class="inline-flex items-center gap-2 p-1.5 rounded-lg bg-white border border-slate-200 hover:border-blue-400 group/img transition-all">
+                                                <img src="${item.image_url}" alt="Progress photo" class="w-16 h-16 rounded object-cover">
+                                                <div class="text-left pr-2">
+                                                    <span class="block text-[11px] font-semibold text-slate-800 group-hover/img:text-blue-600">View Photo Proof</span>
+                                                    <span class="block text-[10px] text-slate-400">Click to zoom high-res</span>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                    container.innerHTML = html;
+
+                    if (scrollTo) {
+                        setTimeout(() => {
+                            document.getElementById('report-modal-timeline-section')?.scrollIntoView({ behavior: 'smooth' });
+                        }, 250);
+                    }
+                } catch (e) {
+                    container.innerHTML = '<div class="py-4 text-center text-rose-500 text-xs">Error loading timeline data.</div>';
+                }
+            };
 
             // ==========================================
             // Zoom Viewer Controller

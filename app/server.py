@@ -106,7 +106,12 @@ from database.db import (
     delete_inspection,
     validate_target_repair_date,
     get_inspection_activity,
+    log_maintenance_activity,
     update_inspection_publication_status,
+    add_inspection_update,
+    get_inspection_updates,
+    get_inspection_update_by_id,
+    ALLOWED_CITIZEN_UPDATE_TYPES,
     ALLOWED_STATUSES,
     DEFAULT_DB_PATH,
 )
@@ -3417,6 +3422,360 @@ def create_app(
             "count": len(activities),
             "activities": activities,
         }), 200
+
+    # -------------------------------------------------------------------------
+    # Citizen Report Update & Progress Tracking Routes
+    # -------------------------------------------------------------------------
+    @app.route("/api/inspections/<int:inspection_id>/updates", methods=["GET"])
+    @roles_required(ROLE_ADMIN, ROLE_INSPECTOR, ROLE_MAINTENANCE, ROLE_CITIZEN)
+    def api_get_inspection_updates_route(inspection_id: int):
+        """
+        Retrieves chronological citizen progress updates and full timeline for an inspection.
+        Citizens can view their own inspection updates; staff can inspect all updates.
+        """
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        record = get_inspection_by_id(inspection_id, db_path=db_path)
+        if not record:
+            return jsonify({
+                "status": "error",
+                "error_code": "INSPECTION_NOT_FOUND",
+                "message": f"Inspection record #{inspection_id} not found.",
+            }), 404
+
+        curr_user = get_current_user_record()
+        if not curr_user and session.get("role"):
+            curr_user = {
+                "id": session.get("user_id"),
+                "username": session.get("username"),
+                "role": session.get("role"),
+            }
+        if curr_user and curr_user["role"] == ROLE_CITIZEN:
+            if not check_citizen_inspection_access(record, curr_user, db_path=db_path):
+                return jsonify({
+                    "status": "error",
+                    "error_code": "FORBIDDEN_REPORT_ACCESS",
+                    "message": "Access denied: Citizens may only view updates for their own inspection records.",
+                }), 403
+
+        raw_updates = get_inspection_updates(inspection_id, db_path=db_path)
+        is_citizen = bool(curr_user and curr_user.get("role") == ROLE_CITIZEN)
+
+        # Build chronological timeline
+        timeline = []
+
+        # 1. Initial report event
+        initial_date = record.get("uploaded_at") or record.get("created_at") or datetime.datetime.now(datetime.timezone.utc).isoformat()
+        initial_user = "Citizen Reporter" if is_citizen else (record.get("created_by_username") or "Citizen Reporter")
+        timeline.append({
+            "id": "report_0",
+            "event_type": "initial_report",
+            "title": "Defect Originally Reported",
+            "date": initial_date,
+            "by": initial_user,
+            "badge": "Original Report",
+            "badge_color": "blue",
+            "comment": record.get("location_notes") or record.get("notes") or "Initial defect report registered in civic portal.",
+            "verification_status": "reported",
+            "is_citizen": True,
+            "image_url": f"/api/inspections/{inspection_id}/image/original" if record.get("original_image_path") or record.get("file_path") else None,
+        })
+
+        # 2. Citizen progress updates
+        for u in raw_updates:
+            u_dict = dict(u)
+            u_id = u_dict["id"]
+            u_type = u_dict.get("update_type", "")
+            u_label = u_dict.get("update_type_label") or ALLOWED_CITIZEN_UPDATE_TYPES.get(u_type, u_type.replace("_", " ").title())
+            u_img = f"/api/inspections/{inspection_id}/updates/{u_id}/image" if u_dict.get("image_path") else None
+            u_status = u_dict.get("verification_status") or "pending_verification"
+
+            # Badge text & color
+            if u_status == "verified":
+                badge_text = "Verified Resolution"
+                badge_color = "emerald"
+            elif u_type == "road_repaired":
+                badge_text = "Repair Reported — Awaiting Verification"
+                badge_color = "amber"
+            elif u_type == "work_started":
+                badge_text = "Work Started — Citizen Update"
+                badge_color = "indigo"
+            elif u_type in ("issue_worse", "issue_has_become_worse"):
+                badge_text = "Condition Deteriorated — Citizen Alert"
+                badge_color = "rose"
+            else:
+                badge_text = "Citizen Report — Pending Verification"
+                badge_color = "slate"
+
+            timeline.append({
+                "id": f"update_{u_id}",
+                "event_type": "citizen_update",
+                "update_type": u_type,
+                "title": u_label,
+                "date": u_dict.get("created_at"),
+                "by": u_dict.get("username") if not is_citizen else "Citizen Reporter",
+                "badge": badge_text,
+                "badge_color": badge_color,
+                "comment": u_dict.get("comment"),
+                "verification_status": u_status,
+                "is_citizen": True,
+                "image_url": u_img,
+            })
+
+        # 3. Official inspector and maintenance verifications
+        for act in record.get("activity_log", []):
+            act_type = str(act.get("action_type") or "").lower()
+            new_st = str(act.get("new_status") or "").lower()
+            is_resolution = new_st in ("resolved", "verified", "repaired") or act_type in ("verified", "repaired")
+            act_notes = act.get("notes") or ""
+
+            if is_citizen and act_type in ("assigned", "reassigned", "assignment_cancelled"):
+                act_notes = "Remediation crew dispatched for inspection and maintenance scheduling."
+
+            act_title = "Inspector Verified Resolution" if is_resolution else f"Municipal Action: {act_type.replace('_', ' ').title()}"
+            act_badge = "Official Verification" if is_resolution else "Official Maintenance"
+            act_color = "emerald" if is_resolution else "cyan"
+
+            timeline.append({
+                "id": f"act_{act.get('id')}",
+                "event_type": "inspector_action",
+                "title": act_title,
+                "date": act.get("created_at"),
+                "by": "Municipal Operations" if is_citizen else (act.get("username") or "Inspector"),
+                "badge": act_badge,
+                "badge_color": act_color,
+                "comment": act_notes,
+                "verification_status": "verified" if is_resolution else "official",
+                "is_citizen": False,
+                "image_url": None,
+            })
+
+        # Chronological sort
+        def _sort_key(item):
+            d = item.get("date")
+            return str(d or "")
+
+        timeline.sort(key=_sort_key)
+
+        return jsonify({
+            "status": "success",
+            "inspection_id": inspection_id,
+            "count": len(raw_updates),
+            "updates": raw_updates,
+            "timeline": timeline,
+        }), 200
+
+    @app.route("/api/inspections/<int:inspection_id>/updates", methods=["POST"])
+    @roles_required(ROLE_ADMIN, ROLE_INSPECTOR, ROLE_MAINTENANCE, ROLE_CITIZEN)
+    def api_create_inspection_update(inspection_id: int):
+        """
+        Creates a citizen progress report update for an existing inspection.
+        Citizens can only update their own inspections.
+        Citizen updates are recorded as pending verification and NEVER directly resolve official status.
+        """
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        record = get_inspection_by_id(inspection_id, db_path=db_path)
+        if not record:
+            return jsonify({
+                "status": "error",
+                "error_code": "INSPECTION_NOT_FOUND",
+                "message": f"Inspection record #{inspection_id} not found.",
+            }), 404
+
+        curr_user = get_current_user_record()
+        if not curr_user and session.get("role"):
+            curr_user = {
+                "id": session.get("user_id"),
+                "username": session.get("username"),
+                "role": session.get("role"),
+            }
+
+        # Strict ownership verification
+        if curr_user and curr_user.get("role") == ROLE_CITIZEN:
+            if not check_citizen_inspection_access(record, curr_user, db_path=db_path):
+                return jsonify({
+                    "status": "error",
+                    "error_code": "FORBIDDEN_REPORT_UPDATE",
+                    "message": "Access denied: Citizens may only update their own inspection reports.",
+                }), 403
+
+        # Parse request body (JSON or multipart form-data)
+        if request.is_json and request.json:
+            data = request.json
+            raw_type = data.get("update_type")
+            comment = data.get("comment", "")
+        else:
+            raw_type = request.form.get("update_type")
+            comment = request.form.get("comment", "")
+
+        # Validate update_type
+        clean_type = str(raw_type or "").strip().lower().replace(" ", "_").replace("-", "_")
+        type_mapping = {
+            "work_started": "work_started",
+            "started": "work_started",
+            "road_repaired": "road_repaired",
+            "repaired": "road_repaired",
+            "issue_still_exists": "issue_still_exists",
+            "still_exists": "issue_still_exists",
+            "issue_worse": "issue_worse",
+            "issue_has_become_worse": "issue_worse",
+            "worse": "issue_worse",
+        }
+        canonical_type = type_mapping.get(clean_type)
+        if not canonical_type:
+            return jsonify({
+                "status": "error",
+                "error_code": "INVALID_UPDATE_TYPE",
+                "message": (
+                    "Invalid update type. Allowed options: "
+                    "'Work Started', 'Road Repaired', 'Issue Still Exists', 'Issue Has Become Worse'."
+                ),
+            }), 400
+
+        # Validate comment length
+        clean_comment = str(comment or "").strip()
+        if len(clean_comment) > 2000:
+            clean_comment = clean_comment[:2000]
+
+        # Validate optional photo upload
+        uploaded_file = request.files.get("image") or request.files.get("photo") or request.files.get("file")
+        image_path = None
+        if uploaded_file and uploaded_file.filename:
+            safe_name = secure_filename(os.path.basename(uploaded_file.filename))
+            raw_bytes = uploaded_file.read()
+            file_stream = io.BytesIO(raw_bytes)
+            is_valid, err_msg, _ = validate_image_stream(file_stream, safe_name or "update.jpg")
+            if not is_valid:
+                return jsonify({
+                    "status": "error",
+                    "error_code": "INVALID_IMAGE",
+                    "message": err_msg or "Uploaded photo failed validation.",
+                }), 400
+
+            save_name = f"update_{inspection_id}_{uuid.uuid4().hex[:8]}_{safe_name or 'photo.jpg'}"
+            save_key = f"uploads/{save_name}"
+            storage = getattr(app, "storage_backend", None)
+            if storage is not None:
+                try:
+                    image_path = storage.save(save_key, raw_bytes, content_type="image/jpeg")
+                except Exception as e:
+                    logger.warning("Storage backend save failed for update photo: %s", e)
+                    image_path = None
+            if not image_path:
+                local_target = os.path.join(PROJECT_ROOT, "data", "uploads", save_name)
+                os.makedirs(os.path.dirname(local_target), exist_ok=True)
+                with open(local_target, "wb") as f:
+                    f.write(raw_bytes)
+                image_path = f"uploads/{save_name}"
+
+        # Persist update
+        user_id = curr_user.get("id") if curr_user else None
+        username = curr_user.get("username") if curr_user else "Citizen"
+        update_id = add_inspection_update(
+            inspection_id=inspection_id,
+            update_type=canonical_type,
+            user_id=user_id,
+            username=username,
+            comment=clean_comment or None,
+            image_path=image_path,
+            verification_status="pending_verification",
+            db_path=db_path,
+        )
+
+        # Log activity into maintenance audit trail without changing official status
+        update_label = ALLOWED_CITIZEN_UPDATE_TYPES.get(canonical_type, canonical_type)
+        log_maintenance_activity(
+            inspection_id=inspection_id,
+            action_type="citizen_update",
+            notes=f"Citizen progress report: {update_label}. {clean_comment}".strip(),
+            user_id=user_id,
+            username=username,
+            db_path=db_path,
+        )
+
+        return jsonify({
+            "status": "success",
+            "message": "Report update submitted successfully. Your update is recorded and awaiting verification.",
+            "update_id": update_id,
+            "update": {
+                "id": update_id,
+                "inspection_id": inspection_id,
+                "update_type": canonical_type,
+                "update_type_label": update_label,
+                "comment": clean_comment,
+                "image_url": f"/api/inspections/{inspection_id}/updates/{update_id}/image" if image_path else None,
+                "verification_status": "pending_verification",
+            },
+        }), 201
+
+    @app.route("/api/inspections/<int:inspection_id>/updates/<int:update_id>/image", methods=["GET"])
+    @roles_required(ROLE_ADMIN, ROLE_INSPECTOR, ROLE_MAINTENANCE, ROLE_CITIZEN)
+    def api_get_inspection_update_image(inspection_id: int, update_id: int):
+        """
+        Serves the photograph associated with a citizen progress update.
+        Ensures strict access control matching the parent inspection report.
+        """
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        record = get_inspection_by_id(inspection_id, db_path=db_path)
+        if not record:
+            return jsonify({"status": "error", "message": f"Inspection #{inspection_id} not found."}), 404
+
+        curr_user = get_current_user_record()
+        if not curr_user and session.get("role"):
+            curr_user = {
+                "id": session.get("user_id"),
+                "username": session.get("username"),
+                "role": session.get("role"),
+            }
+        if curr_user and curr_user["role"] == ROLE_CITIZEN:
+            if not check_citizen_inspection_access(record, curr_user, db_path=db_path):
+                return jsonify({
+                    "status": "error",
+                    "error_code": "FORBIDDEN_REPORT_ACCESS",
+                    "message": "Access denied: Citizens may only view photos from their own reports.",
+                }), 403
+
+        upd = get_inspection_update_by_id(update_id, db_path=db_path)
+        if not upd or int(upd.get("inspection_id")) != int(inspection_id) or not upd.get("image_path"):
+            return jsonify({
+                "status": "error",
+                "error_code": "IMAGE_FILE_NOT_FOUND",
+                "message": f"Update #{update_id} does not have an attached photo.",
+            }), 404
+
+        img_path = str(upd["image_path"]).strip()
+
+        # If HTTP URL (R2 / S3)
+        if img_path.startswith("http://") or img_path.startswith("https://"):
+            from flask import redirect
+            return redirect(img_path)
+
+        storage = getattr(app, "storage_backend", None)
+        if storage is not None:
+            url = storage.get_url(img_path, expires_in=3600)
+            if url:
+                from flask import redirect
+                return redirect(url)
+            img_bytes = storage.get_bytes(img_path)
+            if img_bytes is not None:
+                return send_file(io.BytesIO(img_bytes), mimetype="image/jpeg", as_attachment=False)
+
+        # Check local filesystem
+        clean_rel = img_path.replace("\\", "/").strip().lstrip("/")
+        candidate_paths = [
+            os.path.abspath(img_path),
+            os.path.abspath(os.path.join(PROJECT_ROOT, clean_rel)),
+            os.path.abspath(os.path.join(PROJECT_ROOT, "data", clean_rel)),
+            os.path.abspath(os.path.join(PROJECT_ROOT, "data", "uploads", os.path.basename(clean_rel))),
+        ]
+        for p in candidate_paths:
+            if os.path.isfile(p):
+                return send_file(p, mimetype="image/jpeg", as_attachment=False)
+
+        return jsonify({
+            "status": "error",
+            "error_code": "IMAGE_FILE_NOT_FOUND",
+            "message": "Update photograph could not be located on disk or storage backend.",
+        }), 404
 
     # -------------------------------------------------------------------------
     # Report & Export Routes (Phase 4.5 & Phase 4.6 Authorization)
