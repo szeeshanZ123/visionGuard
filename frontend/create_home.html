@@ -594,6 +594,123 @@
           font-size: 28px;
         }
       }
+
+      /* ===== VisionGuard studio alert (visual only) =====
+         Display/visibility is NOT touched here: showStudioAlert() sets the
+         flex layout via classes and toggles the "hidden" class, so the card
+         stays hidden until Confirm Location is clicked. */
+      #studio-alert {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        padding: 14px 16px;
+        border-radius: 12px;
+        line-height: 1.5;
+        overflow: hidden;
+      }
+
+      /* The inner row used to shrink to its content, which left the close
+         button floating next to the text. Make it span the full card. */
+      #studio-alert > div {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        min-width: 0;
+      }
+
+      #studio-alert-icon {
+        flex-shrink: 0;
+        width: 22px;
+        height: 22px;
+        margin-top: 0 !important;
+        font-size: 22px !important;
+        line-height: 1;
+        font-variation-settings: "FILL" 1;
+      }
+
+      #studio-alert-title {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 1.3;
+      }
+
+      #studio-alert-message {
+        margin: 2px 0 0;
+        font-size: 13px;
+        line-height: 1.5;
+        overflow-wrap: anywhere; /* long location names wrap, no overflow */
+      }
+
+      #studio-alert > div > button {
+        flex-shrink: 0;
+        align-self: center;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        margin-left: auto; /* pins the close button to the far right */
+        border-radius: 9999px;
+        line-height: 0;
+        transition:
+          background-color 0.2s ease,
+          color 0.2s ease;
+      }
+
+      /* Success state (light green card, applied by showStudioAlert("success")) */
+      #studio-alert.bg-emerald-50 {
+        background: #ecfdf3;
+        border-color: #a7e3c0;
+        color: #14532d;
+      }
+      #studio-alert.bg-emerald-50 #studio-alert-icon {
+        color: #16a34a;
+      }
+      #studio-alert.bg-emerald-50 #studio-alert-title {
+        color: #14532d;
+      }
+      #studio-alert.bg-emerald-50 #studio-alert-message {
+        color: #166534;
+      }
+      #studio-alert.bg-emerald-50 > div > button {
+        color: #15803d;
+      }
+      #studio-alert.bg-emerald-50 > div > button:hover {
+        background: rgba(22, 101, 52, 0.1);
+        color: #14532d;
+      }
+      #studio-alert > div > button:focus-visible {
+        outline: 2px solid #16a34a;
+        outline-offset: 2px;
+      }
+
+      /* Tablet */
+      @media (max-width: 1024px) {
+        #studio-alert {
+          padding: 14px 16px;
+        }
+      }
+
+      /* Mobile */
+      @media (max-width: 640px) {
+        #studio-alert {
+          padding: 12px 12px 12px 14px;
+        }
+        #studio-alert > div {
+          gap: 10px;
+        }
+        #studio-alert-icon {
+          width: 20px;
+          height: 20px;
+          font-size: 20px !important;
+        }
+        #studio-alert-message {
+          font-size: 12px;
+        }
+      }
     </style>
     <script src="https://cdn.tailwindcss.com"></script>
     <script id="tailwind-config">
