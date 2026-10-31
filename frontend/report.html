@@ -184,8 +184,7 @@
                 </nav>
                 <div class="hidden sm:flex items-center gap-2 pl-4 shrink-0">
                     <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span class="text-[11px] font-semibold text-slate-600 tracking-wide uppercase">Node Active • Live
-                        Sync</span>
+                    <span class="text-[11px] font-semibold text-slate-600 tracking-wide uppercase">Node Active • Live Sync</span>
                 </div>
             </div>
         </div>
@@ -1577,7 +1576,9 @@
                         if (roleEl) roleEl.innerText = (data.user.role || 'citizen').toUpperCase();
                         if (avatarEl) {
                             const isStaff = (data.user.role === 'admin' || data.user.role === 'inspector' || data.user.role === 'maintenance');
-                            avatarEl.href = isStaff ? '/dashboard' : '/report';
+                            avatarEl.href = isStaff ? '/staff/dashboard' : '/dashboard';
+                            const staffItem = document.getElementById('staffPortalItem');
+                            if (staffItem && isStaff) staffItem.classList.remove('hidden');
                             avatarEl.title = `${data.user.username} (${data.user.role}) - ${isStaff ? 'Operations Dashboard' : 'My Reports'}`;
                         }
                         if (data.user.role === 'citizen') {

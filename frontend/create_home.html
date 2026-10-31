@@ -1131,7 +1131,7 @@
           </div>
         </div>
       </div>
-    </header>
+          </header>
     <main class="w-full pt-28 md:pt-20 bg-[#F8FAFC] min-h-screen">
       <div class="flex flex-col w-full">
         <div
@@ -3194,7 +3194,9 @@
                     data.user.role === "admin" ||
                     data.user.role === "inspector" ||
                     data.user.role === "maintenance";
-                  avatarEl.href = isStaff ? "/dashboard" : "/report";
+                  avatarEl.href = isStaff ? "/staff/dashboard" : "/dashboard";
+                  const staffItem = document.getElementById("staffPortalItem");
+                  if (staffItem && isStaff) staffItem.classList.remove("hidden");
                   avatarEl.title = `${data.user.username} (${data.user.role}) - Click for ${isStaff ? "Operations Dashboard" : "My Reports"}`;
                 }
               } else {

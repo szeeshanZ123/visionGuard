@@ -2,23 +2,22 @@
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="csrf-token" content="{{ csrf_token or '' }}">
-    <title>Executive Operations Dashboard — VisionGuard AI</title>
+    <meta content="width=device-width, initial-scale=1.0, maximum-scale=5.0" name="viewport" />
+    <title>Citizen Dashboard - VisionGuard AI</title>
+    
     <!-- Fonts & Icons -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet" />
-    <!-- Tailwind CSS v3 -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <script>
         tailwind.config = {
             theme: {
                 extend: {
-                    fontFamily: { sans: ['Inter', 'sans-serif'] },
-                    colors: {
-                        brand: {
-                            50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', dark: '#0f172a'
-                        }
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
                     }
                 }
             }
@@ -26,106 +25,119 @@
     </script>
     <style>
         @layer base {
-            html, body { margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
-            body { overscroll-behavior: none; }
+            html, body {
+                margin: 0;
+                padding: 0;
+                font-family: 'Inter', sans-serif;
+                background-color: #F8FAFC;
+                color: #0F172A;
+            }
         }
-        .vg-nav-user-container { position: relative; }
+        .vg-nav-user-container {
+            position: relative;
+        }
         #vg-profile-dropdown {
             display: none;
             position: absolute;
             top: calc(100% + 8px);
             right: 0;
-            width: 170px;
-            padding: 6px;
+            width: 220px;
             background: #ffffff;
             border: 1px solid #e2e8f0;
             border-radius: 12px;
-            box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.1);
+            box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.05);
             z-index: 60;
+            padding: 6px;
         }
-        #vg-profile-dropdown.vg-open { display: block; }
+        #vg-profile-dropdown.vg-open {
+            display: block;
+        }
     </style>
 </head>
-<body class="bg-slate-50 font-sans text-slate-800 antialiased min-h-screen flex flex-col">
-    <!-- Top Global Header -->
-    <header class="sticky top-0 w-full z-50 bg-white border-b border-slate-200 shadow-sm transition-all">
+<body class="bg-slate-50 text-slate-900 antialiased min-h-screen flex flex-col justify-between">
+    <!-- Top Responsive Citizen Navbar -->
+    <header class="sticky top-0 z-50 bg-white border-b border-slate-200/90 shadow-sm w-full">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex flex-wrap lg:flex-nowrap items-center justify-between gap-3 sm:gap-4 py-3 sm:py-3.5">
-                <!-- Logo & Brand -->
-                <a href="/" class="flex items-center gap-3 shrink-0 hover:opacity-95 transition-opacity">
-                    <div class="flex items-center justify-center w-10 h-10 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 shadow-sm">
-                        <span class="material-symbols-outlined text-[24px]">shield</span>
+            <div class="h-16 flex items-center justify-between gap-4">
+                <!-- Brand Section -->
+                <a href="/" class="flex items-center gap-2.5 sm:gap-3 shrink-0 hover:opacity-95 transition-opacity">
+                    <div class="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-sm shadow-blue-500/20">
+                        <span class="material-symbols-outlined text-[20px]">verified_user</span>
                     </div>
                     <div>
-                        <div class="flex items-center gap-2">
-                            <span class="text-base sm:text-lg font-bold tracking-tight text-slate-900">VisionGuard AI</span>
-                            <span class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200/60">Operations</span>
+                        <div class="flex items-center gap-1.5 leading-none">
+                            <span class="font-bold text-base sm:text-lg text-slate-900 tracking-tight">VisionGuard AI</span>
+                            <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-wider">CIVIC</span>
                         </div>
-                        <p class="text-[11px] text-slate-500 font-medium">Municipal Defect & Infrastructure Intelligence</p>
+                        <p class="text-[10px] sm:text-[11px] text-slate-400 font-medium mt-0.5 leading-none">Citizen Defect Reporting Portal</p>
                     </div>
                 </a>
 
-                <!-- Primary Modern Navigation Links -->
-                <nav class="flex items-center gap-1 sm:gap-2 overflow-x-auto py-1">
+                <!-- Citizen Navigation Links -->
+                <nav class="hidden md:flex items-center gap-1 lg:gap-2">
+                    <a href="/" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[18px]">home</span>
+                        <span>Home</span>
+                    </a>
                     <a href="/dashboard" class="px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-lg bg-blue-50 text-blue-600 border border-blue-200/80 transition-colors flex items-center gap-1.5 shadow-sm">
                         <span class="material-symbols-outlined text-[18px]">dashboard</span>
-                        <span>Dashboard</span>
+                        <span>My Dashboard</span>
                     </a>
                     <a href="/create_home" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors flex items-center gap-1.5">
-                        <span class="material-symbols-outlined text-[18px]">biotech</span>
-                        <span>Defect Studio</span>
+                        <span class="material-symbols-outlined text-[18px]">add_circle</span>
+                        <span>Report Defect</span>
                     </a>
                     <a href="/map" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors flex items-center gap-1.5">
                         <span class="material-symbols-outlined text-[18px]">map</span>
-                        <span>Defect Map</span>
+                        <span>Public Defect Map</span>
                     </a>
                     <a href="/report" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors flex items-center gap-1.5">
-                        <span class="material-symbols-outlined text-[18px]">description</span>
-                        <span>Reports & Records</span>
+                        <span class="material-symbols-outlined text-[18px]">inventory_2</span>
+                        <span>My Reports</span>
                     </a>
-                    <a href="/maintenance" id="nav-link-maintenance" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors flex items-center gap-1.5 hidden">
-                        <span class="material-symbols-outlined text-[18px]">build</span>
-                        <span>Maintenance Queue</span>
-                    </a>
-                    <a href="/users" id="nav-link-users" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors flex items-center gap-1.5 hidden">
-                        <span class="material-symbols-outlined text-[18px]">group</span>
-                        <span>User Management</span>
+                    <a href="/profile" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[18px]">person</span>
+                        <span>My Profile</span>
                     </a>
                 </nav>
 
-                <!-- Header Right: Telemetry & Profile -->
-                <div class="flex items-center gap-3 shrink-0">
-                    <div class="hidden sm:flex items-center gap-2 text-xs">
-                        <span id="header-db-badge" class="px-2.5 py-1 font-medium rounded-full bg-slate-100 text-slate-600 border border-slate-200 flex items-center gap-1.5">
-                            <span class="w-2 h-2 rounded-full bg-slate-400"></span>
-                            <span id="header-db-text">Database: Checking...</span>
-                        </span>
-                        <span id="header-ai-badge" class="px-2.5 py-1 font-medium rounded-full bg-slate-100 text-slate-600 border border-slate-200 flex items-center gap-1.5">
-                            <span class="w-2 h-2 rounded-full bg-slate-400"></span>
-                            <span id="header-ai-text">AI: Checking...</span>
-                        </span>
-                    </div>
+                <!-- Header Actions & Profile -->
+                <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+                    <a href="/create_home" class="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs sm:text-sm font-semibold rounded-full shadow-sm shadow-blue-500/20 transition-all">
+                        <span class="material-symbols-outlined text-[18px]">add</span>
+                        <span>New Report</span>
+                    </a>
 
                     <!-- User Profile Dropdown -->
                     <div class="vg-nav-user-container">
                         <button type="button" id="vg-user-profile-btn" class="flex items-center gap-2 p-1.5 sm:px-3 sm:py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors focus:outline-none">
-                            <div class="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-xs uppercase" id="userAvatarInitial">A</div>
-                            <span class="hidden sm:inline text-xs font-semibold text-slate-700" id="userDisplayName">Staff User</span>
+                            <div class="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-xs uppercase" id="userAvatarInitial">C</div>
+                            <span class="hidden sm:inline text-xs font-semibold text-slate-700" id="userDisplayName">Citizen Auditor</span>
                             <span class="material-symbols-outlined text-[16px] text-slate-400">expand_more</span>
                         </button>
                         <div id="vg-profile-dropdown">
                             <div class="px-3 py-2 border-b border-slate-100">
-                                <p class="text-xs font-bold text-slate-900 truncate" id="dropdownUsername">Administrator</p>
-                                <p class="text-[11px] text-slate-500 font-medium capitalize" id="dropdownRole">admin</p>
+                                <p class="text-xs font-bold text-slate-900 truncate" id="dropdownUsername">Citizen</p>
+                                <p class="text-[11px] text-slate-500 font-medium" id="dropdownRole">Citizen Auditor</p>
                             </div>
-                            <a href="/create_home" class="flex items-center gap-2 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 rounded-lg">
-                                <span class="material-symbols-outlined text-[16px]">biotech</span>
-                                <span>Defect Studio</span>
+                            <a href="/profile" class="flex items-center gap-2 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 rounded-lg">
+                                <span class="material-symbols-outlined text-[16px]">account_circle</span>
+                                <span>My Profile</span>
                             </a>
                             <a href="/report" class="flex items-center gap-2 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 rounded-lg">
-                                <span class="material-symbols-outlined text-[16px]">description</span>
-                                <span>All Records</span>
+                                <span class="material-symbols-outlined text-[16px]">inventory_2</span>
+                                <span>My Reports</span>
                             </a>
+                            <a href="/map" class="flex items-center gap-2 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 rounded-lg">
+                                <span class="material-symbols-outlined text-[16px]">map</span>
+                                <span>Public Defect Map</span>
+                            </a>
+                            <div id="staffPortalItem" class="hidden border-t border-slate-100 my-1 pt-1">
+                                <a href="/staff/dashboard" class="flex items-center gap-2 px-3 py-2 text-xs text-indigo-700 hover:bg-indigo-50 rounded-lg font-medium">
+                                    <span class="material-symbols-outlined text-[16px]">admin_panel_settings</span>
+                                    <span>Staff Operations Portal</span>
+                                </a>
+                            </div>
                             <button type="button" id="vg-logout-btn" class="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-600 hover:bg-red-50 rounded-lg font-medium text-left">
                                 <span class="material-symbols-outlined text-[16px]">logout</span>
                                 <span>Sign Out</span>
@@ -135,597 +147,421 @@
                 </div>
             </div>
         </div>
+
+        <!-- Mobile Subnavigation Bar -->
+        <div class="md:hidden border-t border-slate-100 bg-white">
+            <div class="max-w-7xl mx-auto px-4 py-2 flex items-center justify-around text-xs">
+                <a href="/dashboard" class="flex flex-col items-center gap-1 font-semibold text-blue-600">
+                    <span class="material-symbols-outlined text-[20px]">dashboard</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/create_home" class="flex flex-col items-center gap-1 text-slate-600 hover:text-slate-900">
+                    <span class="material-symbols-outlined text-[20px]">add_circle</span>
+                    <span>Report</span>
+                </a>
+                <a href="/map" class="flex flex-col items-center gap-1 text-slate-600 hover:text-slate-900">
+                    <span class="material-symbols-outlined text-[20px]">map</span>
+                    <span>Map</span>
+                </a>
+                <a href="/report" class="flex flex-col items-center gap-1 text-slate-600 hover:text-slate-900">
+                    <span class="material-symbols-outlined text-[20px]">inventory_2</span>
+                    <span>Reports</span>
+                </a>
+                <a href="/profile" class="flex flex-col items-center gap-1 text-slate-600 hover:text-slate-900">
+                    <span class="material-symbols-outlined text-[20px]">person</span>
+                    <span>Profile</span>
+                </a>
+            </div>
+        </div>
     </header>
 
-    <!-- Main Dashboard Container -->
+    <!-- Main Citizen Dashboard Area -->
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
-        <!-- Dashboard Hero / Title Row -->
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-2 border-b border-slate-200/80">
-            <div>
-                <h1 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5">
-                    <span>📊 Municipal Operations Dashboard</span>
-                    <span id="admin-badge-indicator" class="px-2 py-0.5 text-xs font-semibold rounded-md bg-blue-100 text-blue-800 border border-blue-200">Admin Authority</span>
-                </h1>
-                <p class="text-xs sm:text-sm text-slate-500 mt-1">
-                    Real-time infrastructure defect analytics, remediation deadlines, and audit intelligence calculated from 
-                    <span id="dash-db-subtitle-label" class="font-semibold text-slate-800">Database</span>.
-                </p>
+        <!-- 1. Welcome Header Banner -->
+        <section class="bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 rounded-3xl p-6 sm:p-8 text-white shadow-lg relative overflow-hidden">
+            <div class="absolute -right-10 -bottom-10 opacity-10 pointer-events-none">
+                <span class="material-symbols-outlined text-[240px]">shield</span>
             </div>
-            <div class="flex flex-wrap items-center gap-2 sm:gap-3">
-                <button type="button" id="btn-refresh-dashboard" class="px-3.5 py-2 text-xs font-semibold rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 shadow-sm flex items-center gap-1.5 transition-colors">
-                    <span class="material-symbols-outlined text-[18px]">refresh</span>
-                    <span>Refresh Analytics</span>
-                </button>
-                <a href="/create_home" class="px-4 py-2 text-xs font-semibold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm flex items-center gap-1.5 transition-colors">
-                    <span class="material-symbols-outlined text-[18px]">add_circle</span>
-                    <span>New Inspection</span>
-                </a>
-            </div>
-        </div>
-
-        <!-- System Architecture Telemetry Card -->
-        <div class="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-sm">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center shrink-0">
-                        <span class="material-symbols-outlined text-[22px]">dns</span>
+            <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div class="space-y-2 max-w-2xl">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 text-blue-100 text-xs font-semibold backdrop-blur-sm">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span>Civic Infrastructure Portal</span>
                     </div>
-                    <div>
-                        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500">Live Infrastructure Telemetry</h2>
-                        <div class="flex flex-wrap items-center gap-3 mt-1 text-xs">
-                            <span class="flex items-center gap-1.5 font-medium text-slate-700">
-                                <strong>Database Backend:</strong>
-                                <span id="telemetry-db-name" class="font-bold text-slate-900">Checking...</span>
-                            </span>
-                            <span class="text-slate-300">•</span>
-                            <span class="flex items-center gap-1.5 font-medium text-slate-700">
-                                <strong>AI Vision Engine:</strong>
-                                <span id="telemetry-ai-name" class="font-bold text-slate-900">Checking...</span>
-                            </span>
-                            <span class="text-slate-300">•</span>
-                            <span class="flex items-center gap-1.5 font-medium text-slate-700">
-                                <strong>Storage Backend:</strong>
-                                <span id="telemetry-storage-name" class="font-bold text-slate-900">Cloudflare R2 / Local</span>
-                            </span>
-                        </div>
-                    </div>
+                    <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                        Welcome back, <span id="welcomeCitizenName">Citizen</span>!
+                    </h1>
+                    <p class="text-sm sm:text-base text-blue-100 leading-relaxed">
+                        Track infrastructure defects you have reported, inspect AI visual assessment results, and monitor municipal repair progress in your community.
+                    </p>
                 </div>
-                <div class="flex items-center gap-2 shrink-0">
-                    <span id="telemetry-status-pill" class="px-3 py-1 text-xs font-bold rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5">
-                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                        <span>Systems Operational</span>
-                    </span>
-                </div>
-            </div>
-        </div>
-
-        <!-- 5 KPI Summary Metric Cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            <!-- 1. Total Inspections -->
-            <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between">
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-bold text-slate-500 uppercase tracking-wide">Total Inspections</span>
-                    <span class="p-2 rounded-xl bg-blue-50 text-blue-600 border border-blue-100">
-                        <span class="material-symbols-outlined text-[20px]">layers</span>
-                    </span>
-                </div>
-                <div class="mt-4 flex items-baseline gap-2">
-                    <span id="kpi-total-inspections" class="text-3xl font-extrabold text-slate-900 tracking-tight">0</span>
-                    <span class="text-xs text-slate-400 font-medium">records</span>
-                </div>
-                <div class="mt-3 pt-3 border-t border-slate-100 flex items-center gap-1.5 text-xs text-slate-600 font-medium">
-                    <span class="w-2 h-2 rounded-full bg-blue-500"></span>
-                    <span id="kpi-db-persisted-label">Persisted in Database</span>
-                </div>
-            </div>
-
-            <!-- 2. Detected Defects -->
-            <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between">
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-bold text-slate-500 uppercase tracking-wide">Detected Defects</span>
-                    <span class="p-2 rounded-xl bg-rose-50 text-rose-600 border border-rose-100">
-                        <span class="material-symbols-outlined text-[20px]">report_problem</span>
-                    </span>
-                </div>
-                <div class="mt-4 flex items-baseline gap-2">
-                    <span id="kpi-total-defects" class="text-3xl font-extrabold text-rose-600 tracking-tight">0</span>
-                    <span class="text-xs text-slate-400 font-medium">distresses</span>
-                </div>
-                <div class="mt-3 pt-3 border-t border-slate-100 flex items-center gap-1.5 text-xs text-slate-600 font-medium">
-                    <span class="w-2 h-2 rounded-full bg-rose-500"></span>
-                    <span>Cracks & Potholes</span>
-                </div>
-            </div>
-
-            <!-- 3. Open Records -->
-            <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between">
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-bold text-slate-500 uppercase tracking-wide">Open Records</span>
-                    <span class="p-2 rounded-xl bg-amber-50 text-amber-600 border border-amber-100">
-                        <span class="material-symbols-outlined text-[20px]">warning</span>
-                    </span>
-                </div>
-                <div class="mt-4 flex items-baseline gap-2">
-                    <span id="kpi-open-records" class="text-3xl font-extrabold text-amber-600 tracking-tight">0</span>
-                    <span class="text-xs text-slate-400 font-medium">pending</span>
-                </div>
-                <div class="mt-3 pt-3 border-t border-slate-100 flex items-center gap-1.5 text-xs text-slate-600 font-medium">
-                    <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-                    <span>Awaiting staff triage</span>
-                </div>
-            </div>
-
-            <!-- 4. In Progress -->
-            <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between">
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-bold text-slate-500 uppercase tracking-wide">Under Review / Repair</span>
-                    <span class="p-2 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100">
-                        <span class="material-symbols-outlined text-[20px]">pending_actions</span>
-                    </span>
-                </div>
-                <div class="mt-4 flex items-baseline gap-2">
-                    <span id="kpi-inprogress-records" class="text-3xl font-extrabold text-indigo-600 tracking-tight">0</span>
-                    <span class="text-xs text-slate-400 font-medium">active</span>
-                </div>
-                <div class="mt-3 pt-3 border-t border-slate-100 flex items-center gap-1.5 text-xs text-slate-600 font-medium">
-                    <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
-                    <span>Remediation in progress</span>
-                </div>
-            </div>
-
-            <!-- 5. Resolved Records -->
-            <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between">
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-bold text-slate-500 uppercase tracking-wide">Resolved Records</span>
-                    <span class="p-2 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100">
-                        <span class="material-symbols-outlined text-[20px]">check_circle</span>
-                    </span>
-                </div>
-                <div class="mt-4 flex items-baseline gap-2">
-                    <span id="kpi-resolved-records" class="text-3xl font-extrabold text-emerald-600 tracking-tight">0</span>
-                    <span class="text-xs text-slate-400 font-medium">closed</span>
-                </div>
-                <div class="mt-3 pt-3 border-t border-slate-100 flex items-center gap-1.5 text-xs text-slate-600 font-medium">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                    <span>Remediation complete</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- 3-Column Analytics & Deadlines Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- Col 1: Distress Class Breakdown -->
-            <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm flex flex-col">
-                <div class="flex items-center justify-between pb-3 border-b border-slate-100">
-                    <div>
-                        <h3 class="text-sm font-bold text-slate-900">Distress Classification</h3>
-                        <p class="text-xs text-slate-500">Multimodal AI defect detection counts</p>
-                    </div>
-                    <span class="p-1.5 rounded-lg bg-slate-100 text-slate-600">
-                        <span class="material-symbols-outlined text-[18px]">pie_chart</span>
-                    </span>
-                </div>
-                <div class="mt-4 space-y-3.5 flex-1" id="distress-breakdown-container">
-                    <div class="space-y-1">
-                        <div class="flex justify-between text-xs font-medium text-slate-700">
-                            <span>Potholes</span>
-                            <span id="cnt-pothole" class="font-bold">0</span>
-                        </div>
-                        <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                            <div id="bar-pothole" class="bg-rose-500 h-2 rounded-full" style="width: 0%"></div>
-                        </div>
-                    </div>
-                    <div class="space-y-1">
-                        <div class="flex justify-between text-xs font-medium text-slate-700">
-                            <span>Alligator Cracking</span>
-                            <span id="cnt-alligator" class="font-bold">0</span>
-                        </div>
-                        <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                            <div id="bar-alligator" class="bg-amber-500 h-2 rounded-full" style="width: 0%"></div>
-                        </div>
-                    </div>
-                    <div class="space-y-1">
-                        <div class="flex justify-between text-xs font-medium text-slate-700">
-                            <span>Longitudinal Cracking</span>
-                            <span id="cnt-longitudinal" class="font-bold">0</span>
-                        </div>
-                        <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                            <div id="bar-longitudinal" class="bg-blue-500 h-2 rounded-full" style="width: 0%"></div>
-                        </div>
-                    </div>
-                    <div class="space-y-1">
-                        <div class="flex justify-between text-xs font-medium text-slate-700">
-                            <span>Transverse Cracking</span>
-                            <span id="cnt-transverse" class="font-bold">0</span>
-                        </div>
-                        <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                            <div id="bar-transverse" class="bg-indigo-500 h-2 rounded-full" style="width: 0%"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Col 2: Severity Distribution -->
-            <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm flex flex-col">
-                <div class="flex items-center justify-between pb-3 border-b border-slate-100">
-                    <div>
-                        <h3 class="text-sm font-bold text-slate-900">Severity Distribution</h3>
-                        <p class="text-xs text-slate-500">Structural urgency levels across records</p>
-                    </div>
-                    <span class="p-1.5 rounded-lg bg-slate-100 text-slate-600">
-                        <span class="material-symbols-outlined text-[18px]">bar_chart</span>
-                    </span>
-                </div>
-                <div class="mt-4 grid grid-cols-2 gap-3 flex-1">
-                    <div class="p-3 rounded-xl bg-red-50 border border-red-100 flex flex-col justify-between">
-                        <span class="text-xs font-bold text-red-700">Critical</span>
-                        <span id="sev-critical" class="text-2xl font-extrabold text-red-800">0</span>
-                        <span class="text-[10px] text-red-600 font-medium">Immediate hazard</span>
-                    </div>
-                    <div class="p-3 rounded-xl bg-amber-50 border border-amber-100 flex flex-col justify-between">
-                        <span class="text-xs font-bold text-amber-700">High</span>
-                        <span id="sev-high" class="text-2xl font-extrabold text-amber-800">0</span>
-                        <span class="text-[10px] text-amber-600 font-medium">Prompt repair</span>
-                    </div>
-                    <div class="p-3 rounded-xl bg-blue-50 border border-blue-100 flex flex-col justify-between">
-                        <span class="text-xs font-bold text-blue-700">Medium</span>
-                        <span id="sev-medium" class="text-2xl font-extrabold text-blue-800">0</span>
-                        <span class="text-[10px] text-blue-600 font-medium">Scheduled repair</span>
-                    </div>
-                    <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
-                        <span class="text-xs font-bold text-slate-700">Low</span>
-                        <span id="sev-low" class="text-2xl font-extrabold text-slate-800">0</span>
-                        <span class="text-[10px] text-slate-500 font-medium">Monitor wear</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Col 3: Maintenance Deadlines -->
-            <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm flex flex-col">
-                <div class="flex items-center justify-between pb-3 border-b border-slate-100">
-                    <div>
-                        <h3 class="text-sm font-bold text-slate-900">Remediation Deadlines</h3>
-                        <p class="text-xs text-slate-500">Work order scheduling compliance</p>
-                    </div>
-                    <a href="/maintenance" class="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1">
-                        <span>Queue</span>
-                        <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                <!-- Quick Action Buttons -->
+                <div class="flex flex-wrap items-center gap-3 shrink-0">
+                    <a href="/create_home" class="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-white text-blue-700 hover:bg-blue-50 text-sm font-bold shadow-md hover:shadow-lg transition-all active:scale-[0.98]">
+                        <span class="material-symbols-outlined text-[20px]">add_photo_alternate</span>
+                        <span>Report Road Defect</span>
+                    </a>
+                    <a href="/map" class="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white text-sm font-semibold border border-white/20 backdrop-blur-sm transition-all">
+                        <span class="material-symbols-outlined text-[20px]">explore</span>
+                        <span>View Defect Map</span>
                     </a>
                 </div>
-                <div class="mt-4 space-y-2.5 flex-1">
-                    <div class="p-3 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-between">
-                        <div class="flex items-center gap-2.5">
-                            <span class="material-symbols-outlined text-[18px] text-rose-600">emergency_home</span>
-                            <div>
-                                <p class="text-xs font-bold text-rose-900">Overdue Repairs</p>
-                                <p class="text-[11px] text-rose-600">Past target remediation deadline</p>
-                            </div>
-                        </div>
-                        <span id="deadline-overdue" class="text-lg font-extrabold text-rose-700">0</span>
-                    </div>
-                    <div class="p-3 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-between">
-                        <div class="flex items-center gap-2.5">
-                            <span class="material-symbols-outlined text-[18px] text-amber-600">today</span>
-                            <div>
-                                <p class="text-xs font-bold text-amber-900">Due Today</p>
-                                <p class="text-[11px] text-amber-600">Scheduled for today's shift</p>
-                            </div>
-                        </div>
-                        <span id="deadline-due-today" class="text-lg font-extrabold text-amber-700">0</span>
-                    </div>
-                    <div class="p-3 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-between">
-                        <div class="flex items-center gap-2.5">
-                            <span class="material-symbols-outlined text-[18px] text-blue-600">event</span>
-                            <div>
-                                <p class="text-xs font-bold text-blue-900">Upcoming Work Orders</p>
-                                <p class="text-[11px] text-blue-600">Scheduled remediation targets</p>
-                            </div>
-                        </div>
-                        <span id="deadline-upcoming" class="text-lg font-extrabold text-blue-700">0</span>
-                    </div>
-                </div>
             </div>
-        </div>
+        </section>
 
-        <!-- Recent Inspections Table -->
-        <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-            <div class="p-4 sm:p-5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h3 class="text-sm sm:text-base font-bold text-slate-900">Recent Infrastructure Surveys</h3>
-                    <p class="text-xs text-slate-500">Latest surveyed roadway and building distress records</p>
+        <!-- 2. Authentic Metric Counters Grid -->
+        <section aria-labelledby="metrics-heading">
+            <h2 id="metrics-heading" class="sr-only">Your Reporting Summary</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+                <!-- Card 1: Total Reports -->
+                <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Reports</span>
+                        <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                            <span class="material-symbols-outlined text-[22px]">inventory_2</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <div class="text-3xl font-extrabold text-slate-900 tracking-tight" id="statTotalReports">--</div>
+                        <p class="text-xs text-slate-500 mt-1">Submitted by your account</p>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-100 text-xs text-blue-600 font-semibold flex items-center gap-1">
+                        <a href="/report" class="hover:underline flex items-center gap-1">
+                            <span>View all reports</span>
+                            <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                        </a>
+                    </div>
                 </div>
-                <a href="/report" class="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1">
-                    <span>View All Records History</span>
-                    <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
-                </a>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse text-xs">
-                    <thead>
-                        <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider">
-                            <th class="py-3 px-4">Inspection #</th>
-                            <th class="py-3 px-4">Location / Road</th>
-                            <th class="py-3 px-4">Domain</th>
-                            <th class="py-3 px-4">Defects Detected</th>
-                            <th class="py-3 px-4">Severity</th>
-                            <th class="py-3 px-4">Workflow Status</th>
-                            <th class="py-3 px-4 text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="recent-inspections-tbody" class="divide-y divide-slate-100 text-slate-700">
-                        <tr>
-                            <td colspan="7" class="py-8 text-center text-slate-400">Loading recent inspections...</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
 
-        <!-- Quick Navigation Cards Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <a href="/create_home" class="p-5 rounded-2xl bg-white border border-slate-200 hover:border-blue-400 hover:shadow-md transition-all flex items-start gap-4 group">
-                <div class="p-3 rounded-xl bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                    <span class="material-symbols-outlined text-[24px]">biotech</span>
+                <!-- Card 2: Under Review -->
+                <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Under Review</span>
+                        <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                            <span class="material-symbols-outlined text-[22px]">pending_actions</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <div class="text-3xl font-extrabold text-slate-900 tracking-tight" id="statUnderReview">--</div>
+                        <p class="text-xs text-slate-500 mt-1">Assigned or being reviewed</p>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-100 text-xs text-amber-700 font-semibold flex items-center gap-1">
+                        <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                        <span>Active municipal assessment</span>
+                    </div>
                 </div>
-                <div>
-                    <h4 class="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors">AI Defect Studio</h4>
-                    <p class="text-xs text-slate-500 mt-1">Upload road or home images for Gemini Multimodal defect detection.</p>
+
+                <!-- Card 3: Resolved Reports -->
+                <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Resolved</span>
+                        <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                            <span class="material-symbols-outlined text-[22px]">check_circle</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <div class="text-3xl font-extrabold text-slate-900 tracking-tight" id="statResolved">--</div>
+                        <p class="text-xs text-slate-500 mt-1">Remediated & closed</p>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-100 text-xs text-emerald-700 font-semibold flex items-center gap-1">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                        <span>Community improvements</span>
+                    </div>
                 </div>
-            </a>
-            <a href="/map" class="p-5 rounded-2xl bg-white border border-slate-200 hover:border-blue-400 hover:shadow-md transition-all flex items-start gap-4 group">
-                <div class="p-3 rounded-xl bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                    <span class="material-symbols-outlined text-[24px]">map</span>
+
+                <!-- Card 4: Official Complaint Drafts -->
+                <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Formal Complaints</span>
+                        <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                            <span class="material-symbols-outlined text-[22px]">gavel</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <div class="text-3xl font-extrabold text-slate-900 tracking-tight" id="statComplaints">--</div>
+                        <p class="text-xs text-slate-500 mt-1">Escalated draft submissions</p>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-100 text-xs text-indigo-600 font-semibold flex items-center gap-1">
+                        <span>Draft status until submitted</span>
+                    </div>
                 </div>
-                <div>
-                    <h4 class="text-sm font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">Shared Defect Map</h4>
-                    <p class="text-xs text-slate-500 mt-1">Explore verified hazards across city coordinates on interactive Leaflet GIS.</p>
+            </div>
+        </section>
+
+        <!-- 3. Recent Reports & Quick Guidance Grid -->
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Left: Recent Defect Reports (2 Cols) -->
+            <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                <div class="px-5 py-4 border-b border-slate-200/80 flex items-center justify-between">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-900">Recent Defect Submissions</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Your latest reported infrastructure issues and their current progress</p>
+                    </div>
+                    <a href="/report" class="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1">
+                        <span>View All</span>
+                        <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+                    </a>
                 </div>
-            </a>
-            <a href="/report" class="p-5 rounded-2xl bg-white border border-slate-200 hover:border-blue-400 hover:shadow-md transition-all flex items-start gap-4 group">
-                <div class="p-3 rounded-xl bg-amber-50 text-amber-600 group-hover:bg-amber-600 group-hover:text-white transition-colors">
-                    <span class="material-symbols-outlined text-[24px]">description</span>
+
+                <!-- Recent Reports Container -->
+                <div id="recentReportsContainer" class="p-4 sm:p-5 flex-1 divide-y divide-slate-100">
+                    <!-- Loading Skeleton -->
+                    <div class="space-y-4 py-2">
+                        <div class="animate-pulse flex items-center justify-between p-3 rounded-xl bg-slate-50">
+                            <div class="space-y-2 flex-1">
+                                <div class="h-4 bg-slate-200 rounded w-1/3"></div>
+                                <div class="h-3 bg-slate-200 rounded w-1/2"></div>
+                            </div>
+                            <div class="h-6 bg-slate-200 rounded-full w-20"></div>
+                        </div>
+                        <div class="animate-pulse flex items-center justify-between p-3 rounded-xl bg-slate-50">
+                            <div class="space-y-2 flex-1">
+                                <div class="h-4 bg-slate-200 rounded w-1/4"></div>
+                                <div class="h-3 bg-slate-200 rounded w-2/5"></div>
+                            </div>
+                            <div class="h-6 bg-slate-200 rounded-full w-20"></div>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <h4 class="text-sm font-bold text-slate-900 group-hover:text-amber-600 transition-colors">Reports & Records</h4>
-                    <p class="text-xs text-slate-500 mt-1">Search survey history, verify citizen reports, and download formal PDFs.</p>
+            </div>
+
+            <!-- Right: Civic Guidance & Quick Actions (1 Col) -->
+            <div class="space-y-5">
+                <!-- Status Guide Card -->
+                <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+                    <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-blue-600 text-[18px]">info</span>
+                        <span>Understanding Statuses</span>
+                    </h3>
+                    <ul class="space-y-3 text-xs">
+                        <li class="flex items-start gap-2.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-slate-400 mt-1 shrink-0"></span>
+                            <div>
+                                <strong class="text-slate-800">Submitted / Open:</strong>
+                                <p class="text-slate-500">Your report has been logged and queued for municipal validation.</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start gap-2.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-amber-500 mt-1 shrink-0"></span>
+                            <div>
+                                <strong class="text-slate-800">Under Review:</strong>
+                                <p class="text-slate-500">Inspectors have reviewed the defect and prioritized remediation.</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start gap-2.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-blue-500 mt-1 shrink-0"></span>
+                            <div>
+                                <strong class="text-slate-800">In Progress:</strong>
+                                <p class="text-slate-500">A contractor or municipal maintenance crew has been dispatched.</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start gap-2.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 mt-1 shrink-0"></span>
+                            <div>
+                                <strong class="text-slate-800">Resolved:</strong>
+                                <p class="text-slate-500">Physical repair is confirmed complete by civic authorities.</p>
+                            </div>
+                        </li>
+                    </ul>
                 </div>
-            </a>
-            <a href="/users" id="quick-card-users" class="p-5 rounded-2xl bg-white border border-slate-200 hover:border-blue-400 hover:shadow-md transition-all flex items-start gap-4 group hidden">
-                <div class="p-3 rounded-xl bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors">
-                    <span class="material-symbols-outlined text-[24px]">group</span>
+
+                <!-- Civic Responsibility & Disclaimer Banner -->
+                <div class="bg-blue-50 border border-blue-200/80 rounded-2xl p-4 text-xs text-blue-900 space-y-2">
+                    <div class="flex items-center gap-2 font-bold text-blue-950">
+                        <span class="material-symbols-outlined text-[18px] text-blue-700">policy</span>
+                        <span>AI Visual Assessment Notice</span>
+                    </div>
+                    <p class="text-blue-800 leading-relaxed">
+                        VisionGuard defect detections and severity metrics represent preliminary AI computer-vision estimations to aid civic prioritization. They do not constitute formal structural engineering certifications.
+                    </p>
                 </div>
-                <div>
-                    <h4 class="text-sm font-bold text-slate-900 group-hover:text-purple-600 transition-colors">User Management</h4>
-                    <p class="text-xs text-slate-500 mt-1">Manage administrative, inspector, and maintenance staff permissions.</p>
-                </div>
-            </a>
-        </div>
+            </div>
+        </section>
     </main>
 
     <!-- Footer -->
-    <footer class="mt-auto bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500">
-        <p>&copy; VisionGuard AI &mdash; Advanced Computer Vision & Municipal Infrastructure Intelligence</p>
+    <footer class="bg-white border-t border-slate-200 mt-8 py-6 text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-2">
+                <span class="font-bold text-slate-700">VisionGuard AI</span>
+                <span>• Civic Infrastructure Reporting</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <a href="/" class="hover:text-slate-900 transition-colors">Home</a>
+                <a href="/create_home" class="hover:text-slate-900 transition-colors">Report Defect</a>
+                <a href="/map" class="hover:text-slate-900 transition-colors">Public Map</a>
+                <a href="/report" class="hover:text-slate-900 transition-colors">My Reports</a>
+                <a href="/profile" class="hover:text-slate-900 transition-colors">My Profile</a>
+            </div>
+        </div>
     </footer>
 
-    <!-- Dashboard Controller Script -->
+    <!-- Script: Authentic Telemetry & Recent Reports Hydration -->
     <script>
-        document.addEventListener("DOMContentLoaded", () => {
-            // Profile dropdown toggle
-            const profileBtn = document.getElementById("vg-user-profile-btn");
-            const profileDropdown = document.getElementById("vg-profile-dropdown");
-            if (profileBtn && profileDropdown) {
-                profileBtn.addEventListener("click", (e) => {
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Profile menu toggle
+            const profileBtn = document.getElementById('vg-user-profile-btn');
+            const dropdown = document.getElementById('vg-profile-dropdown');
+            if (profileBtn && dropdown) {
+                profileBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    profileDropdown.classList.toggle("vg-open");
+                    dropdown.classList.toggle('vg-open');
                 });
-                document.addEventListener("click", () => profileDropdown.classList.remove("vg-open"));
+                document.addEventListener('click', (e) => {
+                    if (!dropdown.contains(e.target) && !profileBtn.contains(e.target)) {
+                        dropdown.classList.remove('vg-open');
+                    }
+                });
             }
 
             // Logout action
-            const logoutBtn = document.getElementById("vg-logout-btn");
+            const logoutBtn = document.getElementById('vg-logout-btn');
             if (logoutBtn) {
-                logoutBtn.addEventListener("click", async () => {
+                logoutBtn.addEventListener('click', async () => {
+                    logoutBtn.disabled = true;
                     try {
-                        await fetch("/api/auth/logout", { method: "POST" });
-                        window.location.href = "/login";
-                    } catch (e) {
-                        window.location.href = "/login";
-                    }
+                        await fetch('/api/auth/logout', { method: 'POST' });
+                    } catch (_) {}
+                    window.location.href = '/login';
                 });
             }
 
-            // Load Auth Status & Role UI
-            async function loadAuth() {
-                try {
-                    const res = await fetch("/api/auth/status");
-                    const data = await res.json();
-                    if (!data.authenticated) {
-                        window.location.href = "/login?return=/dashboard";
-                        return;
-                    }
-                    const u = data.user || {};
-                    if (u.role === "citizen") {
-                        // Citizens are redirected to their defect studio
-                        window.location.href = "/create_home";
-                        return;
-                    }
-                    document.getElementById("userDisplayName").textContent = u.username || "Staff User";
-                    document.getElementById("userAvatarInitial").textContent = (u.username || "S")[0].toUpperCase();
-                    document.getElementById("dropdownUsername").textContent = u.username || "Staff User";
-                    document.getElementById("dropdownRole").textContent = (u.role || "staff") + " account";
+            // Fetch active authenticated user
+            try {
+                const meRes = await fetch('/api/auth/me');
+                if (meRes.ok) {
+                    const meData = await meRes.json();
+                    if (meData.authenticated && meData.user) {
+                        const user = meData.user;
+                        const name = user.username || 'Citizen';
+                        const initial = name.charAt(0).toUpperCase();
 
-                    // Role-conditional navigation links
-                    if (u.role === "admin") {
-                        document.getElementById("nav-link-users").classList.remove("hidden");
-                        document.getElementById("nav-link-maintenance").classList.remove("hidden");
-                        const quickUsers = document.getElementById("quick-card-users");
-                        if (quickUsers) quickUsers.classList.remove("hidden");
-                    } else if (u.role === "maintenance") {
-                        document.getElementById("nav-link-maintenance").classList.remove("hidden");
-                        document.getElementById("admin-badge-indicator").textContent = "Maintenance Authority";
-                    } else if (u.role === "inspector") {
-                        document.getElementById("admin-badge-indicator").textContent = "Inspector Authority";
+                        const welcomeEl = document.getElementById('welcomeCitizenName');
+                        if (welcomeEl) welcomeEl.textContent = name;
+                        const displayEl = document.getElementById('userDisplayName');
+                        if (displayEl) displayEl.textContent = name;
+                        const dropEl = document.getElementById('dropdownUsername');
+                        if (dropEl) dropEl.textContent = name;
+                        const avatarEl = document.getElementById('userAvatarInitial');
+                        if (avatarEl) avatarEl.textContent = initial;
+
+                        // Display staff portal link only for actual staff accounts
+                        const isStaff = (user.role === 'admin' || user.role === 'inspector' || user.role === 'maintenance');
+                        const staffItem = document.getElementById('staffPortalItem');
+                        if (staffItem && isStaff) {
+                            staffItem.classList.remove('hidden');
+                        }
                     }
-                } catch (e) {
-                    console.error("Auth status error:", e);
                 }
+            } catch (err) {
+                console.warn('Failed to load user info:', err);
             }
 
-            // Load Health & Dynamic Telemetry
-            async function loadHealth() {
-                try {
-                    const res = await fetch("/api/health");
-                    const data = await res.json();
-
-                    // 1. Database Backend Telemetry
-                    const db = data.database || {};
-                    const isConnected = Boolean(db.connected);
-                    const engine = (db.engine || "").toLowerCase();
-                    let dbName = "Database";
-                    if (isConnected) {
-                        if (engine === "postgres" || engine === "postgresql") dbName = "Neon PostgreSQL";
-                        else if (engine === "sqlite") dbName = "SQLite";
-                        else if (db.engine) dbName = db.engine;
-                        document.getElementById("header-db-text").textContent = `DB: Connected (${dbName})`;
-                        document.getElementById("header-db-badge").className = "px-2.5 py-1 font-medium rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5";
-                        document.getElementById("telemetry-db-name").textContent = `Connected (${dbName})`;
-                        document.getElementById("dash-db-subtitle-label").textContent = dbName;
-                        document.getElementById("kpi-db-persisted-label").textContent = `Persisted in ${dbName}`;
-                    } else {
-                        document.getElementById("header-db-text").textContent = "DB: Disconnected";
-                        document.getElementById("header-db-badge").className = "px-2.5 py-1 font-medium rounded-full bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1.5";
-                        document.getElementById("telemetry-db-name").textContent = "Disconnected / Unavailable";
-                        document.getElementById("dash-db-subtitle-label").textContent = "offline store";
-                        document.getElementById("kpi-db-persisted-label").textContent = "Database unavailable";
+            // Fetch authentic citizen summary metrics
+            try {
+                const sumRes = await fetch('/api/citizen/summary');
+                if (sumRes.ok) {
+                    const sumData = await sumRes.json();
+                    if (sumData.status === 'success' && sumData.summary) {
+                        const s = sumData.summary;
+                        document.getElementById('statTotalReports').textContent = s.total || 0;
+                        document.getElementById('statUnderReview').textContent = s.under_review || 0;
+                        document.getElementById('statResolved').textContent = s.resolved || 0;
+                        document.getElementById('statComplaints').textContent = s.submitted_complaints || 0;
                     }
-
-                    // 2. AI Provider Telemetry
-                    const provider = (data.ai_provider || "").toLowerCase();
-                    if (provider === "gemini" || provider === "google_gemini") {
-                        const model = (data.gemini && data.gemini.model) ? data.gemini.model : "gemini-1.5-flash";
-                        document.getElementById("header-ai-text").textContent = `AI: Gemini (${model})`;
-                        document.getElementById("header-ai-badge").className = "px-2.5 py-1 font-medium rounded-full bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1.5";
-                        document.getElementById("telemetry-ai-name").textContent = `Google Gemini Vision (${model})`;
-                    } else if (provider === "yolo") {
-                        const yoloLoaded = Boolean(data.road_model && data.road_model.loaded);
-                        const label = yoloLoaded ? "Road YOLOv8n (Loaded)" : "YOLOv8n (Checkpoint Missing)";
-                        document.getElementById("header-ai-text").textContent = `AI: ${label}`;
-                        document.getElementById("header-ai-badge").className = yoloLoaded 
-                            ? "px-2.5 py-1 font-medium rounded-full bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1.5"
-                            : "px-2.5 py-1 font-medium rounded-full bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1.5";
-                        document.getElementById("telemetry-ai-name").textContent = label;
-                    }
-
-                    // 3. Storage Backend
-                    const storage = (data.storage && data.storage.backend) ? data.storage.backend.toUpperCase() : "LOCAL";
-                    document.getElementById("telemetry-storage-name").textContent = storage === "R2" ? "Cloudflare R2 Object Storage" : "Local Disk Storage";
-                } catch (e) {
-                    console.error("Health telemetry error:", e);
-                    document.getElementById("header-db-text").textContent = "DB: Offline";
-                    document.getElementById("header-ai-text").textContent = "AI: Offline";
                 }
+            } catch (err) {
+                console.warn('Failed to load citizen summary:', err);
+                document.getElementById('statTotalReports').textContent = '0';
+                document.getElementById('statUnderReview').textContent = '0';
+                document.getElementById('statResolved').textContent = '0';
+                document.getElementById('statComplaints').textContent = '0';
             }
 
-            // Load Dashboard Statistics & Defect Analytics
-            async function loadDashboardStats() {
-                try {
-                    const res = await fetch("/api/dashboard/stats");
-                    if (!res.ok) return;
-                    const data = await res.json();
-                    if (data.status !== "success" || !data.stats) return;
-                    const s = data.stats;
-
-                    // KPIs
-                    document.getElementById("kpi-total-inspections").textContent = s.total_records ?? 0;
-                    document.getElementById("kpi-total-defects").textContent = s.total_defects ?? 0;
-                    document.getElementById("kpi-open-records").textContent = s.open_records ?? 0;
-                    document.getElementById("kpi-inprogress-records").textContent = s.in_progress_records ?? 0;
-                    document.getElementById("kpi-resolved-records").textContent = s.resolved_records ?? 0;
-
-                    // Distress Breakdown
-                    const def = s.defects_by_type || {};
-                    const pCnt = def.pothole || 0;
-                    const aCnt = def.alligator_crack || 0;
-                    const lCnt = def.longitudinal_crack || 0;
-                    const tCnt = def.transverse_crack || 0;
-                    const totDef = Math.max(1, (pCnt + aCnt + lCnt + tCnt));
-
-                    document.getElementById("cnt-pothole").textContent = pCnt;
-                    document.getElementById("bar-pothole").style.width = `${Math.min(100, Math.round((pCnt / totDef) * 100))}%`;
-
-                    document.getElementById("cnt-alligator").textContent = aCnt;
-                    document.getElementById("bar-alligator").style.width = `${Math.min(100, Math.round((aCnt / totDef) * 100))}%`;
-
-                    document.getElementById("cnt-longitudinal").textContent = lCnt;
-                    document.getElementById("bar-longitudinal").style.width = `${Math.min(100, Math.round((lCnt / totDef) * 100))}%`;
-
-                    document.getElementById("cnt-transverse").textContent = tCnt;
-                    document.getElementById("bar-transverse").style.width = `${Math.min(100, Math.round((tCnt / totDef) * 100))}%`;
-
-                    // Severity Distribution
-                    const sev = s.severity_distribution || {};
-                    document.getElementById("sev-critical").textContent = sev.critical ?? 0;
-                    document.getElementById("sev-high").textContent = sev.high ?? 0;
-                    document.getElementById("sev-medium").textContent = sev.medium ?? 0;
-                    document.getElementById("sev-low").textContent = sev.low ?? 0;
-
-                    // Deadlines
-                    const dl = s.deadlines || {};
-                    document.getElementById("deadline-overdue").textContent = dl.overdue ?? 0;
-                    document.getElementById("deadline-due-today").textContent = dl.due_today ?? 0;
-                    document.getElementById("deadline-upcoming").textContent = dl.upcoming ?? 0;
-
-                    // Recent Inspections Table
-                    const recent = s.recent_inspections || [];
-                    const tbody = document.getElementById("recent-inspections-tbody");
-                    if (recent.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-slate-400">No inspection records found in the database.</td></tr>';
+            // Fetch recent inspections (Citizen's own reports)
+            const recentContainer = document.getElementById('recentReportsContainer');
+            try {
+                const repRes = await fetch('/api/inspections?my_reports=1&limit=5');
+                if (repRes.ok) {
+                    const repData = await repRes.json();
+                    const items = repData.inspections || (Array.isArray(repData) ? repData : []);
+                    
+                    if (items.length === 0) {
+                        recentContainer.innerHTML = `
+                            <div class="text-center py-8 space-y-3">
+                                <div class="w-12 h-12 rounded-full bg-slate-100 text-slate-400 mx-auto flex items-center justify-center">
+                                    <span class="material-symbols-outlined text-[24px]">note_add</span>
+                                </div>
+                                <div class="space-y-1">
+                                    <p class="text-sm font-semibold text-slate-800">No defect reports submitted yet</p>
+                                    <p class="text-xs text-slate-500 max-w-sm mx-auto">See a road hazard, pothole, or cracked pavement? Submit a report to alert municipal crews.</p>
+                                </div>
+                                <a href="/create_home" class="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-full shadow-sm transition-all">
+                                    <span class="material-symbols-outlined text-[16px]">add</span>
+                                    <span>Report First Defect</span>
+                                </a>
+                            </div>
+                        `;
                     } else {
-                        tbody.innerHTML = recent.map(rec => {
-                            const sevClass = (rec.overall_severity === 'critical') ? 'bg-red-100 text-red-800' :
-                                             (rec.overall_severity === 'high') ? 'bg-amber-100 text-amber-800' :
-                                             (rec.overall_severity === 'medium') ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-700';
-                            const statusClass = (rec.status === 'resolved') ? 'bg-emerald-100 text-emerald-800' :
-                                                (rec.status === 'in_progress') ? 'bg-indigo-100 text-indigo-800' : 'bg-amber-100 text-amber-800';
-                            const dateStr = rec.created_at ? new Date(rec.created_at).toLocaleDateString() : 'N/A';
-                            return `
-                                <tr class="hover:bg-slate-50/80 transition-colors">
-                                    <td class="py-3 px-4 font-bold text-slate-900">#${rec.id}</td>
-                                    <td class="py-3 px-4 font-medium">${rec.road_name || 'Survey Coordinate'}</td>
-                                    <td class="py-3 px-4 capitalize">${rec.inspection_domain || 'road'}</td>
-                                    <td class="py-3 px-4">${rec.defect_count ?? 0} defect(s)</td>
-                                    <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[11px] font-bold uppercase ${sevClass}">${rec.overall_severity || 'Low'}</span></td>
-                                    <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[11px] font-bold capitalize ${statusClass}">${(rec.status || 'open').replace('_', ' ')}</span></td>
-                                    <td class="py-3 px-4 text-right">
-                                        <a href="/report/${rec.id}" class="text-blue-600 hover:text-blue-800 font-semibold inline-flex items-center gap-1">
-                                            <span>Inspect</span>
-                                            <span class="material-symbols-outlined text-[14px]">open_in_new</span>
-                                        </a>
-                                    </td>
-                                </tr>
+                        recentContainer.innerHTML = '';
+                        items.forEach(item => {
+                            const dateStr = item.timestamp ? new Date(item.timestamp).toLocaleDateString(undefined, {
+                                month: 'short', day: 'numeric', year: 'numeric'
+                            }) : 'Recent';
+
+                            const status = item.status || 'Open';
+                            let statusBadge = '';
+                            if (status === 'Resolved') {
+                                statusBadge = '<span class="px-2.5 py-1 text-[11px] font-bold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Resolved</span>';
+                            } else if (status.includes('Progress') || status === 'Under Review' || status === 'Assigned') {
+                                statusBadge = `<span class="px-2.5 py-1 text-[11px] font-bold rounded-full bg-blue-50 text-blue-700 border border-blue-200">${status}</span>`;
+                            } else {
+                                statusBadge = `<span class="px-2.5 py-1 text-[11px] font-bold rounded-full bg-amber-50 text-amber-700 border border-amber-200">${status}</span>`;
+                            }
+
+                            const defects = item.distress_category || item.defect_class || 'Road Infrastructure Defect';
+                            const location = item.location_name || (item.latitude ? `${item.latitude.toFixed(4)}, ${item.longitude.toFixed(4)}` : 'Monitored Corridor');
+
+                            const row = document.createElement('div');
+                            row.className = 'py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/80 -mx-4 px-4 sm:-mx-5 sm:px-5 transition-colors rounded-xl';
+                            row.innerHTML = `
+                                <div class="flex items-start gap-3">
+                                    <div class="w-9 h-9 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center shrink-0 mt-0.5">
+                                        <span class="material-symbols-outlined text-[20px]">construction</span>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <span class="text-sm font-bold text-slate-900 truncate">#${item.id} — ${defects}</span>
+                                            ${statusBadge}
+                                        </div>
+                                        <p class="text-xs text-slate-500 mt-0.5 truncate flex items-center gap-1.5">
+                                            <span class="material-symbols-outlined text-[14px]">place</span>
+                                            <span>${location}</span>
+                                            <span>•</span>
+                                            <span>${dateStr}</span>
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                                    <a href="/report?id=${item.id}" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-white text-xs font-semibold text-slate-700 transition-colors">
+                                        <span>Details</span>
+                                        <span class="material-symbols-outlined text-[14px]">visibility</span>
+                                    </a>
+                                </div>
                             `;
-                        }).join("");
+                            recentContainer.appendChild(row);
+                        });
                     }
-                } catch (e) {
-                    console.error("Dashboard stats error:", e);
                 }
+            } catch (err) {
+                console.warn('Failed to load recent citizen reports:', err);
+                recentContainer.innerHTML = `
+                    <div class="p-4 text-center text-xs text-slate-500">
+                        Unable to load recent reports at this time. Please check <a href="/report" class="text-blue-600 font-semibold underline">My Reports</a>.
+                    </div>
+                `;
             }
-
-            // Refresh button handler
-            const refreshBtn = document.getElementById("btn-refresh-dashboard");
-            if (refreshBtn) {
-                refreshBtn.addEventListener("click", () => {
-                    loadHealth();
-                    loadDashboardStats();
-                });
-            }
-
-            // Initial load sequence
-            loadAuth();
-            loadHealth();
-            loadDashboardStats();
         });
     </script>
 </body>
 </html>
-

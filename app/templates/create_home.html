@@ -51,7 +51,7 @@
         max-width: 640px;
         margin-left: auto;
         margin-right: auto;
-        padding: 12px 16px !important;
+        padding: 14px 16px !important;
         border-radius: 14px !important;
       }
       #inspection-progress-card > * + * {
@@ -62,21 +62,23 @@
       }
 
       #inspection-progress-card .vg-stepper {
-        display: grid;
-        grid-template-columns: repeat(5, 1fr);
-        gap: 0;
+        display: grid !important;
+        grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+        gap: 0 !important;
         position: relative;
         padding-top: 0;
+        width: 100%;
+        box-sizing: border-box;
       }
 
       /* Reset the box look of each step; keep IDs and the state classes JS sets */
       #inspection-progress-card .vg-stepper > [id^="prog-step-"] {
         position: relative;
         display: flex !important;
-        flex-direction: column;
-        align-items: center;
-        justify-content: flex-start;
-        gap: 5px;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        gap: 6px;
         padding: 0 2px !important;
         border: 0 !important;
         background: transparent !important;
@@ -88,6 +90,9 @@
         color: #64748b;
         grid-column: auto !important;
         word-break: break-word;
+        overflow-wrap: break-word;
+        min-width: 0;
+        box-sizing: border-box;
       }
 
       /* Connector line (drawn from this step's circle to the next one) */
@@ -96,13 +101,14 @@
         > [id^="prog-step-"]:not(:last-child)::after {
         content: "";
         position: absolute;
-        top: 12px;
-        left: calc(50% + 17px);
-        width: calc(100% - 34px);
+        top: 13px;
+        left: calc(50% + 15px);
+        width: calc(100% - 30px);
         height: 2px;
         background: #e2e8f0;
         border-radius: 2px;
         transition: background-color 0.3s ease;
+        z-index: 0;
       }
 
       /* Circle: the existing icon span becomes the circle */
@@ -113,7 +119,7 @@
         width: 26px;
         height: 26px;
         border-radius: 9999px;
-        display: flex;
+        display: flex !important;
         align-items: center;
         justify-content: center;
         font-size: 14px !important;
@@ -126,19 +132,20 @@
           color 0.3s ease;
         position: relative;
         z-index: 1;
+        flex-shrink: 0;
       }
 
       /* COMPLETED (JS applies bg-emerald-50 ...) */
       #inspection-progress-card .vg-stepper > .bg-emerald-50 {
-        color: #047857;
+        color: #047857 !important;
       }
       #inspection-progress-card
         .vg-stepper
         > .bg-emerald-50
         > .material-symbols-outlined {
-        background: #10b981;
-        border-color: #10b981;
-        color: #fff;
+        background: #10b981 !important;
+        border-color: #10b981 !important;
+        color: #fff !important;
         font-size: 0 !important; /* hide original icon glyph */
       }
       #inspection-progress-card
@@ -147,7 +154,7 @@
         > .material-symbols-outlined::before {
         content: "check";
         font-family: "Material Symbols Outlined";
-        font-size: 16px;
+        font-size: 15px;
         font-weight: 600;
         line-height: 1;
       }
@@ -157,18 +164,30 @@
 
       /* ACTIVE (JS applies bg-blue-50 ... animate-pulse) */
       #inspection-progress-card .vg-stepper > .bg-blue-50 {
-        color: #1d4ed8;
-        font-weight: 700;
+        color: #1d4ed8 !important;
+        font-weight: 700 !important;
         animation: none !important; /* pulse the circle, not the label */
       }
       #inspection-progress-card
         .vg-stepper
         > .bg-blue-50
         > .material-symbols-outlined {
-        background: #4d8eff;
-        border-color: #4d8eff;
-        color: #fff;
-        animation: vgStepPulse 1.6s ease-out infinite;
+        background: #4d8eff !important;
+        border-color: #4d8eff !important;
+        color: #fff !important;
+        -webkit-animation: vgStepPulse 1.6s ease-out infinite !important;
+        animation: vgStepPulse 1.6s ease-out infinite !important;
+      }
+      @-webkit-keyframes vgStepPulse {
+        0% {
+          box-shadow: 0 0 0 0 rgba(77, 142, 255, 0.45);
+        }
+        70% {
+          box-shadow: 0 0 0 7px rgba(77, 142, 255, 0);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(77, 142, 255, 0);
+        }
       }
       @keyframes vgStepPulse {
         0% {
@@ -184,13 +203,20 @@
 
       /* UPCOMING (JS applies bg-slate-50 ...) keeps the light-grey defaults above */
 
-      /* Mobile */
+      /* Mobile 768px down */
+      @media (max-width: 768px) {
+        #inspection-progress-card {
+          padding: 12px 12px !important;
+        }
+      }
+
+      /* Mobile 480px down */
       @media (max-width: 480px) {
         #inspection-progress-card {
-          padding: 10px 10px !important;
+          padding: 10px 8px !important;
         }
         #inspection-progress-card .vg-stepper > [id^="prog-step-"] {
-          font-size: 9px;
+          font-size: 8.5px;
           gap: 4px;
           padding: 0 1px !important;
         }
@@ -198,22 +224,56 @@
           .vg-stepper
           > [id^="prog-step-"]
           > .material-symbols-outlined {
-          width: 24px;
-          height: 24px;
-          font-size: 13px !important;
+          width: 22px;
+          height: 22px;
+          font-size: 12px !important;
         }
         #inspection-progress-card
           .vg-stepper
           > .bg-emerald-50
           > .material-symbols-outlined::before {
-          font-size: 14px;
+          font-size: 13px;
         }
         #inspection-progress-card
           .vg-stepper
           > [id^="prog-step-"]:not(:last-child)::after {
           top: 11px;
-          left: calc(50% + 15px);
-          width: calc(100% - 30px);
+          left: calc(50% + 13px);
+          width: calc(100% - 26px);
+        }
+      }
+
+      /* Small mobile 360px down (e.g. 320px, 340px) */
+      @media (max-width: 360px) {
+        #inspection-progress-card {
+          padding: 8px 4px !important;
+        }
+        #inspection-progress-card .vg-stepper > [id^="prog-step-"] {
+          font-size: 7.5px;
+          gap: 3px;
+          padding: 0 !important;
+          letter-spacing: -0.02em;
+        }
+        #inspection-progress-card
+          .vg-stepper
+          > [id^="prog-step-"]
+          > .material-symbols-outlined {
+          width: 20px;
+          height: 20px;
+          font-size: 11px !important;
+        }
+        #inspection-progress-card
+          .vg-stepper
+          > .bg-emerald-50
+          > .material-symbols-outlined::before {
+          font-size: 12px;
+        }
+        #inspection-progress-card
+          .vg-stepper
+          > [id^="prog-step-"]:not(:last-child)::after {
+          top: 10px;
+          left: calc(50% + 11px);
+          width: calc(100% - 22px);
         }
       }
 
@@ -223,6 +283,7 @@
           > .bg-blue-50
           > .material-symbols-outlined {
           animation: none;
+          -webkit-animation: none;
         }
       }
 
@@ -772,6 +833,66 @@
         opacity: 0.6;
         cursor: wait;
       }
+
+      /* ===== VisionGuard General Mobile Responsiveness Fixes ===== */
+      @media (max-width: 640px) {
+        header.fixed > div {
+          padding-left: 0.75rem !important;
+          padding-right: 0.75rem !important;
+          gap: 0.5rem !important;
+        }
+        /* Top bar header spacing adjustment */
+        main {
+          padding-top: 7.5rem !important;
+        }
+        /* Dropzone responsive padding */
+        #dropzone {
+          padding: 1.25rem 0.75rem !important;
+        }
+      }
+
+      @media (max-width: 480px) {
+        /* Extra small screens header brand text */
+        header.fixed a div.flex-col span.text-caption {
+          display: none;
+        }
+        /* Search bar responsive compact height */
+        header.fixed input[type="text"] {
+          height: 2.25rem !important;
+          font-size: 0.75rem !important;
+        }
+        /* Image upload preview responsiveness */
+        #upload-preview {
+          max-width: 100% !important;
+        }
+        #upload-preview .relative {
+          height: 12rem !important;
+        }
+        /* Bottom inspection action button */
+        #btn-run-inspection {
+          min-width: 0 !important;
+          width: 100% !important;
+          padding-left: 1rem !important;
+          padding-right: 1rem !important;
+          font-size: 0.9375rem !important;
+        }
+        /* Footer items spacing */
+        footer {
+          padding-top: 1.25rem !important;
+          padding-bottom: 1.25rem !important;
+        }
+      }
+
+      @media (max-width: 360px) {
+        header.fixed > div {
+          padding-left: 0.5rem !important;
+          padding-right: 0.5rem !important;
+        }
+        #btn-run-inspection {
+          font-size: 0.875rem !important;
+          gap: 0.5rem !important;
+        }
+      }
     </style>
     <script src="https://cdn.tailwindcss.com"></script>
     <script id="tailwind-config">
@@ -1010,7 +1131,7 @@
           </div>
         </div>
       </div>
-    </header>
+          </header>
     <main class="w-full pt-28 md:pt-20 bg-[#F8FAFC] min-h-screen">
       <div class="flex flex-col w-full">
         <div
@@ -1997,7 +2118,7 @@
               </div>
               <div
                 id="prog-step-5"
-                class="p-2 rounded-lg bg-slate-50 text-slate-500 border border-slate-200 flex items-center gap-1.5 col-span-2 sm:col-span-1"
+                class="p-2 rounded-lg bg-slate-50 text-slate-500 border border-slate-200 flex items-center gap-1.5"
               >
                 <span class="material-symbols-outlined text-[15px]"
                   >description</span
@@ -3073,7 +3194,9 @@
                     data.user.role === "admin" ||
                     data.user.role === "inspector" ||
                     data.user.role === "maintenance";
-                  avatarEl.href = isStaff ? "/dashboard" : "/report";
+                  avatarEl.href = isStaff ? "/staff/dashboard" : "/dashboard";
+                  const staffItem = document.getElementById("staffPortalItem");
+                  if (staffItem && isStaff) staffItem.classList.remove("hidden");
                   avatarEl.title = `${data.user.username} (${data.user.role}) - Click for ${isStaff ? "Operations Dashboard" : "My Reports"}`;
                 }
               } else {

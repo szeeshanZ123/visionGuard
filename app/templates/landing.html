@@ -98,7 +98,6 @@
         <div
           class="hidden md:flex items-center space-x-7 text-sm font-medium text-slate-600"
         >
-          <a class="hover:text-blue-600 transition" href="/report">Dashboard</a>
           <a class="hover:text-blue-600 transition" href="/create_home"
             >New Inspection</a
           >
@@ -1102,7 +1101,7 @@
                 data.user.role === "maintenance";
               const authBtn = document.getElementById("nav-auth-btn");
               if (authBtn) {
-                authBtn.href = isStaff ? "/dashboard" : "/create_home";
+                authBtn.href = isStaff ? "/staff/dashboard" : "/dashboard";
                 authBtn.title = `${data.user.username} (${data.user.role}) - Click for ${isStaff ? "Operations Dashboard" : "Inspection Studio"}`;
                 authBtn.innerHTML = `
                                 <span class="flex items-center gap-1.5">
@@ -1116,10 +1115,10 @@
               const navLinks = document.querySelectorAll("header nav a");
               navLinks.forEach((a) => {
                 if (a.textContent.trim() === "Dashboard") {
-                  a.href = isStaff ? "/dashboard" : "/report";
+                  a.href = isStaff ? "/staff/dashboard" : "/dashboard";
                   a.textContent = isStaff
-                    ? "Operations Dashboard"
-                    : "My Reports";
+                    ? "Staff Portal"
+                    : "My Dashboard";
                 }
               });
             }

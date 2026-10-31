@@ -302,57 +302,37 @@
         </div>
       </div>
       <!-- Bottom Sub-Navigation Row with Smooth Horizontal Scrolling -->
-      <div class="border-t border-slate-100 bg-white">
-        <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-          <div
-            class="flex items-center justify-between overflow-x-auto no-scrollbar py-0.5 gap-4"
-          >
-            <!-- Navigation Tabs -->
-            <div
-              class="flex items-center gap-4 sm:gap-6 whitespace-nowrap shrink-0"
-            >
-              <a
-                class="inline-flex items-center gap-2 py-2.5 text-xs font-bold text-blue-600 border-b-2 border-blue-600"
-                href="/map"
-              >
-                <span class="material-symbols-outlined text-[17px]">map</span>
-                <span>Geospatial Defect Map</span>
-              </a>
-              <a
-                class="inline-flex items-center gap-2 py-2.5 text-xs font-medium text-slate-500 hover:text-slate-800 border-b-2 border-transparent transition-colors"
-                href="/report"
-              >
-                <span class="material-symbols-outlined text-[17px]"
-                  >folder_open</span
-                >
-                <span>Inspection Records</span>
-              </a>
-              <a
-                class="inline-flex items-center gap-2 py-2.5 text-xs font-medium text-slate-500 hover:text-slate-800 border-b-2 border-transparent transition-colors"
-                href="/create_home"
-              >
-                <span class="material-symbols-outlined text-[17px]"
-                  >sensors</span
-                >
-                <span>Defect Ingestion</span>
-              </a>
+        <div class="border-t border-slate-100 bg-white">
+            <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between overflow-x-auto no-scrollbar py-0.5 gap-4">
+                    <!-- Navigation Tabs -->
+                    <div class="flex items-center gap-4 sm:gap-6 whitespace-nowrap shrink-0">
+                        <a class="inline-flex items-center gap-2 py-2.5 text-xs font-bold text-blue-600 border-b-2 border-blue-600"
+                            href="/map">
+                            <span class="material-symbols-outlined text-[17px]">map</span>
+                            <span>Geospatial Defect Map</span>
+                        </a>
+                        <a class="inline-flex items-center gap-2 py-2.5 text-xs font-medium text-slate-500 hover:text-slate-800 border-b-2 border-transparent transition-colors"
+                            href="/report">
+                            <span class="material-symbols-outlined text-[17px]">folder_open</span>
+                            <span>Inspection Records</span>
+                        </a>
+                        <a class="inline-flex items-center gap-2 py-2.5 text-xs font-medium text-slate-500 hover:text-slate-800 border-b-2 border-transparent transition-colors"
+                            href="/create_home">
+                            <span class="material-symbols-outlined text-[17px]">sensors</span>
+                            <span>Defect Ingestion</span>
+                        </a>
+                    </div>
+                    <!-- Telemetry Status Pill -->
+                    <div class="shrink-0 py-2 hidden sm:flex items-center whitespace-nowrap">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200 uppercase tracking-wide">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            NODE ACTIVE - LIVE SYNC
+                        </span>
+                    </div>
+                </div>
             </div>
-            <!-- Telemetry Status Pill -->
-            <div
-              class="shrink-0 py-2 hidden sm:flex items-center whitespace-nowrap"
-            >
-              <span
-                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200 uppercase tracking-wide"
-              >
-                <span
-                  class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"
-                ></span>
-                NODE ACTIVE - LIVE SYNC
-              </span>
-            </div>
-          </div>
         </div>
-      </div>
     </header>
     <!-- MAIN PAGE CONTENT -->
     <main
@@ -1152,7 +1132,7 @@
 
       async function loadBackendInspections() {
         try {
-          const res = await fetch("/api/public/defects");
+          const res = await fetch('/api/public/defects');
           if (!res.ok) return;
           const data = await res.json();
           if (
@@ -1449,9 +1429,8 @@
                         if (nameEl) nameEl.innerText = data.user.username;
                         if (roleEl) roleEl.innerText = (data.user.role || 'citizen').toUpperCase();
                         if (avatarEl) {
-                            const isStaff = (data.user.role === 'admin' || data.user.role === 'inspector' || data.user.role === 'maintenance');
-                            avatarEl.href = isStaff ? '/app' : '/report';
-                            avatarEl.title = `${data.user.username} (${data.user.role}) - Click for ${isStaff ? 'Operations Dashboard' : 'My Reports'}`;
+                            avatarEl.href = "javascript:void(0);";
+                            avatarEl.title = `${data.user.username} (${data.user.role}) - Account Menu`;
                         }
                     } else {
                         const nameEl = document.getElementById('map-username');
@@ -1494,37 +1473,13 @@
         }
 
         // Avatar click: toggle for signed-in users, normal link for guests
-        avatar.addEventListener("click", async function (e) {
+        avatar.addEventListener("click", function (e) {
+          const href = avatar.getAttribute("href") || "";
+          const isGuest = href.indexOf("/login") !== -1;
+          if (isGuest) return; // guests still go to the login page as before
           e.preventDefault();
           e.stopPropagation();
-
-          let isAuth = avatar.getAttribute("data-authenticated") === "true";
-          if (!isAuth && window.__vgAuthPromise) {
-            try {
-              const data = await window.__vgAuthPromise;
-              isAuth = !!(data && data.authenticated);
-            } catch (_) {
-              isAuth = false;
-            }
-          }
-
-          if (!isAuth) {
-            const targetHref = avatar.getAttribute("href");
-            if (
-              targetHref &&
-              targetHref !== "javascript:void(0)" &&
-              targetHref !== "#"
-            ) {
-              window.location.href = targetHref;
-            } else {
-              window.location.href = "/login?return=/map";
-            }
-            return;
-          }
-
-          dropdown.classList.contains("vg-open")
-            ? closeDropdown()
-            : openDropdown();
+          dropdown.classList.contains("vg-open") ? closeDropdown() : openDropdown();
         });
 
         // Click anywhere outside closes it

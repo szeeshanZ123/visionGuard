@@ -714,14 +714,29 @@ def create_app(
 
     @app.route("/dashboard", methods=["GET"])
     def page_modern_dashboard():
-        """Serves the modern Tailwind administrative operations dashboard."""
         if is_auth_enforced():
             curr_user = get_current_user_record()
             if not curr_user:
-                return redirect("/login?return=/dashboard")
+                return redirect("/login?return=/create_home")
+            if curr_user.get("role") in (ROLE_ADMIN, ROLE_INSPECTOR, ROLE_MAINTENANCE):
+                return redirect("/staff/dashboard")
+        return redirect("/create_home")
+
+    @app.route("/staff/dashboard", methods=["GET"])
+    @app.route("/staff", methods=["GET"])
+    def page_staff_dashboard():
+        """Serves the municipal operations dashboard (Staff only: Admin, Inspector, Maintenance)."""
+        if is_auth_enforced():
+            curr_user = get_current_user_record()
+            if not curr_user:
+                return redirect("/login?return=/staff/dashboard")
             if curr_user.get("role") == ROLE_CITIZEN:
                 return redirect("/create_home?restricted=1")
-        return render_template("dashboard.html", csrf_token=get_or_create_csrf_token())
+        return render_template("staff_dashboard.html", csrf_token=get_or_create_csrf_token())
+
+    @app.route("/profile", methods=["GET"])
+    def page_citizen_profile():
+        return redirect("/create_home")
 
     @app.route("/users", methods=["GET"])
     def page_user_management():
@@ -731,7 +746,7 @@ def create_app(
             if not curr_user:
                 return redirect("/login?return=/users")
             if curr_user.get("role") != ROLE_ADMIN:
-                return redirect("/dashboard?restricted=1")
+                return redirect("/create_home?restricted=1")
         return render_template("users.html", csrf_token=get_or_create_csrf_token())
 
     @app.route("/maintenance", methods=["GET"])
@@ -742,7 +757,7 @@ def create_app(
             if not curr_user:
                 return redirect("/login?return=/maintenance")
             if curr_user.get("role") not in (ROLE_ADMIN, ROLE_MAINTENANCE):
-                return redirect("/dashboard?restricted=1")
+                return redirect("/create_home?restricted=1")
         return render_template("maintenance.html", csrf_token=get_or_create_csrf_token())
 
     @app.route("/app", methods=["GET"])

@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="csrf-token" content="{{ csrf_token or '' }}">
+    <meta content="width=device-width, initial-scale=1.0, maximum-scale=5.0" name="viewport" />
+    <title>My Profile - VisionGuard AI</title>
+    
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @layer base {
+            html, body {
+                margin: 0;
+                padding: 0;
+                font-family: 'Inter', sans-serif;
+                background-color: #F8FAFC;
+                color: #0F172A;
+            }
+        }
+        .vg-nav-user-container {
+            position: relative;
+        }
+        #vg-profile-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            width: 220px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.05);
+            z-index: 60;
+            padding: 6px;
+        }
+        #vg-profile-dropdown.vg-open {
+            display: block;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 antialiased min-h-screen flex flex-col justify-between">
+    <!-- Top Responsive Citizen Navbar -->
+    <header class="sticky top-0 z-50 bg-white border-b border-slate-200/90 shadow-sm w-full">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="h-16 flex items-center justify-between gap-4">
+                <!-- Brand Section -->
+                <a href="/" class="flex items-center gap-2.5 sm:gap-3 shrink-0 hover:opacity-95 transition-opacity">
+                    <div class="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-sm shadow-blue-500/20">
+                        <span class="material-symbols-outlined text-[20px]">verified_user</span>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-1.5 leading-none">
+                            <span class="font-bold text-base sm:text-lg text-slate-900 tracking-tight">VisionGuard AI</span>
+                            <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-wider">CIVIC</span>
+                        </div>
+                        <p class="text-[10px] sm:text-[11px] text-slate-400 font-medium mt-0.5 leading-none">Citizen Defect Reporting Portal</p>
+                    </div>
+                </a>
+
+                <!-- Citizen Navigation Links -->
+                <nav class="hidden md:flex items-center gap-1 lg:gap-2">
+                    <a href="/" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[18px]">home</span>
+                        <span>Home</span>
+                    </a>
+                    <a href="/dashboard" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[18px]">dashboard</span>
+                        <span>My Dashboard</span>
+                    </a>
+                    <a href="/create_home" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[18px]">add_circle</span>
+                        <span>Report Defect</span>
+                    </a>
+                    <a href="/map" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[18px]">map</span>
+                        <span>Public Defect Map</span>
+                    </a>
+                    <a href="/report" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[18px]">inventory_2</span>
+                        <span>My Reports</span>
+                    </a>
+                    <a href="/profile" class="px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-lg bg-blue-50 text-blue-600 border border-blue-200/80 transition-colors flex items-center gap-1.5 shadow-sm">
+                        <span class="material-symbols-outlined text-[18px]">person</span>
+                        <span>My Profile</span>
+                    </a>
+                </nav>
+
+                <!-- Header Actions & Profile -->
+                <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+                    <a href="/create_home" class="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold rounded-full shadow-sm transition-all">
+                        <span class="material-symbols-outlined text-[18px]">add</span>
+                        <span>New Report</span>
+                    </a>
+
+                    <!-- User Profile Dropdown -->
+                    <div class="vg-nav-user-container">
+                        <button type="button" id="vg-user-profile-btn" class="flex items-center gap-2 p-1.5 sm:px-3 sm:py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors focus:outline-none">
+                            <div class="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-xs uppercase" id="userAvatarInitial">C</div>
+                            <span class="hidden sm:inline text-xs font-semibold text-slate-700" id="userDisplayName">Citizen Auditor</span>
+                            <span class="material-symbols-outlined text-[16px] text-slate-400">expand_more</span>
+                        </button>
+                        <div id="vg-profile-dropdown">
+                            <div class="px-3 py-2 border-b border-slate-100">
+                                <p class="text-xs font-bold text-slate-900 truncate" id="dropdownUsername">Citizen</p>
+                                <p class="text-[11px] text-slate-500 font-medium" id="dropdownRole">Citizen Auditor</p>
+                            </div>
+                            <a href="/dashboard" class="flex items-center gap-2 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 rounded-lg">
+                                <span class="material-symbols-outlined text-[16px]">dashboard</span>
+                                <span>Dashboard</span>
+                            </a>
+                            <a href="/report" class="flex items-center gap-2 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 rounded-lg">
+                                <span class="material-symbols-outlined text-[16px]">inventory_2</span>
+                                <span>My Reports</span>
+                            </a>
+                            <div id="staffPortalItem" class="hidden border-t border-slate-100 my-1 pt-1">
+                                <a href="/staff/dashboard" class="flex items-center gap-2 px-3 py-2 text-xs text-indigo-700 hover:bg-indigo-50 rounded-lg font-medium">
+                                    <span class="material-symbols-outlined text-[16px]">admin_panel_settings</span>
+                                    <span>Staff Operations Portal</span>
+                                </a>
+                            </div>
+                            <button type="button" id="vg-logout-btn" class="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-600 hover:bg-red-50 rounded-lg font-medium text-left">
+                                <span class="material-symbols-outlined text-[16px]">logout</span>
+                                <span>Sign Out</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Profile Content Area -->
+    <main class="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-6">
+        <!-- Title & Breadcrumbs -->
+        <div>
+            <nav class="flex items-center gap-2 text-xs font-medium text-slate-500 mb-1">
+                <a href="/" class="hover:text-blue-600">Home</a>
+                <span>/</span>
+                <a href="/dashboard" class="hover:text-blue-600">Dashboard</a>
+                <span>/</span>
+                <span class="text-slate-900 font-semibold">My Profile</span>
+            </nav>
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Citizen Auditor Profile</h1>
+            <p class="text-xs sm:text-sm text-slate-500 mt-1">Review your registered civic credentials, authentication methods, and reporting metrics.</p>
+        </div>
+
+        <!-- Alert Notification Box -->
+        <div id="alertBox" class="hidden p-4 rounded-2xl text-xs sm:text-sm font-medium"></div>
+
+        <!-- Profile Overview Card -->
+        <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+            <!-- Header Banner -->
+            <div class="h-28 bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 relative"></div>
+            
+            <div class="px-6 pb-6 pt-0 relative">
+                <!-- Avatar and Details Row -->
+                <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4 -mt-12 mb-6">
+                    <div class="flex items-end gap-4">
+                        <div class="w-20 h-20 rounded-2xl bg-white p-1 shadow-md shrink-0">
+                            <div class="w-full h-full rounded-xl bg-blue-600 text-white flex items-center justify-center font-extrabold text-2xl uppercase" id="profileAvatar">
+                                C
+                            </div>
+                        </div>
+                        <div class="mb-1">
+                            <h2 class="text-xl font-extrabold text-slate-900 leading-tight" id="profileUsername">Loading...</h2>
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 mt-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                                <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                                <span id="profileRoleBadge">Citizen Auditor</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Account Information Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 py-4 border-t border-slate-100 text-xs sm:text-sm">
+                    <div class="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Username</span>
+                        <div class="font-semibold text-slate-800" id="detailUsername">--</div>
+                    </div>
+
+                    <div class="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Email Address</span>
+                        <div class="font-semibold text-slate-800" id="detailEmail">--</div>
+                    </div>
+
+                    <div class="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Account Role</span>
+                        <div class="font-semibold text-slate-800">Verified Citizen Reporter</div>
+                    </div>
+
+                    <div class="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Account ID</span>
+                        <div class="font-semibold text-slate-800" id="detailUserId">#--</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Google OAuth Account Linking Management Card -->
+        <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
+            <div class="flex items-start justify-between gap-4">
+                <div class="space-y-1">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-5 h-5" viewBox="0 0 24 24">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                        </svg>
+                        <h3 class="text-base font-bold text-slate-900">Google Account Connection</h3>
+                    </div>
+                    <p class="text-xs sm:text-sm text-slate-500">
+                        Link your Google account for secure one-click OpenID Connect sign-in.
+                    </p>
+                </div>
+                <div id="googleLinkStatusBadge">
+                    <span class="px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">Checking...</span>
+                </div>
+            </div>
+
+            <div id="googleLinkActionContainer" class="pt-2 border-t border-slate-100 flex items-center justify-between">
+                <span class="text-xs text-slate-500" id="googleConnectionNote">Authenticate seamlessly with your Google workspace or personal identity.</span>
+                <div id="googleButtonSlot"></div>
+            </div>
+        </div>
+
+        <!-- Privacy & Data Protection Notice -->
+        <div class="bg-slate-100 border border-slate-200/80 rounded-2xl p-5 text-xs text-slate-600 space-y-2">
+            <h4 class="font-bold text-slate-800 flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[18px] text-blue-600">security</span>
+                <span>Civic Privacy & Data Governance</span>
+            </h4>
+            <p class="leading-relaxed">
+                Your personal details, email, and exact home GPS coordinates are protected under VisionGuard's civic data protection architecture. When defects are displayed on the Public Defect Map, civic coordinates are sanitized and inspector ownership is preserved privately.
+            </p>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 mt-8 py-6 text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-2">
+                <span class="font-bold text-slate-700">VisionGuard AI</span>
+                <span>• Civic Infrastructure Reporting</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <a href="/" class="hover:text-slate-900 transition-colors">Home</a>
+                <a href="/create_home" class="hover:text-slate-900 transition-colors">Report Defect</a>
+                <a href="/map" class="hover:text-slate-900 transition-colors">Public Map</a>
+                <a href="/report" class="hover:text-slate-900 transition-colors">My Reports</a>
+                <a href="/profile" class="hover:text-slate-900 transition-colors font-semibold text-slate-800">My Profile</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Hydration Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Profile menu toggle
+            const profileBtn = document.getElementById('vg-user-profile-btn');
+            const dropdown = document.getElementById('vg-profile-dropdown');
+            if (profileBtn && dropdown) {
+                profileBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    dropdown.classList.toggle('vg-open');
+                });
+                document.addEventListener('click', (e) => {
+                    if (!dropdown.contains(e.target) && !profileBtn.contains(e.target)) {
+                        dropdown.classList.remove('vg-open');
+                    }
+                });
+            }
+
+            // Logout action
+            const logoutBtn = document.getElementById('vg-logout-btn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', async () => {
+                    logoutBtn.disabled = true;
+                    try {
+                        await fetch('/api/auth/logout', { method: 'POST' });
+                    } catch (_) {}
+                    window.location.href = '/login';
+                });
+            }
+
+            // Load user profile
+            try {
+                const res = await fetch('/api/auth/me');
+                if (!res.ok) {
+                    window.location.href = '/login?return=/profile';
+                    return;
+                }
+                const data = await res.json();
+                if (!data.authenticated || !data.user) {
+                    window.location.href = '/login?return=/profile';
+                    return;
+                }
+
+                const user = data.user;
+                const username = user.username || 'Citizen';
+                const initial = username.charAt(0).toUpperCase();
+
+                document.getElementById('profileUsername').textContent = username;
+                document.getElementById('detailUsername').textContent = username;
+                document.getElementById('detailEmail').textContent = user.email || 'None on file';
+                document.getElementById('detailUserId').textContent = `#${user.id}`;
+                document.getElementById('profileAvatar').textContent = initial;
+                document.getElementById('userDisplayName').textContent = username;
+                document.getElementById('dropdownUsername').textContent = username;
+                document.getElementById('userAvatarInitial').textContent = initial;
+
+                const isStaff = (user.role === 'admin' || user.role === 'inspector' || user.role === 'maintenance');
+                if (isStaff) {
+                    const staffItem = document.getElementById('staffPortalItem');
+                    if (staffItem) staffItem.classList.remove('hidden');
+                }
+
+                // Google link status
+                const badgeSlot = document.getElementById('googleLinkStatusBadge');
+                const buttonSlot = document.getElementById('googleButtonSlot');
+                const noteSlot = document.getElementById('googleConnectionNote');
+
+                if (user.google_linked) {
+                    badgeSlot.innerHTML = `
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            <span>Connected</span>
+                        </span>
+                    `;
+                    noteSlot.textContent = `Connected to Google (${user.email || 'Verified'}). You can sign in with one click.`;
+                    
+                    buttonSlot.innerHTML = `
+                        <button type="button" id="unlinkGoogleBtn" class="px-3.5 py-1.5 text-xs font-semibold rounded-xl border border-red-200 text-red-600 hover:bg-red-50 transition-colors">
+                            Disconnect Google
+                        </button>
+                    `;
+
+                    document.getElementById('unlinkGoogleBtn').addEventListener('click', async () => {
+                        if (!confirm('Are you sure you want to unlink your Google account?')) return;
+                        try {
+                            const unRes = await fetch('/api/auth/google/unlink', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' }
+                            });
+                            const unData = await unRes.json();
+                            if (unRes.ok && unData.status === 'success') {
+                                showAlert('success', 'Google account successfully disconnected.');
+                                setTimeout(() => window.location.reload(), 1000);
+                            } else {
+                                showAlert('error', unData.message || 'Failed to disconnect Google account.');
+                            }
+                        } catch (e) {
+                            showAlert('error', 'Network error disconnecting Google account.');
+                        }
+                    });
+                } else {
+                    badgeSlot.innerHTML = `
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                            <span>Not Connected</span>
+                        </span>
+                    `;
+                    noteSlot.textContent = 'Link your Google account to enable instant single sign-on.';
+                    buttonSlot.innerHTML = `
+                        <a href="/api/auth/google/login" class="inline-flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold rounded-xl shadow-xs transition-colors">
+                            <span>Connect Google</span>
+                        </a>
+                    `;
+                }
+            } catch (err) {
+                console.error('Failed to load profile:', err);
+            }
+        });
+
+        function showAlert(type, msg) {
+            const el = document.getElementById('alertBox');
+            if (!el) return;
+            el.className = type === 'success' 
+                ? 'p-4 rounded-2xl text-xs sm:text-sm font-medium bg-emerald-50 text-emerald-800 border border-emerald-200'
+                : 'p-4 rounded-2xl text-xs sm:text-sm font-medium bg-red-50 text-red-800 border border-red-200';
+            el.textContent = msg;
+            el.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
+
