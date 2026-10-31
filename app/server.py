@@ -712,6 +712,39 @@ def create_app(
             inspection_id=inspection_id,
         )
 
+    @app.route("/dashboard", methods=["GET"])
+    def page_modern_dashboard():
+        """Serves the modern Tailwind administrative operations dashboard."""
+        if is_auth_enforced():
+            curr_user = get_current_user_record()
+            if not curr_user:
+                return redirect("/login?return=/dashboard")
+            if curr_user.get("role") == ROLE_CITIZEN:
+                return redirect("/create_home?restricted=1")
+        return render_template("dashboard.html", csrf_token=get_or_create_csrf_token())
+
+    @app.route("/users", methods=["GET"])
+    def page_user_management():
+        """Serves the modern Tailwind user access & role management console (Admins only)."""
+        if is_auth_enforced():
+            curr_user = get_current_user_record()
+            if not curr_user:
+                return redirect("/login?return=/users")
+            if curr_user.get("role") != ROLE_ADMIN:
+                return redirect("/dashboard?restricted=1")
+        return render_template("users.html", csrf_token=get_or_create_csrf_token())
+
+    @app.route("/maintenance", methods=["GET"])
+    def page_maintenance_queue():
+        """Serves the modern Tailwind maintenance task dispatch queue (Admins and Maintenance staff)."""
+        if is_auth_enforced():
+            curr_user = get_current_user_record()
+            if not curr_user:
+                return redirect("/login?return=/maintenance")
+            if curr_user.get("role") not in (ROLE_ADMIN, ROLE_MAINTENANCE):
+                return redirect("/dashboard?restricted=1")
+        return render_template("maintenance.html", csrf_token=get_or_create_csrf_token())
+
     @app.route("/app", methods=["GET"])
     @app.route("/classic", methods=["GET"])
     def page_classic_app():

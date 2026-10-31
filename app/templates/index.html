@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VisionGuard AI — Infrastructure Defect Detection</title>
-    <meta name="description" content="AI-Powered Infrastructure Defect Detection & Road Inspection Platform using genuine YOLOv8 computer vision.">
+    <meta name="description" content="VisionGuard AI — Infrastructure Defect Detection & Municipal Inspection Intelligence Platform.">
     <meta name="csrf-token" content="{{ csrf_token or '' }}">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <link rel="stylesheet" href="/static/css/styles.css?v=20261026_p2">
@@ -35,6 +35,17 @@
             box-sizing: border-box;
         }
         .auth-modal-dialog { max-width: 460px; }
+        a.nav-tab-btn {
+            text-decoration: none;
+            color: var(--text-secondary);
+        }
+        a.nav-tab-btn:hover {
+            color: var(--text-primary);
+            text-decoration: none;
+        }
+        .nav-tabs {
+            flex-wrap: wrap;
+        }
     </style>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
 </head>
@@ -50,26 +61,37 @@
                 </div>
             </div>
             <nav class="nav-tabs" id="navTabs">
-                <button type="button" class="nav-tab-btn active" id="tabDashboardBtn">
-                    <span>📊</span> <span id="tabDashboardLabel">Dashboard</span>
+                <button type="button" class="nav-tab-btn active" id="tabDashboardBtn" title="Municipal Analytics & Authority Overview">
+                    <span>📊</span> <span id="tabDashboardLabel">Admin Dashboard</span>
                 </button>
-                <button type="button" class="nav-tab-btn" id="tabNewInspectionBtn">
+                <a href="/create_home" class="nav-tab-btn" id="navLinkStudio" title="Launch Modern AI Defect Inspection Studio">
+                    <span>🔬</span> <span>AI Inspection Studio</span>
+                </a>
+                <a href="/map" class="nav-tab-btn" id="navLinkMap" title="View Public Defect GIS Map">
+                    <span>🗺️</span> <span>Defect Map</span>
+                </a>
+                <a href="/report" class="nav-tab-btn" id="navLinkReport" title="View Inspection Reports & Audit Records">
+                    <span>📑</span> <span>Reports & Records</span>
+                </a>
+                <button type="button" class="nav-tab-btn" id="tabQueueBtn" style="display: none;" title="Maintenance Task Dispatch & Remediation Queue">
+                    <span>🛠️</span> <span>Maintenance Queue</span> <span class="badge badge-secondary" id="queueCountBadgeHeader">0</span>
+                </button>
+                <button type="button" class="nav-tab-btn" id="tabUsersBtn" style="display: none;" title="Manage Staff Roles & User Accounts">
+                    <span>👥</span> <span>User Management</span>
+                </button>
+
+                <!-- In-Dashboard Operational Sub-Tabs (Preserved for backward-compatibility & inline tasks) -->
+                <button type="button" class="nav-tab-btn" id="tabNewInspectionBtn" style="display: none;">
                     <span>🔬</span> <span id="tabNewInspectionLabel">New Inspection</span>
                 </button>
-                <button type="button" class="nav-tab-btn" id="tabRecordsBtn">
+                <button type="button" class="nav-tab-btn" id="tabRecordsBtn" style="display: none;">
                     <span>📋</span> <span id="tabRecordsLabel">Inspection Records</span> <span class="badge badge-secondary" id="recordsCountBadgeHeader">0</span>
                 </button>
-                <button type="button" class="nav-tab-btn" id="tabMapBtn">
+                <button type="button" class="nav-tab-btn" id="tabMapBtn" style="display: none;">
                     <span>🗺️</span> Defect Map <span class="badge badge-secondary" id="mapCountBadgeHeader">0</span>
                 </button>
-                <button type="button" class="nav-tab-btn" id="tabReportsBtn">
+                <button type="button" class="nav-tab-btn" id="tabReportsBtn" style="display: none;">
                     <span>📑</span> Reports & Exports
-                </button>
-                <button type="button" class="nav-tab-btn" id="tabQueueBtn" style="display: none;">
-                    <span>🛠️</span> Maintenance Queue <span class="badge badge-secondary" id="queueCountBadgeHeader">0</span>
-                </button>
-                <button type="button" class="nav-tab-btn" id="tabUsersBtn" style="display: none;">
-                    <span>👥</span> User Management
                 </button>
             </nav>
             <div class="header-right-zone" style="display: flex; align-items: center; gap: 0.75rem;">
@@ -409,11 +431,12 @@
             <div class="dash-header">
                 <div>
                     <h2>📊 Infrastructure Defect Analytics Dashboard</h2>
-                    <p>Real-time distress distribution, resolution workflows, and audit intelligence calculated from local SQLite database.</p>
+                    <p id="dashAnalyticsSubtitle">Real-time distress distribution, resolution workflows, and audit intelligence calculated from <span id="dashDbEngineSubtitle">Database</span>.</p>
                 </div>
                 <div class="dash-actions">
                     <button type="button" class="btn btn-secondary btn-sm" id="refreshDashboardBtn">🔄 Refresh Analytics</button>
-                    <button type="button" class="btn btn-primary btn-sm" id="dashStartInspectionBtn">➕ New Inspection</button>
+                    <a href="/create_home" class="btn btn-primary btn-sm" id="dashStudioInspectionBtn" title="Launch Modern AI Defect Inspection Studio">🔬 Launch Inspection Studio</a>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="dashStartInspectionBtn" style="display: none;">➕ Classic Inspection</button>
                 </div>
             </div>
 
@@ -422,7 +445,7 @@
                 <div class="metric-card">
                     <span class="metric-label">Total Inspections</span>
                     <strong class="metric-value" id="dashTotalInspections">0</strong>
-                    <span class="metric-caption">Persisted in SQLite</span>
+                    <span class="metric-caption" id="dashDbEngineCaption">Persisted in Database</span>
                 </div>
                 <div class="metric-card">
                     <span class="metric-label">Total Detected Defects</span>
@@ -451,7 +474,7 @@
                 <div class="card-header-row">
                     <div>
                         <h3>⏰ Maintenance Deadlines & Remediation Timelines</h3>
-                        <p class="card-subtitle">Real-time scheduling compliance computed dynamically from target repair dates in SQLite</p>
+                        <p class="card-subtitle">Real-time scheduling compliance computed dynamically from target repair dates in <span id="dashComplianceEngine">database</span></p>
                     </div>
                     <span class="badge badge-info" id="maintenanceActionableBadge">0 Actionable</span>
                 </div>
@@ -678,7 +701,7 @@
                 <div class="card-header-row">
                     <div>
                         <h3>Recent Road Inspections</h3>
-                        <p class="card-subtitle">Latest 5 surveyed surface records loaded from SQLite</p>
+                        <p class="card-subtitle">Latest 5 surveyed surface records loaded from <span id="dashRecentRecordsEngine">database</span></p>
                     </div>
                     <button type="button" class="btn btn-secondary btn-sm" id="dashViewAllRecordsBtn">View All In Records History →</button>
                 </div>
@@ -1197,7 +1220,7 @@
                 <div class="metric-card">
                     <span class="metric-label">Total Inspections</span>
                     <strong class="metric-value" id="statTotalInspections">0</strong>
-                    <span class="metric-caption">Persisted in SQLite</span>
+                    <span class="metric-caption" id="recordsDbEngineCaption">Persisted in Database</span>
                 </div>
                 <div class="metric-card">
                     <span class="metric-label">Open / Action Required</span>
@@ -1732,7 +1755,7 @@
                 <div class="empty-state">
                     <div class="empty-icon">📍</div>
                     <h3>No Geotagged Defect Inspections Found</h3>
-                    <p id="mapEmptyMsg">There are saved inspection records in SQLite, but none currently have recorded GPS latitude and longitude coordinates.</p>
+                    <p id="mapEmptyMsg">There are saved inspection records in the database, but none currently have recorded GPS latitude and longitude coordinates.</p>
                     <div style="margin-top: 1rem; display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
                         <button type="button" class="btn btn-primary btn-sm" id="mapEmptyNewInspBtn">➕ Inspect & Geotag Road</button>
                         <button type="button" class="btn btn-secondary btn-sm" id="mapEmptyViewRecordsBtn">📋 View Inspection Records</button>
@@ -1993,7 +2016,7 @@
                     <div class="metric-card">
                         <span class="metric-label">Matching Inspections</span>
                         <strong class="metric-value" id="prevTotalInspections">0</strong>
-                        <span class="metric-caption">Persisted SQLite Records</span>
+                        <span class="metric-caption" id="reportsDbEngineCaption">Persisted Database Records</span>
                     </div>
                     <div class="metric-card">
                         <span class="metric-label">Total Detected Defects</span>

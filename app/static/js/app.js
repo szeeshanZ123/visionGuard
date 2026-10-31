@@ -403,25 +403,70 @@ document.addEventListener("DOMContentLoaded", () => {
     function updateModelStatusDisplay() {
         if (!lastHealthData) return;
         const isHome = selectedDomain === "home";
+        const provider = (lastHealthData.ai_provider || "").toLowerCase();
+
+        // 1. Google Gemini Multimodal Vision Telemetry
+        if (provider === "gemini" || provider === "google_gemini") {
+            const geminiInfo = lastHealthData.gemini || {};
+            const isConfigured = Boolean(geminiInfo.configured);
+            const modelName = geminiInfo.model || "gemini-1.5-flash";
+
+            if (isConfigured) {
+                modelStatusBadge.textContent = `Model: Google Gemini Vision (${modelName})`;
+                modelStatusBadge.className = "badge badge-success";
+                modelStatusBadge.title = `Provider: Google Gemini Vision | Model: ${modelName} | Status: Connected & Ready`;
+                if (systemNoticeBanner) systemNoticeBanner.style.display = "none";
+            } else {
+                modelStatusBadge.textContent = "Model: Google Gemini Vision (Not Configured)";
+                modelStatusBadge.className = "badge badge-warning";
+                modelStatusBadge.title = "Google Gemini API key is missing or not configured.";
+
+                if (systemNoticeTitle) systemNoticeTitle.textContent = "Google Gemini Vision API Key Awaiting Configuration";
+                if (systemNoticeMsg) systemNoticeMsg.textContent = "GEMINI_API_KEY is not configured in the server environment.";
+                if (systemNoticeInstructions) {
+                    systemNoticeInstructions.textContent = "Setup Steps:\n1. Obtain an API key from Google AI Studio (https://aistudio.google.com).\n2. Set GEMINI_API_KEY in your deployment environment.\n3. Reload or redeploy the application.";
+                    systemNoticeInstructions.style.display = "block";
+                }
+                if (systemNoticeBanner) systemNoticeBanner.style.display = "flex";
+            }
+            return;
+        }
+
+        // 2. Local YOLO Checkpoint Fallback (Only when AI_PROVIDER=yolo)
         const modelInfo = isHome ? (lastHealthData.home_model || {}) : (lastHealthData.road_model || lastHealthData.model || {});
+        const isYoloGenuinelyLoaded = Boolean(
+            modelInfo.loaded &&
+            modelInfo.checkpoint_path &&
+            !modelInfo.checkpoint_path.toLowerCase().includes("google ai studio")
+        );
 
-        if (modelInfo.loaded) {
-            modelStatusBadge.textContent = isHome ? "Model: Home YOLOv8 (Loaded)" : "Model: Road YOLOv8n (Loaded)";
+        if (isYoloGenuinelyLoaded) {
+            const yoloLabel = isHome ? "Home YOLOv8 (Loaded)" : "Road YOLOv8n (Loaded)";
+            modelStatusBadge.textContent = `Model: ${yoloLabel}`;
             modelStatusBadge.className = "badge badge-success";
-            systemNoticeBanner.style.display = "none";
+            modelStatusBadge.title = `Provider: Local YOLO | Checkpoint: ${modelInfo.checkpoint_path}`;
+            if (systemNoticeBanner) systemNoticeBanner.style.display = "none";
         } else {
-            modelStatusBadge.textContent = isHome ? "Model: Home Checkpoint Missing" : "Model: Road Checkpoint Missing";
+            const yoloMissing = isHome ? "Home YOLO Checkpoint Missing" : "Road YOLO Checkpoint Missing";
+            modelStatusBadge.textContent = `Model: ${yoloMissing}`;
             modelStatusBadge.className = "badge badge-warning";
+            modelStatusBadge.title = "YOLO model checkpoint not found.";
 
-            systemNoticeTitle.textContent = isHome
-                ? "Home Defect Model Checkpoint Awaiting Configuration"
-                : "Road Defect Model Checkpoint Awaiting Configuration";
-            systemNoticeMsg.textContent = modelInfo.status_message || (isHome ? "Checkpoint 'home_best.pt' not loaded." : "Checkpoint 'best.pt' not loaded.");
-            systemNoticeInstructions.textContent = isHome
-                ? "Setup Steps:\n1. Download 'home_best.pt' from your Google Drive ('VisionGuard_Artifacts/home_best.pt').\n2. Place the file at: visionGuard/ai/models/home_best.pt\n3. Reload this page or call POST /api/reload-model?domain=home."
-                : "Setup Steps:\n1. Download 'best.pt' from your Google Drive ('VisionGuard_Artifacts/best.pt') or Colab export.\n2. Place the file at: visionGuard/ai/models/best.pt\n3. Reload this page or call POST /api/reload-model?domain=road.";
-            systemNoticeInstructions.style.display = "block";
-            systemNoticeBanner.style.display = "flex";
+            if (systemNoticeTitle) {
+                systemNoticeTitle.textContent = isHome
+                    ? "Home Defect Model Checkpoint Awaiting Configuration"
+                    : "Road Defect Model Checkpoint Awaiting Configuration";
+            }
+            if (systemNoticeMsg) {
+                systemNoticeMsg.textContent = modelInfo.status_message || (isHome ? "Checkpoint 'home_best.pt' not loaded." : "Checkpoint 'best.pt' not loaded.");
+            }
+            if (systemNoticeInstructions) {
+                systemNoticeInstructions.textContent = isHome
+                    ? "Setup Steps:\n1. Download 'home_best.pt' from your Google Drive ('VisionGuard_Artifacts/home_best.pt').\n2. Place the file at: visionGuard/ai/models/home_best.pt\n3. Reload this page or call POST /api/reload-model?domain=home."
+                    : "Setup Steps:\n1. Download 'best.pt' from your Google Drive ('VisionGuard_Artifacts/best.pt') or Colab export.\n2. Place the file at: visionGuard/ai/models/best.pt\n3. Reload this page or call POST /api/reload-model?domain=road.";
+                systemNoticeInstructions.style.display = "block";
+            }
+            if (systemNoticeBanner) systemNoticeBanner.style.display = "flex";
         }
     }
 
@@ -687,29 +732,81 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // 1. Initial Health Check
+    // 1. Initial Health Check & Dynamic Database Telemetry
     async function checkHealth() {
         try {
             const res = await fetch("/api/health");
             const data = await res.json();
             lastHealthData = data;
 
-            // DB status
-            if (data.database && data.database.connected) {
-                dbStatusBadge.textContent = "Database: Connected";
+            // DB status and dynamic backend engine resolution
+            const dbData = data.database || {};
+            const isConnected = Boolean(dbData.connected);
+            const engine = (dbData.engine || "").toLowerCase();
+
+            let engineName = "Database";
+            let enginePersistence = "database";
+
+            if (isConnected) {
+                if (engine === "postgres" || engine === "postgresql") {
+                    engineName = "Neon PostgreSQL";
+                    enginePersistence = "Neon PostgreSQL";
+                } else if (engine === "sqlite") {
+                    engineName = "SQLite";
+                    enginePersistence = "SQLite";
+                } else if (dbData.engine) {
+                    engineName = dbData.engine;
+                    enginePersistence = dbData.engine;
+                }
+                dbStatusBadge.textContent = `Database: Connected (${engineName})`;
                 dbStatusBadge.className = "badge badge-success";
+                dbStatusBadge.title = `Engine: ${engineName} | Records: ${dbData.records_count ?? 'N/A'} | Status: Healthy`;
             } else {
-                dbStatusBadge.textContent = "Database: Offline";
+                dbStatusBadge.textContent = "Database: Unavailable";
                 dbStatusBadge.className = "badge badge-danger";
+                dbStatusBadge.title = dbData.error ? `Error: ${dbData.error}` : "Database connection unavailable.";
+                enginePersistence = "unavailable database";
             }
 
-            // Model status display updated for active domain
+            // Update subtitles and captions dynamically across dashboard views
+            const dashDbEngineSubtitle = document.getElementById("dashDbEngineSubtitle");
+            if (dashDbEngineSubtitle) {
+                dashDbEngineSubtitle.textContent = isConnected ? engineName : "offline database";
+            }
+            const dashDbEngineCaption = document.getElementById("dashDbEngineCaption");
+            if (dashDbEngineCaption) {
+                dashDbEngineCaption.textContent = isConnected ? `Persisted in ${enginePersistence}` : "Database unavailable";
+            }
+            const recordsDbEngineCaption = document.getElementById("recordsDbEngineCaption");
+            if (recordsDbEngineCaption) {
+                recordsDbEngineCaption.textContent = isConnected ? `Persisted in ${enginePersistence}` : "Database unavailable";
+            }
+            const dashComplianceEngine = document.getElementById("dashComplianceEngine");
+            if (dashComplianceEngine) {
+                dashComplianceEngine.textContent = isConnected ? enginePersistence : "database";
+            }
+            const dashRecentRecordsEngine = document.getElementById("dashRecentRecordsEngine");
+            if (dashRecentRecordsEngine) {
+                dashRecentRecordsEngine.textContent = isConnected ? enginePersistence : "database";
+            }
+            const reportsDbEngineCaption = document.getElementById("reportsDbEngineCaption");
+            if (reportsDbEngineCaption) {
+                reportsDbEngineCaption.textContent = isConnected ? `Persisted ${enginePersistence} Records` : "Database unavailable";
+            }
+
+            // Model status display updated for active domain and AI provider
             updateModelStatusDisplay();
         } catch (err) {
-            dbStatusBadge.textContent = "Database: Error";
+            dbStatusBadge.textContent = "Database: Unavailable";
             dbStatusBadge.className = "badge badge-danger";
+            dbStatusBadge.title = "Failed to connect to backend /api/health endpoint.";
             modelStatusBadge.textContent = "Backend: Offline";
             modelStatusBadge.className = "badge badge-danger";
+
+            const dashDbEngineCaption = document.getElementById("dashDbEngineCaption");
+            if (dashDbEngineCaption) dashDbEngineCaption.textContent = "Database unavailable";
+            const recordsDbEngineCaption = document.getElementById("recordsDbEngineCaption");
+            if (recordsDbEngineCaption) recordsDbEngineCaption.textContent = "Database unavailable";
         }
     }
 
@@ -2364,7 +2461,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (dashStartInspectionBtn) dashStartInspectionBtn.addEventListener("click", () => switchView("new"));
     if (dashEmptyNewInspectionBtn) dashEmptyNewInspectionBtn.addEventListener("click", () => switchView("new"));
     if (dashViewAllRecordsBtn) dashViewAllRecordsBtn.addEventListener("click", () => switchView("records"));
-    if (refreshDashboardBtn) refreshDashboardBtn.addEventListener("click", loadDashboardStats);
+    if (refreshDashboardBtn) refreshDashboardBtn.addEventListener("click", () => {
+        loadDashboardStats();
+        checkHealth();
+    });
 
     // Quick filter handlers for Phase 4.4 Dashboard Deadline Cards & Alert Banner
     function filterRecordsByDeadline(filterVal) {
@@ -4248,33 +4348,30 @@ document.addEventListener("DOMContentLoaded", () => {
                     switchView("dashboard");
                 }
             } else if (u.role === "admin") {
-                if (tabDashboardLabel) tabDashboardLabel.textContent = "Dashboard";
-                if (tabNewInspectionLabel) tabNewInspectionLabel.textContent = "New Inspection";
-                if (tabRecordsLabel) tabRecordsLabel.textContent = "Records";
-
+                if (tabDashboardLabel) tabDashboardLabel.textContent = "Admin Dashboard";
                 if (tabUsersBtn) tabUsersBtn.style.display = "inline-flex";
-                if (tabNewInspectionBtn) tabNewInspectionBtn.style.display = "inline-flex";
-                if (tabReportsBtn) tabReportsBtn.style.display = "inline-flex";
                 if (tabQueueBtn) tabQueueBtn.style.display = "inline-flex";
+                if (tabNewInspectionBtn) tabNewInspectionBtn.style.display = "none";
+                if (tabRecordsBtn) tabRecordsBtn.style.display = "none";
+                if (tabMapBtn) tabMapBtn.style.display = "none";
+                if (tabReportsBtn) tabReportsBtn.style.display = "none";
                 if (queueSubtitle) queueSubtitle.textContent = "All dispatched infrastructure remediation tasks across the maintenance department.";
             } else if (u.role === "inspector") {
-                if (tabDashboardLabel) tabDashboardLabel.textContent = "Dashboard";
-                if (tabNewInspectionLabel) tabNewInspectionLabel.textContent = "New Inspection";
-                if (tabRecordsLabel) tabRecordsLabel.textContent = "Records";
-
+                if (tabDashboardLabel) tabDashboardLabel.textContent = "Admin Dashboard";
                 if (tabUsersBtn) tabUsersBtn.style.display = "none";
-                if (tabNewInspectionBtn) tabNewInspectionBtn.style.display = "inline-flex";
-                if (tabReportsBtn) tabReportsBtn.style.display = "inline-flex";
                 if (tabQueueBtn) tabQueueBtn.style.display = "none";
-            } else if (u.role === "maintenance") {
-                if (tabDashboardLabel) tabDashboardLabel.textContent = "Dashboard";
-                if (tabNewInspectionLabel) tabNewInspectionLabel.textContent = "New Inspection";
-                if (tabRecordsLabel) tabRecordsLabel.textContent = "Records";
-
-                if (tabUsersBtn) tabUsersBtn.style.display = "none";
                 if (tabNewInspectionBtn) tabNewInspectionBtn.style.display = "none";
+                if (tabRecordsBtn) tabRecordsBtn.style.display = "none";
+                if (tabMapBtn) tabMapBtn.style.display = "none";
                 if (tabReportsBtn) tabReportsBtn.style.display = "none";
+            } else if (u.role === "maintenance") {
+                if (tabDashboardLabel) tabDashboardLabel.textContent = "Admin Dashboard";
+                if (tabUsersBtn) tabUsersBtn.style.display = "none";
                 if (tabQueueBtn) tabQueueBtn.style.display = "inline-flex";
+                if (tabNewInspectionBtn) tabNewInspectionBtn.style.display = "none";
+                if (tabRecordsBtn) tabRecordsBtn.style.display = "none";
+                if (tabMapBtn) tabMapBtn.style.display = "none";
+                if (tabReportsBtn) tabReportsBtn.style.display = "none";
                 if (queueSubtitle) queueSubtitle.textContent = `Actionable infrastructure remediation tasks assigned to ${escapeHtml(u.username)}.`;
 
                 // If currently on forbidden view, redirect to queue
@@ -4287,9 +4384,11 @@ document.addEventListener("DOMContentLoaded", () => {
             const tabDashboardLabel = document.getElementById("tabDashboardLabel");
             const tabNewInspectionLabel = document.getElementById("tabNewInspectionLabel");
             const tabRecordsLabel = document.getElementById("tabRecordsLabel");
-            if (tabDashboardLabel) tabDashboardLabel.textContent = "Dashboard";
-            if (tabNewInspectionLabel) tabNewInspectionLabel.textContent = "New Inspection";
-            if (tabRecordsLabel) tabRecordsLabel.textContent = "Records";
+            if (tabDashboardLabel) tabDashboardLabel.textContent = "Admin Dashboard";
+            if (tabNewInspectionLabel) tabNewInspectionLabel.style.display = "none";
+            if (tabRecordsLabel) tabRecordsLabel.style.display = "none";
+            if (tabMapBtn) tabMapBtn.style.display = "none";
+            if (tabReportsBtn) tabReportsBtn.style.display = "none";
 
             const guestBannerSignInBtn = document.getElementById("guestBannerSignInBtn");
             const guestBannerTitle = document.getElementById("authGuestBannerTitle");

@@ -1102,7 +1102,7 @@
                 data.user.role === "maintenance";
               const authBtn = document.getElementById("nav-auth-btn");
               if (authBtn) {
-                authBtn.href = isStaff ? "/app" : "/create_home";
+                authBtn.href = isStaff ? "/dashboard" : "/create_home";
                 authBtn.title = `${data.user.username} (${data.user.role}) - Click for ${isStaff ? "Operations Dashboard" : "Inspection Studio"}`;
                 authBtn.innerHTML = `
                                 <span class="flex items-center gap-1.5">
@@ -1116,7 +1116,7 @@
               const navLinks = document.querySelectorAll("header nav a");
               navLinks.forEach((a) => {
                 if (a.textContent.trim() === "Dashboard") {
-                  a.href = isStaff ? "/app" : "/report";
+                  a.href = isStaff ? "/dashboard" : "/report";
                   a.textContent = isStaff
                     ? "Operations Dashboard"
                     : "My Reports";

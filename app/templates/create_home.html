@@ -3073,7 +3073,7 @@
                     data.user.role === "admin" ||
                     data.user.role === "inspector" ||
                     data.user.role === "maintenance";
-                  avatarEl.href = isStaff ? "/app" : "/report";
+                  avatarEl.href = isStaff ? "/dashboard" : "/report";
                   avatarEl.title = `${data.user.username} (${data.user.role}) - Click for ${isStaff ? "Operations Dashboard" : "My Reports"}`;
                 }
               } else {

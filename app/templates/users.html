@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="csrf-token" content="{{ csrf_token or '' }}">
+    <title>User Management Console — VisionGuard AI</title>
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet" />
+    <!-- Tailwind CSS v3 -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: {
+                            50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', dark: '#0f172a'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @layer base {
+            html, body { margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+            body { overscroll-behavior: none; }
+        }
+        .vg-nav-user-container { position: relative; }
+        #vg-profile-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            width: 170px;
+            padding: 6px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.1);
+            z-index: 60;
+        }
+        #vg-profile-dropdown.vg-open { display: block; }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-800 antialiased min-h-screen flex flex-col">
+    <!-- Top Global Header -->
+    <header class="sticky top-0 w-full z-50 bg-white border-b border-slate-200 shadow-sm transition-all">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-wrap lg:flex-nowrap items-center justify-between gap-3 sm:gap-4 py-3 sm:py-3.5">
+                <!-- Logo & Brand -->
+                <a href="/" class="flex items-center gap-3 shrink-0 hover:opacity-95 transition-opacity">
+                    <div class="flex items-center justify-center w-10 h-10 rounded-xl bg-purple-50 text-purple-600 border border-purple-100 shadow-sm">
+                        <span class="material-symbols-outlined text-[24px]">group</span>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-base sm:text-lg font-bold tracking-tight text-slate-900">VisionGuard AI</span>
+                            <span class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-md bg-purple-50 text-purple-700 border border-purple-200/60">Admin Only</span>
+                        </div>
+                        <p class="text-[11px] text-slate-500 font-medium">Platform Access & User Permissions</p>
+                    </div>
+                </a>
+
+                <!-- Navigation Links -->
+                <nav class="flex items-center gap-1 sm:gap-2 overflow-x-auto py-1">
+                    <a href="/dashboard" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[18px]">dashboard</span>
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="/create_home" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[18px]">biotech</span>
+                        <span>Defect Studio</span>
+                    </a>
+                    <a href="/map" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[18px]">map</span>
+                        <span>Defect Map</span>
+                    </a>
+                    <a href="/report" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[18px]">description</span>
+                        <span>Reports & Records</span>
+                    </a>
+                    <a href="/maintenance" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[18px]">build</span>
+                        <span>Maintenance Queue</span>
+                    </a>
+                    <a href="/users" class="px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-lg bg-purple-50 text-purple-700 border border-purple-200/80 transition-colors flex items-center gap-1.5 shadow-sm">
+                        <span class="material-symbols-outlined text-[18px]">group</span>
+                        <span>User Management</span>
+                    </a>
+                </nav>
+
+                <!-- Profile Dropdown -->
+                <div class="flex items-center gap-3 shrink-0">
+                    <div class="vg-nav-user-container">
+                        <button type="button" id="vg-user-profile-btn" class="flex items-center gap-2 p-1.5 sm:px-3 sm:py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors focus:outline-none">
+                            <div class="w-7 h-7 rounded-lg bg-purple-600 text-white flex items-center justify-center font-bold text-xs uppercase" id="userAvatarInitial">A</div>
+                            <span class="hidden sm:inline text-xs font-semibold text-slate-700" id="userDisplayName">Administrator</span>
+                            <span class="material-symbols-outlined text-[16px] text-slate-400">expand_more</span>
+                        </button>
+                        <div id="vg-profile-dropdown">
+                            <div class="px-3 py-2 border-b border-slate-100">
+                                <p class="text-xs font-bold text-slate-900 truncate" id="dropdownUsername">Administrator</p>
+                                <p class="text-[11px] text-slate-500 font-medium capitalize" id="dropdownRole">admin</p>
+                            </div>
+                            <a href="/dashboard" class="flex items-center gap-2 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 rounded-lg">
+                                <span class="material-symbols-outlined text-[16px]">dashboard</span>
+                                <span>Operations Dashboard</span>
+                            </a>
+                            <button type="button" id="vg-logout-btn" class="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-600 hover:bg-red-50 rounded-lg font-medium text-left">
+                                <span class="material-symbols-outlined text-[16px]">logout</span>
+                                <span>Sign Out</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
+        <!-- Title & Action Bar -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/80">
+            <div>
+                <h1 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5">
+                    <span>👥 User Access & Role Management</span>
+                </h1>
+                <p class="text-xs sm:text-sm text-slate-500 mt-1">
+                    Inspect registered user accounts, manage staff permissions, and assign operational roles across municipal departments.
+                </p>
+            </div>
+            <div class="flex items-center gap-2 sm:gap-3">
+                <button type="button" id="btn-open-create-user-modal" class="px-4 py-2 text-xs font-semibold rounded-xl bg-purple-600 hover:bg-purple-700 text-white shadow-sm flex items-center gap-1.5 transition-colors">
+                    <span class="material-symbols-outlined text-[18px]">person_add</span>
+                    <span>Create Staff User</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Role Summary KPI Row -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div class="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wide">Total Users</span>
+                    <strong class="text-2xl font-extrabold text-slate-900 block mt-1" id="kpi-total-users">0</strong>
+                </div>
+                <div class="p-2.5 rounded-xl bg-slate-100 text-slate-600">
+                    <span class="material-symbols-outlined text-[20px]">group</span>
+                </div>
+            </div>
+            <div class="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wide">Administrators</span>
+                    <strong class="text-2xl font-extrabold text-purple-700 block mt-1" id="kpi-admin-users">0</strong>
+                </div>
+                <div class="p-2.5 rounded-xl bg-purple-50 text-purple-600">
+                    <span class="material-symbols-outlined text-[20px]">admin_panel_settings</span>
+                </div>
+            </div>
+            <div class="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wide">Inspectors</span>
+                    <strong class="text-2xl font-extrabold text-blue-700 block mt-1" id="kpi-inspector-users">0</strong>
+                </div>
+                <div class="p-2.5 rounded-xl bg-blue-50 text-blue-600">
+                    <span class="material-symbols-outlined text-[20px]">biotech</span>
+                </div>
+            </div>
+            <div class="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wide">Maintenance Staff</span>
+                    <strong class="text-2xl font-extrabold text-amber-700 block mt-1" id="kpi-maintenance-users">0</strong>
+                </div>
+                <div class="p-2.5 rounded-xl bg-amber-50 text-amber-600">
+                    <span class="material-symbols-outlined text-[20px]">engineering</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter & Search Toolbar -->
+        <div class="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="relative w-full sm:w-72">
+                <span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-[18px]">search</span>
+                <input type="text" id="user-search-input" placeholder="Search by username or email..." class="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:outline-none" />
+            </div>
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+                <select id="user-role-filter" class="w-full sm:w-auto text-xs py-2 px-3 border border-slate-200 rounded-xl bg-white text-slate-700 focus:ring-2 focus:ring-purple-500 focus:outline-none">
+                    <option value="">All Roles</option>
+                    <option value="admin">Administrator</option>
+                    <option value="inspector">Inspector</option>
+                    <option value="maintenance">Maintenance</option>
+                    <option value="citizen">Citizen</option>
+                </select>
+                <select id="user-status-filter" class="w-full sm:w-auto text-xs py-2 px-3 border border-slate-200 rounded-xl bg-white text-slate-700 focus:ring-2 focus:ring-purple-500 focus:outline-none">
+                    <option value="">All Statuses</option>
+                    <option value="active">Active Only</option>
+                    <option value="inactive">Inactive Only</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Notification Banner -->
+        <div id="users-feedback-alert" class="hidden p-3.5 rounded-xl text-xs font-semibold"></div>
+
+        <!-- Users Data Table -->
+        <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead>
+                        <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider">
+                            <th class="py-3 px-4">User ID</th>
+                            <th class="py-3 px-4">Username</th>
+                            <th class="py-3 px-4">Email</th>
+                            <th class="py-3 px-4">Current Role</th>
+                            <th class="py-3 px-4">Google Linked</th>
+                            <th class="py-3 px-4">Account Status</th>
+                            <th class="py-3 px-4">Created Date</th>
+                            <th class="py-3 px-4 text-right">Change Role</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-tbody" class="divide-y divide-slate-100 text-slate-700">
+                        <tr>
+                            <td colspan="8" class="py-8 text-center text-slate-400">Loading user registry...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal: Create New Staff Member -->
+    <div id="create-user-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div class="flex items-center gap-2.5">
+                    <span class="p-2 rounded-xl bg-purple-50 text-purple-700">
+                        <span class="material-symbols-outlined text-[20px]">person_add</span>
+                    </span>
+                    <h3 class="text-sm font-bold text-slate-900">Create Staff User</h3>
+                </div>
+                <button type="button" id="btn-close-create-user-modal" class="text-slate-400 hover:text-slate-600">
+                    <span class="material-symbols-outlined text-[20px]">close</span>
+                </button>
+            </div>
+            <form id="create-user-form" class="space-y-3.5 text-xs">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Username *</label>
+                    <input type="text" id="new-user-username" required class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:outline-none" placeholder="e.g. inspector_smith" />
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Email Address</label>
+                    <input type="email" id="new-user-email" class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:outline-none" placeholder="staff@city.gov" />
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Temporary Password *</label>
+                    <input type="password" id="new-user-password" required minlength="8" class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:outline-none" placeholder="Minimum 8 characters" />
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Operational Role *</label>
+                    <select id="new-user-role" required class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:outline-none bg-white">
+                        <option value="inspector">Inspector</option>
+                        <option value="maintenance">Maintenance Technician</option>
+                        <option value="admin">Administrator</option>
+                    </select>
+                </div>
+                <div id="modal-error-alert" class="hidden p-2.5 rounded-xl bg-red-50 text-red-700 text-xs font-semibold"></div>
+                <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                    <button type="button" id="btn-cancel-create-user" class="px-3.5 py-2 font-semibold text-slate-600 hover:bg-slate-100 rounded-xl">Cancel</button>
+                    <button type="submit" id="btn-submit-create-user" class="px-4 py-2 font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded-xl shadow-sm">Create Account</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="mt-auto bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500">
+        <p>&copy; VisionGuard AI &mdash; Role-Based Access Control & User Administration</p>
+    </footer>
+
+    <!-- Users Controller Script -->
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            let allUsers = [];
+
+            // Dropdown Toggle
+            const profileBtn = document.getElementById("vg-user-profile-btn");
+            const profileDropdown = document.getElementById("vg-profile-dropdown");
+            if (profileBtn && profileDropdown) {
+                profileBtn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    profileDropdown.classList.toggle("vg-open");
+                });
+                document.addEventListener("click", () => profileDropdown.classList.remove("vg-open"));
+            }
+
+            // Logout Action
+            const logoutBtn = document.getElementById("vg-logout-btn");
+            if (logoutBtn) {
+                logoutBtn.addEventListener("click", async () => {
+                    await fetch("/api/auth/logout", { method: "POST" });
+                    window.location.href = "/login";
+                });
+            }
+
+            // Feedback Alert Helper
+            function showAlert(msg, isSuccess = true) {
+                const alertEl = document.getElementById("users-feedback-alert");
+                alertEl.textContent = msg;
+                alertEl.className = isSuccess 
+                    ? "p-3.5 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200"
+                    : "p-3.5 rounded-xl text-xs font-semibold bg-red-50 text-red-800 border border-red-200";
+                alertEl.classList.remove("hidden");
+                setTimeout(() => alertEl.classList.add("hidden"), 4500);
+            }
+
+            // Auth Check
+            async function verifyAdminAuth() {
+                try {
+                    const res = await fetch("/api/auth/status");
+                    const data = await res.json();
+                    if (!data.authenticated || data.user.role !== "admin") {
+                        window.location.href = "/dashboard?restricted=1";
+                        return;
+                    }
+                    document.getElementById("userDisplayName").textContent = data.user.username;
+                    document.getElementById("dropdownUsername").textContent = data.user.username;
+                } catch (e) {
+                    window.location.href = "/login";
+                }
+            }
+
+            // Fetch & Render Users
+            async function loadUsers() {
+                try {
+                    const res = await fetch("/api/users");
+                    if (!res.ok) {
+                        showAlert("Failed to load users: access restricted to administrators.", false);
+                        return;
+                    }
+                    const data = await res.json();
+                    allUsers = data.users || [];
+
+                    // Update KPI counters
+                    document.getElementById("kpi-total-users").textContent = allUsers.length;
+                    document.getElementById("kpi-admin-users").textContent = allUsers.filter(u => u.role === "admin").length;
+                    document.getElementById("kpi-inspector-users").textContent = allUsers.filter(u => u.role === "inspector").length;
+                    document.getElementById("kpi-maintenance-users").textContent = allUsers.filter(u => u.role === "maintenance").length;
+
+                    renderUsersTable();
+                } catch (e) {
+                    console.error("Load users error:", e);
+                }
+            }
+
+            function renderUsersTable() {
+                const searchVal = (document.getElementById("user-search-input").value || "").toLowerCase().trim();
+                const roleFilter = document.getElementById("user-role-filter").value;
+                const statusFilter = document.getElementById("user-status-filter").value;
+
+                const filtered = allUsers.filter(u => {
+                    const matchSearch = (!searchVal) || 
+                        (u.username && u.username.toLowerCase().includes(searchVal)) ||
+                        (u.email && u.email.toLowerCase().includes(searchVal));
+                    const matchRole = (!roleFilter) || (u.role === roleFilter);
+                    const matchStatus = (!statusFilter) || 
+                        (statusFilter === "active" && Boolean(u.is_active)) ||
+                        (statusFilter === "inactive" && !u.is_active);
+                    return matchSearch && matchRole && matchStatus;
+                });
+
+                const tbody = document.getElementById("users-tbody");
+                if (filtered.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="py-6 text-center text-slate-400">No users match filter criteria.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = filtered.map(u => {
+                    const roleBadgeClass = (u.role === 'admin') ? 'bg-purple-100 text-purple-800 border-purple-200' :
+                                           (u.role === 'inspector') ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                                           (u.role === 'maintenance') ? 'bg-amber-100 text-amber-800 border-amber-200' :
+                                           'bg-slate-100 text-slate-700 border-slate-200';
+                    const activeBadge = u.is_active 
+                        ? '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800">Active</span>'
+                        : '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-200 text-slate-600">Inactive</span>';
+                    const googleBadge = u.google_sub 
+                        ? '<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Linked</span>'
+                        : '<span class="text-slate-400">Password</span>';
+                    const dateStr = u.created_at ? new Date(u.created_at).toLocaleDateString() : 'N/A';
+
+                    return `
+                        <tr class="hover:bg-slate-50/80 transition-colors">
+                            <td class="py-3 px-4 font-bold text-slate-900">#${u.id}</td>
+                            <td class="py-3 px-4 font-semibold text-slate-800">${escapeHtml(u.username)}</td>
+                            <td class="py-3 px-4 text-slate-500">${u.email ? escapeHtml(u.email) : 'None'}</td>
+                            <td class="py-3 px-4"><span class="px-2.5 py-0.5 rounded-md text-[11px] font-bold uppercase border ${roleBadgeClass}">${u.role}</span></td>
+                            <td class="py-3 px-4">${googleBadge}</td>
+                            <td class="py-3 px-4">${activeBadge}</td>
+                            <td class="py-3 px-4 text-slate-500">${dateStr}</td>
+                            <td class="py-3 px-4 text-right">
+                                <select onchange="updateUserRole(${u.id}, this.value)" class="text-xs py-1 px-2 border border-slate-200 rounded-lg bg-white text-slate-700 focus:ring-1 focus:ring-purple-500">
+                                    <option value="citizen" ${u.role === 'citizen' ? 'selected' : ''}>Citizen</option>
+                                    <option value="inspector" ${u.role === 'inspector' ? 'selected' : ''}>Inspector</option>
+                                    <option value="maintenance" ${u.role === 'maintenance' ? 'selected' : ''}>Maintenance</option>
+                                    <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Admin</option>
+                                </select>
+                            </td>
+                        </tr>
+                    `;
+                }).join("");
+            }
+
+            // Role Update API Call
+            window.updateUserRole = async function(userId, newRole) {
+                try {
+                    const res = await fetch(`/api/users/${userId}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ role: newRole })
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        showAlert(`Role for User #${userId} successfully updated to ${newRole}.`, true);
+                        loadUsers();
+                    } else {
+                        showAlert(data.message || "Failed to update role.", false);
+                        loadUsers();
+                    }
+                } catch (e) {
+                    showAlert("Network error updating role.", false);
+                }
+            };
+
+            function escapeHtml(text) {
+                const div = document.createElement("div");
+                div.textContent = text || "";
+                return div.innerHTML;
+            }
+
+            // Modal Controls
+            const modal = document.getElementById("create-user-modal");
+            document.getElementById("btn-open-create-user-modal").addEventListener("click", () => modal.classList.remove("hidden"));
+            document.getElementById("btn-close-create-user-modal").addEventListener("click", () => modal.classList.add("hidden"));
+            document.getElementById("btn-cancel-create-user").addEventListener("click", () => modal.classList.add("hidden"));
+
+            // Create User Form
+            document.getElementById("create-user-form").addEventListener("submit", async (e) => {
+                e.preventDefault();
+                const username = document.getElementById("new-user-username").value.trim();
+                const email = document.getElementById("new-user-email").value.trim();
+                const password = document.getElementById("new-user-password").value;
+                const role = document.getElementById("new-user-role").value;
+                const modalError = document.getElementById("modal-error-alert");
+
+                try {
+                    const res = await fetch("/api/users", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ username, email, password, role })
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        modal.classList.add("hidden");
+                        document.getElementById("create-user-form").reset();
+                        showAlert(`Staff user '${username}' created successfully as ${role}.`, true);
+                        loadUsers();
+                    } else {
+                        modalError.textContent = data.message || "Failed to create user.";
+                        modalError.classList.remove("hidden");
+                    }
+                } catch (err) {
+                    modalError.textContent = "Error communicating with user registry.";
+                    modalError.classList.remove("hidden");
+                }
+            });
+
+            // Filter Event Listeners
+            document.getElementById("user-search-input").addEventListener("input", renderUsersTable);
+            document.getElementById("user-role-filter").addEventListener("change", renderUsersTable);
+            document.getElementById("user-status-filter").addEventListener("change", renderUsersTable);
+
+            // Init
+            verifyAdminAuth();
+            loadUsers();
+        });
+    </script>
+</body>
+</html>

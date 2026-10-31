@@ -237,7 +237,7 @@
                     </h2>
                     <span class="text-[11px] text-slate-500 font-medium flex items-center gap-1.5">
                         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                        Live SQLite Telemetry
+                        <span id="report-db-telemetry-label">Live Database Telemetry</span>
                     </span>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -258,7 +258,7 @@
                         <div
                             class="mt-3 pt-3 border-t border-slate-100 flex items-center gap-1.5 text-xs text-slate-600 font-medium">
                             <span class="w-2 h-2 rounded-full bg-blue-500"></span>
-                            <span>Persisted in SQLite</span>
+                            <span id="report-db-persisted-label">Persisted in Database</span>
                         </div>
                     </div>
                     <!-- Card 2: Open / Action Required -->
@@ -1418,6 +1418,23 @@
             async function loadStats() {
                 try {
                     const authRes = await fetch('/api/auth/status');
+                    fetch('/api/health').then(r => r.json()).then(h => {
+                        const db = h.database || {};
+                        if (db.connected) {
+                            const isPg = (db.engine === 'postgres' || db.engine === 'postgresql');
+                            const label = isPg ? 'Neon PostgreSQL' : (db.engine === 'sqlite' ? 'SQLite' : (db.engine || 'Database'));
+                            const telem = document.getElementById('report-db-telemetry-label');
+                            if (telem) telem.textContent = `Live ${label} Telemetry`;
+                            const persist = document.getElementById('report-db-persisted-label');
+                            if (persist) persist.textContent = `Persisted in ${label}`;
+                        } else {
+                            const telem = document.getElementById('report-db-telemetry-label');
+                            if (telem) telem.textContent = 'Database Unavailable';
+                            const persist = document.getElementById('report-db-persisted-label');
+                            if (persist) persist.textContent = 'Database Unavailable';
+                        }
+                    }).catch(() => {});
+
                     const authData = await authRes.json().catch(() => ({}));
                     const isStaff = authData && authData.user && (authData.user.role === 'admin' || authData.user.role === 'inspector' || authData.user.role === 'maintenance');
 
@@ -1560,7 +1577,7 @@
                         if (roleEl) roleEl.innerText = (data.user.role || 'citizen').toUpperCase();
                         if (avatarEl) {
                             const isStaff = (data.user.role === 'admin' || data.user.role === 'inspector' || data.user.role === 'maintenance');
-                            avatarEl.href = isStaff ? '/app' : '/report';
+                            avatarEl.href = isStaff ? '/dashboard' : '/report';
                             avatarEl.title = `${data.user.username} (${data.user.role}) - ${isStaff ? 'Operations Dashboard' : 'My Reports'}`;
                         }
                         if (data.user.role === 'citizen') {

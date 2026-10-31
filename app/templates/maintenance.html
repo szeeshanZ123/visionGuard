@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="csrf-token" content="{{ csrf_token or '' }}">
+    <title>Maintenance Task Dispatch Queue — VisionGuard AI</title>
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet" />
+    <!-- Tailwind CSS v3 -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: {
+                            50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', dark: '#0f172a'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @layer base {
+            html, body { margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+            body { overscroll-behavior: none; }
+        }
+        .vg-nav-user-container { position: relative; }
+        #vg-profile-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            width: 170px;
+            padding: 6px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.1);
+            z-index: 60;
+        }
+        #vg-profile-dropdown.vg-open { display: block; }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-800 antialiased min-h-screen flex flex-col">
+    <!-- Top Global Header -->
+    <header class="sticky top-0 w-full z-50 bg-white border-b border-slate-200 shadow-sm transition-all">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-wrap lg:flex-nowrap items-center justify-between gap-3 sm:gap-4 py-3 sm:py-3.5">
+                <!-- Logo & Brand -->
+                <a href="/" class="flex items-center gap-3 shrink-0 hover:opacity-95 transition-opacity">
+                    <div class="flex items-center justify-center w-10 h-10 rounded-xl bg-amber-50 text-amber-600 border border-amber-100 shadow-sm">
+                        <span class="material-symbols-outlined text-[24px]">build</span>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-base sm:text-lg font-bold tracking-tight text-slate-900">VisionGuard AI</span>
+                            <span class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-md bg-amber-50 text-amber-700 border border-amber-200/60">Maintenance</span>
+                        </div>
+                        <p class="text-[11px] text-slate-500 font-medium">Work Order Dispatch & Remediation Queue</p>
+                    </div>
+                </a>
+
+                <!-- Navigation Links -->
+                <nav class="flex items-center gap-1 sm:gap-2 overflow-x-auto py-1">
+                    <a href="/dashboard" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[18px]">dashboard</span>
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="/create_home" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[18px]">biotech</span>
+                        <span>Defect Studio</span>
+                    </a>
+                    <a href="/map" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[18px]">map</span>
+                        <span>Defect Map</span>
+                    </a>
+                    <a href="/report" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[18px]">description</span>
+                        <span>Reports & Records</span>
+                    </a>
+                    <a href="/maintenance" class="px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-lg bg-amber-50 text-amber-700 border border-amber-200/80 transition-colors flex items-center gap-1.5 shadow-sm">
+                        <span class="material-symbols-outlined text-[18px]">build</span>
+                        <span>Maintenance Queue</span>
+                    </a>
+                    <a href="/users" id="nav-link-users" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors flex items-center gap-1.5 hidden">
+                        <span class="material-symbols-outlined text-[18px]">group</span>
+                        <span>User Management</span>
+                    </a>
+                </nav>
+
+                <!-- Profile Dropdown -->
+                <div class="flex items-center gap-3 shrink-0">
+                    <div class="vg-nav-user-container">
+                        <button type="button" id="vg-user-profile-btn" class="flex items-center gap-2 p-1.5 sm:px-3 sm:py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors focus:outline-none">
+                            <div class="w-7 h-7 rounded-lg bg-amber-600 text-white flex items-center justify-center font-bold text-xs uppercase" id="userAvatarInitial">M</div>
+                            <span class="hidden sm:inline text-xs font-semibold text-slate-700" id="userDisplayName">Maintenance Staff</span>
+                            <span class="material-symbols-outlined text-[16px] text-slate-400">expand_more</span>
+                        </button>
+                        <div id="vg-profile-dropdown">
+                            <div class="px-3 py-2 border-b border-slate-100">
+                                <p class="text-xs font-bold text-slate-900 truncate" id="dropdownUsername">Staff Member</p>
+                                <p class="text-[11px] text-slate-500 font-medium capitalize" id="dropdownRole">maintenance</p>
+                            </div>
+                            <a href="/dashboard" class="flex items-center gap-2 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 rounded-lg">
+                                <span class="material-symbols-outlined text-[16px]">dashboard</span>
+                                <span>Operations Dashboard</span>
+                            </a>
+                            <button type="button" id="vg-logout-btn" class="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-600 hover:bg-red-50 rounded-lg font-medium text-left">
+                                <span class="material-symbols-outlined text-[16px]">logout</span>
+                                <span>Sign Out</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
+        <!-- Title Row -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/80">
+            <div>
+                <h1 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5">
+                    <span>🛠️ Maintenance Work Orders & Dispatch Queue</span>
+                </h1>
+                <p class="text-xs sm:text-sm text-slate-500 mt-1" id="queue-scope-subtitle">
+                    Actionable municipal infrastructure remediation tasks, contractor assignments, and target deadlines.
+                </p>
+            </div>
+            <div class="flex items-center gap-2 sm:gap-3">
+                <button type="button" id="btn-refresh-queue" class="px-3.5 py-2 text-xs font-semibold rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 shadow-sm flex items-center gap-1.5 transition-colors">
+                    <span class="material-symbols-outlined text-[18px]">refresh</span>
+                    <span>Refresh Queue</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Deadline Urgency KPI Row -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div class="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wide">Total Assigned</span>
+                    <strong class="text-2xl font-extrabold text-slate-900 block mt-1" id="kpi-queue-total">0</strong>
+                </div>
+                <div class="p-2.5 rounded-xl bg-slate-100 text-slate-600">
+                    <span class="material-symbols-outlined text-[20px]">assignment</span>
+                </div>
+            </div>
+            <div class="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wide">Overdue Repairs</span>
+                    <strong class="text-2xl font-extrabold text-rose-600 block mt-1" id="kpi-queue-overdue">0</strong>
+                </div>
+                <div class="p-2.5 rounded-xl bg-rose-50 text-rose-600">
+                    <span class="material-symbols-outlined text-[20px]">emergency</span>
+                </div>
+            </div>
+            <div class="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wide">Due Today</span>
+                    <strong class="text-2xl font-extrabold text-amber-600 block mt-1" id="kpi-queue-today">0</strong>
+                </div>
+                <div class="p-2.5 rounded-xl bg-amber-50 text-amber-600">
+                    <span class="material-symbols-outlined text-[20px]">today</span>
+                </div>
+            </div>
+            <div class="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wide">In Progress</span>
+                    <strong class="text-2xl font-extrabold text-indigo-600 block mt-1" id="kpi-queue-inprogress">0</strong>
+                </div>
+                <div class="p-2.5 rounded-xl bg-indigo-50 text-indigo-600">
+                    <span class="material-symbols-outlined text-[20px]">pending_actions</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter & Search Toolbar -->
+        <div class="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="relative w-full sm:w-72">
+                <span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-[18px]">search</span>
+                <input type="text" id="queue-search-input" placeholder="Search tasks, roads, assignees..." class="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+            </div>
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+                <select id="queue-deadline-filter" class="w-full sm:w-auto text-xs py-2 px-3 border border-slate-200 rounded-xl bg-white text-slate-700 focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                    <option value="">All Deadlines</option>
+                    <option value="overdue">Overdue Only</option>
+                    <option value="due_today">Due Today</option>
+                    <option value="upcoming">Upcoming</option>
+                </select>
+                <select id="queue-status-filter" class="w-full sm:w-auto text-xs py-2 px-3 border border-slate-200 rounded-xl bg-white text-slate-700 focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                    <option value="">All Statuses</option>
+                    <option value="open">Open / Action Required</option>
+                    <option value="in_progress">Under Repair</option>
+                    <option value="resolved">Resolved</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Notification Banner -->
+        <div id="queue-feedback-alert" class="hidden p-3.5 rounded-xl text-xs font-semibold"></div>
+
+        <!-- Work Orders Table -->
+        <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead>
+                        <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider">
+                            <th class="py-3 px-4">Task #</th>
+                            <th class="py-3 px-4">Location / Road</th>
+                            <th class="py-3 px-4">Defect Class</th>
+                            <th class="py-3 px-4">Severity</th>
+                            <th class="py-3 px-4">Assigned To</th>
+                            <th class="py-3 px-4">Target Deadline</th>
+                            <th class="py-3 px-4">Status</th>
+                            <th class="py-3 px-4 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="queue-tbody" class="divide-y divide-slate-100 text-slate-700">
+                        <tr>
+                            <td colspan="8" class="py-8 text-center text-slate-400">Loading work order queue...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal: Update Work Order Status / Assignment -->
+    <div id="update-task-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-lg w-full p-6 space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div class="flex items-center gap-2.5">
+                    <span class="p-2 rounded-xl bg-amber-50 text-amber-700">
+                        <span class="material-symbols-outlined text-[20px]">engineering</span>
+                    </span>
+                    <h3 class="text-sm font-bold text-slate-900" id="modal-task-title">Update Work Order #0</h3>
+                </div>
+                <button type="button" id="btn-close-task-modal" class="text-slate-400 hover:text-slate-600">
+                    <span class="material-symbols-outlined text-[20px]">close</span>
+                </button>
+            </div>
+            <form id="update-task-form" class="space-y-3.5 text-xs">
+                <input type="hidden" id="modal-task-id" />
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Workflow Status *</label>
+                    <select id="modal-workflow-status" required class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none bg-white">
+                        <option value="pending_review">Pending Review</option>
+                        <option value="verified">Verified (Action Required)</option>
+                        <option value="in_progress">In Progress (Active Repair)</option>
+                        <option value="resolved">Resolved (Work Completed)</option>
+                        <option value="dismissed">Dismissed (No Defect)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Target Completion Deadline</label>
+                    <input type="date" id="modal-target-date" class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none bg-white" />
+                </div>
+                <div id="modal-assignee-group">
+                    <label class="block font-semibold text-slate-700 mb-1">Assigned Maintenance Staff</label>
+                    <select id="modal-assignee-select" class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none bg-white">
+                        <option value="">Unassigned / Keep Current</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Contractor / Crew Notes</label>
+                    <textarea id="modal-contractor-notes" rows="3" class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none" placeholder="Add remediation instructions, materials used, or crew notes..."></textarea>
+                </div>
+                <div id="modal-task-error" class="hidden p-2.5 rounded-xl bg-red-50 text-red-700 text-xs font-semibold"></div>
+                <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                    <button type="button" id="btn-cancel-task-modal" class="px-3.5 py-2 font-semibold text-slate-600 hover:bg-slate-100 rounded-xl">Cancel</button>
+                    <button type="submit" id="btn-submit-task-update" class="px-4 py-2 font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-xl shadow-sm">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="mt-auto bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500">
+        <p>&copy; VisionGuard AI &mdash; Municipal Remediation & Task Dispatch Operations</p>
+    </footer>
+
+    <!-- Maintenance Controller Script -->
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            let allTasks = [];
+            let maintenanceStaff = [];
+            let currentUser = null;
+
+            // Profile Dropdown
+            const profileBtn = document.getElementById("vg-user-profile-btn");
+            const profileDropdown = document.getElementById("vg-profile-dropdown");
+            if (profileBtn && profileDropdown) {
+                profileBtn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    profileDropdown.classList.toggle("vg-open");
+                });
+                document.addEventListener("click", () => profileDropdown.classList.remove("vg-open"));
+            }
+
+            // Logout
+            const logoutBtn = document.getElementById("vg-logout-btn");
+            if (logoutBtn) {
+                logoutBtn.addEventListener("click", async () => {
+                    await fetch("/api/auth/logout", { method: "POST" });
+                    window.location.href = "/login";
+                });
+            }
+
+            // Feedback Alert
+            function showAlert(msg, isSuccess = true) {
+                const el = document.getElementById("queue-feedback-alert");
+                el.textContent = msg;
+                el.className = isSuccess 
+                    ? "p-3.5 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200"
+                    : "p-3.5 rounded-xl text-xs font-semibold bg-red-50 text-red-800 border border-red-200";
+                el.classList.remove("hidden");
+                setTimeout(() => el.classList.add("hidden"), 4500);
+            }
+
+            // Auth Check
+            async function verifyMaintenanceAuth() {
+                try {
+                    const res = await fetch("/api/auth/status");
+                    const data = await res.json();
+                    if (!data.authenticated || (data.user.role !== "admin" && data.user.role !== "maintenance")) {
+                        window.location.href = "/dashboard?restricted=1";
+                        return;
+                    }
+                    currentUser = data.user;
+                    document.getElementById("userDisplayName").textContent = currentUser.username;
+                    document.getElementById("dropdownUsername").textContent = currentUser.username;
+                    document.getElementById("dropdownRole").textContent = (currentUser.role) + " account";
+
+                    if (currentUser.role === "admin") {
+                        document.getElementById("nav-link-users").classList.remove("hidden");
+                        document.getElementById("queue-scope-subtitle").textContent = "All dispatched infrastructure remediation tasks across the municipal maintenance department.";
+                        loadStaffList();
+                    } else {
+                        document.getElementById("modal-assignee-group").classList.add("hidden");
+                        document.getElementById("queue-scope-subtitle").textContent = `Actionable remediation tasks assigned to ${currentUser.username}.`;
+                    }
+                } catch (e) {
+                    window.location.href = "/login";
+                }
+            }
+
+            // Load Eligible Staff (Admin Only)
+            async function loadStaffList() {
+                try {
+                    const res = await fetch("/api/maintenance/staff");
+                    if (res.ok) {
+                        const data = await res.json();
+                        maintenanceStaff = data.staff || [];
+                        const sel = document.getElementById("modal-assignee-select");
+                        sel.innerHTML = '<option value="">Unassigned / Keep Current</option>' +
+                            maintenanceStaff.map(s => `<option value="${s.id}">${escapeHtml(s.username)} (ID: ${s.id})</option>`).join("");
+                    }
+                } catch (e) {}
+            }
+
+            // Load Queue Tasks
+            async function loadQueue() {
+                try {
+                    const res = await fetch("/api/maintenance/queue");
+                    if (!res.ok) {
+                        showAlert("Failed to load maintenance queue.", false);
+                        return;
+                    }
+                    const data = await res.json();
+                    allTasks = data.queue || data.tasks || [];
+
+                    // Calculate urgency KPIs
+                    const todayStr = new Date().toISOString().split("T")[0];
+                    let overdueCnt = 0;
+                    let todayCnt = 0;
+                    let inProgressCnt = 0;
+
+                    allTasks.forEach(t => {
+                        if (t.status === "in_progress") inProgressCnt++;
+                        if (t.target_completion_date && t.status !== "resolved" && t.status !== "dismissed") {
+                            if (t.target_completion_date < todayStr) overdueCnt++;
+                            else if (t.target_completion_date === todayStr) todayCnt++;
+                        }
+                    });
+
+                    document.getElementById("kpi-queue-total").textContent = allTasks.length;
+                    document.getElementById("kpi-queue-overdue").textContent = overdueCnt;
+                    document.getElementById("kpi-queue-today").textContent = todayCnt;
+                    document.getElementById("kpi-queue-inprogress").textContent = inProgressCnt;
+
+                    renderQueueTable();
+                } catch (e) {
+                    console.error("Queue load error:", e);
+                }
+            }
+
+            function renderQueueTable() {
+                const searchVal = (document.getElementById("queue-search-input").value || "").toLowerCase().trim();
+                const deadlineFilter = document.getElementById("queue-deadline-filter").value;
+                const statusFilter = document.getElementById("queue-status-filter").value;
+                const todayStr = new Date().toISOString().split("T")[0];
+
+                const filtered = allTasks.filter(t => {
+                    const matchSearch = (!searchVal) ||
+                        (t.road_name && t.road_name.toLowerCase().includes(searchVal)) ||
+                        (t.assigned_to_username && t.assigned_to_username.toLowerCase().includes(searchVal)) ||
+                        (t.defect_type && t.defect_type.toLowerCase().includes(searchVal)) ||
+                        String(t.id).includes(searchVal);
+
+                    let matchDeadline = true;
+                    if (deadlineFilter === "overdue") {
+                        matchDeadline = Boolean(t.target_completion_date && t.target_completion_date < todayStr && t.status !== "resolved");
+                    } else if (deadlineFilter === "due_today") {
+                        matchDeadline = Boolean(t.target_completion_date === todayStr && t.status !== "resolved");
+                    } else if (deadlineFilter === "upcoming") {
+                        matchDeadline = Boolean(t.target_completion_date && t.target_completion_date > todayStr && t.status !== "resolved");
+                    }
+
+                    const matchStatus = (!statusFilter) || (t.status === statusFilter);
+
+                    return matchSearch && matchDeadline && matchStatus;
+                });
+
+                const tbody = document.getElementById("queue-tbody");
+                if (filtered.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="py-6 text-center text-slate-400">No work orders match filter criteria.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = filtered.map(t => {
+                    const sevClass = (t.overall_severity === 'critical') ? 'bg-red-100 text-red-800' :
+                                     (t.overall_severity === 'high') ? 'bg-amber-100 text-amber-800' :
+                                     (t.overall_severity === 'medium') ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-700';
+                    const statusClass = (t.status === 'resolved') ? 'bg-emerald-100 text-emerald-800' :
+                                        (t.status === 'in_progress') ? 'bg-indigo-100 text-indigo-800' : 'bg-amber-100 text-amber-800';
+
+                    let deadlineBadge = '<span class="text-slate-400">Not set</span>';
+                    if (t.target_completion_date) {
+                        const isOverdue = (t.target_completion_date < todayStr && t.status !== "resolved");
+                        const isToday = (t.target_completion_date === todayStr && t.status !== "resolved");
+                        if (isOverdue) {
+                            deadlineBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-100 text-rose-800">⚠️ ${t.target_completion_date}</span>`;
+                        } else if (isToday) {
+                            deadlineBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800">📅 Today</span>`;
+                        } else {
+                            deadlineBadge = `<span class="text-slate-600 font-medium">${t.target_completion_date}</span>`;
+                        }
+                    }
+
+                    return `
+                        <tr class="hover:bg-slate-50/80 transition-colors">
+                            <td class="py-3 px-4 font-bold text-slate-900">#${t.id}</td>
+                            <td class="py-3 px-4 font-medium text-slate-800">${escapeHtml(t.road_name || 'Municipal Road')}</td>
+                            <td class="py-3 px-4 capitalize">${escapeHtml(t.defect_type || 'Road distress')}</td>
+                            <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[11px] font-bold uppercase ${sevClass}">${t.overall_severity || 'Low'}</span></td>
+                            <td class="py-3 px-4 font-medium">${t.assigned_to_username ? escapeHtml(t.assigned_to_username) : '<span class="text-slate-400 italic">Unassigned</span>'}</td>
+                            <td class="py-3 px-4">${deadlineBadge}</td>
+                            <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[11px] font-bold capitalize ${statusClass}">${(t.status || 'open').replace('_', ' ')}</span></td>
+                            <td class="py-3 px-4 text-right">
+                                <button type="button" onclick="openUpdateModal(${t.id})" class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 transition-colors">
+                                    Update
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join("");
+            }
+
+            // Open Update Modal
+            window.openUpdateModal = function(taskId) {
+                const task = allTasks.find(t => t.id === taskId);
+                if (!task) return;
+                document.getElementById("modal-task-id").value = task.id;
+                document.getElementById("modal-task-title").textContent = `Update Work Order #${task.id} (${task.road_name || 'Road'})`;
+                document.getElementById("modal-workflow-status").value = task.status || "in_progress";
+                document.getElementById("modal-target-date").value = task.target_completion_date || "";
+                document.getElementById("modal-contractor-notes").value = task.remediation_notes || "";
+                document.getElementById("modal-task-error").classList.add("hidden");
+                document.getElementById("update-task-modal").classList.remove("hidden");
+            };
+
+            function escapeHtml(text) {
+                const div = document.createElement("div");
+                div.textContent = text || "";
+                return div.innerHTML;
+            }
+
+            // Modal Controls
+            const modal = document.getElementById("update-task-modal");
+            document.getElementById("btn-close-task-modal").addEventListener("click", () => modal.classList.add("hidden"));
+            document.getElementById("btn-cancel-task-modal").addEventListener("click", () => modal.classList.add("hidden"));
+
+            // Submit Update Form
+            document.getElementById("update-task-form").addEventListener("submit", async (e) => {
+                e.preventDefault();
+                const taskId = document.getElementById("modal-task-id").value;
+                const status = document.getElementById("modal-workflow-status").value;
+                const targetDate = document.getElementById("modal-target-date").value;
+                const notes = document.getElementById("modal-contractor-notes").value;
+                const assigneeId = document.getElementById("modal-assignee-select").value;
+                const errorBox = document.getElementById("modal-task-error");
+
+                try {
+                    // 1. Update workflow status, notes, deadline
+                    const res = await fetch(`/api/inspections/${taskId}/workflow`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            status: status,
+                            remediation_notes: notes,
+                            target_completion_date: targetDate || null
+                        })
+                    });
+
+                    // 2. If admin changed assignee, call assign endpoint
+                    if (currentUser && currentUser.role === "admin" && assigneeId) {
+                        await fetch(`/api/inspections/${taskId}/assign`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ assigned_to_user_id: parseInt(assigneeId, 10) })
+                        });
+                    }
+
+                    if (res.ok) {
+                        modal.classList.add("hidden");
+                        showAlert(`Work order #${taskId} updated successfully.`, true);
+                        loadQueue();
+                    } else {
+                        const data = await res.json();
+                        errorBox.textContent = data.message || "Failed to update work order.";
+                        errorBox.classList.remove("hidden");
+                    }
+                } catch (err) {
+                    errorBox.textContent = "Network error updating task.";
+                    errorBox.classList.remove("hidden");
+                }
+            });
+
+            // Filter Event Listeners
+            document.getElementById("queue-search-input").addEventListener("input", renderQueueTable);
+            document.getElementById("queue-deadline-filter").addEventListener("change", renderQueueTable);
+            document.getElementById("queue-status-filter").addEventListener("change", renderQueueTable);
+            document.getElementById("btn-refresh-queue").addEventListener("click", loadQueue);
+
+            // Init
+            verifyMaintenanceAuth();
+            loadQueue();
+        });
+    </script>
+</body>
+</html>
