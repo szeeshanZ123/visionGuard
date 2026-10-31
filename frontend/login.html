@@ -1,865 +1,1354 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>VisionGuard AI — Authentication &amp; Citizen Access</title>
     <!-- Google Fonts: Inter / Manrope -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
     <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Manrope:wght@500;600;700;800&amp;display=swap"
-        rel="stylesheet">
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Manrope:wght@500;600;700;800&amp;display=swap"
+      rel="stylesheet"
+    />
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                        display: ['Manrope', 'sans-serif'],
-                    },
-                    colors: {
-                        vgCanvas: '#FFFFFF',
-                        vgBg: '#F4F7FC',
-                        vgCard: '#FFFFFF',
-                        vgBorder: '#E2E8F0',
-                        vgBorderHover: '#CBD5E1',
-                        vgTextMain: '#0F172A',
-                        vgTextMuted: '#64748B',
-                        vgTextLight: '#94A3B8',
-                        vgBlue: '#2563EB',
-                        vgBlueHover: '#1D4ED8',
-                        vgBlueLight: '#EFF6FF',
-                        vgBlueBorder: '#BFDBFE',
-                        vgDark: '#1E293B',
-                        vgSuccess: '#16A34A',
-                        vgError: '#DC2626',
-                        vgErrorLight: '#FEF2F2',
-                        vgErrorBorder: '#FECACA'
-                    },
-                    boxShadow: {
-                        'vg-card': '0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.03)',
-                        'vg-card-lg': '0 20px 40px -15px rgba(37, 99, 235, 0.07), 0 10px 25px -5px rgba(15, 23, 42, 0.04)',
-                        'vg-input-focus': '0 0 0 3px rgba(37, 99, 235, 0.15)',
-                        'vg-input-error': '0 0 0 3px rgba(220, 38, 38, 0.15)'
-                    }
-                }
-            }
-        }
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+              display: ["Manrope", "sans-serif"],
+            },
+            colors: {
+              vgCanvas: "#FFFFFF",
+              vgBg: "#F4F7FC",
+              vgCard: "#FFFFFF",
+              vgBorder: "#E2E8F0",
+              vgBorderHover: "#CBD5E1",
+              vgTextMain: "#0F172A",
+              vgTextMuted: "#64748B",
+              vgTextLight: "#94A3B8",
+              vgBlue: "#2563EB",
+              vgBlueHover: "#1D4ED8",
+              vgBlueLight: "#EFF6FF",
+              vgBlueBorder: "#BFDBFE",
+              vgDark: "#1E293B",
+              vgSuccess: "#16A34A",
+              vgError: "#DC2626",
+              vgErrorLight: "#FEF2F2",
+              vgErrorBorder: "#FECACA",
+            },
+            boxShadow: {
+              "vg-card":
+                "0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.03)",
+              "vg-card-lg":
+                "0 20px 40px -15px rgba(37, 99, 235, 0.07), 0 10px 25px -5px rgba(15, 23, 42, 0.04)",
+              "vg-input-focus": "0 0 0 3px rgba(37, 99, 235, 0.15)",
+              "vg-input-error": "0 0 0 3px rgba(220, 38, 38, 0.15)",
+            },
+          },
+        },
+      };
     </script>
     <style>
-        /* Smooth transitions */
-        * {
-            box-sizing: border-box;
-            -webkit-font-smoothing: antialiased;
-        }
+      /* Smooth transitions */
+      * {
+        box-sizing: border-box;
+        -webkit-font-smoothing: antialiased;
+      }
 
-        .tab-transition {
-            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-        }
+      .tab-transition {
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      }
 
-        /* Subtle dot grid pattern matching clean municipal tech style */
-        .bg-dot-pattern {
-            background-image: radial-gradient(#CBD5E1 1px, transparent 1px);
-            background-size: 24px 24px;
-        }
+      /* Subtle dot grid pattern matching clean municipal tech style */
+      .bg-dot-pattern {
+        background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+        background-size: 24px 24px;
+      }
 
-        input:focus {
-            outline: none;
-        }
+      input:focus {
+        outline: none;
+      }
 
-        [aria-hidden="true"] {
-            pointer-events: none;
-        }
+      [aria-hidden="true"] {
+        pointer-events: none;
+      }
     </style>
-</head>
+  </head>
 
-<body
-    class="bg-vgBg bg-dot-pattern text-vgTextMain font-sans min-h-screen flex flex-col justify-between selection:bg-vgBlueLight selection:text-vgBlue">
-
+  <body
+    class="bg-vgBg bg-dot-pattern text-vgTextMain font-sans min-h-screen flex flex-col justify-between selection:bg-vgBlueLight selection:text-vgBlue"
+  >
     <!-- ================= TOP HEADER ================= -->
-    <header class="w-full bg-white/90 backdrop-blur-md border-b border-vgBorder sticky top-0 z-50 transition-all">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between">
-
-            <!-- Brand Logo & Identity -->
-            <a href="#"
-                class="flex items-center gap-3 group focus:outline-none focus:ring-2 focus:ring-vgBlue rounded-lg p-1">
-                <div
-                    class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-vgBlue flex items-center justify-center text-white shadow-sm shadow-blue-500/30 group-hover:scale-105 transition-transform">
-                    <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                        stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z">
-                        </path>
-                    </svg>
-                </div>
-                <div class="flex flex-col">
-                    <div class="flex items-center gap-1.5">
-                        <span
-                            class="font-display font-bold text-lg sm:text-xl text-vgTextMain tracking-tight">VisionGuard</span>
-                        <span
-                            class="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold bg-blue-100 text-vgBlue">AI</span>
-                    </div>
-                    <span
-                        class="text-[11px] sm:text-xs text-vgTextMuted font-medium tracking-tight hidden xs:block sm:block">
-                        Civil &amp; Municipal Infrastructure Triage
-                    </span>
-                </div>
-            </a>
-
-            <!-- Quick Header Actions -->
-            <div class="flex items-center gap-2 sm:gap-4">
-                <!-- Interactive Preview State Pills for evaluation -->
-
-
-                <!-- Back to Home Action -->
-                <a href="#"
-                    class="inline-flex items-center justify-center gap-2 h-9 sm:h-10 px-4 rounded-full text-xs sm:text-sm font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all shadow-xs focus:outline-none focus:ring-2 focus:ring-vgBlue">
-                    <svg class="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                        stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                    </svg>
-                    <span class="">Back to Home</span>
-                </a>
+    <header
+      class="w-full bg-white/90 backdrop-blur-md border-b border-vgBorder sticky top-0 z-50 transition-all"
+    >
+      <div
+        class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between"
+      >
+        <!-- Brand Logo & Identity -->
+        <a
+          href="#"
+          class="flex items-center gap-3 group focus:outline-none focus:ring-2 focus:ring-vgBlue rounded-lg p-1"
+        >
+          <div
+            class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-vgBlue flex items-center justify-center text-white shadow-sm shadow-blue-500/30 group-hover:scale-105 transition-transform"
+          >
+            <svg
+              class="w-5 h-5 sm:w-6 sm:h-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+              ></path>
+            </svg>
+          </div>
+          <div class="flex flex-col">
+            <div class="flex items-center gap-1.5">
+              <span
+                class="font-display font-bold text-lg sm:text-xl text-vgTextMain tracking-tight"
+                >VisionGuard</span
+              >
+              <span
+                class="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold bg-blue-100 text-vgBlue"
+                >AI</span
+              >
             </div>
+            <span
+              class="text-[11px] sm:text-xs text-vgTextMuted font-medium tracking-tight hidden xs:block sm:block"
+            >
+              Civil &amp; Municipal Infrastructure Triage
+            </span>
+          </div>
+        </a>
 
+        <!-- Quick Header Actions -->
+        <div class="flex items-center gap-2 sm:gap-4">
+          <!-- Interactive Preview State Pills for evaluation -->
+
+          <!-- Back to Home Action -->
+          <a
+            href="#"
+            class="inline-flex items-center justify-center gap-2 h-9 sm:h-10 px-4 rounded-full text-xs sm:text-sm font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all shadow-xs focus:outline-none focus:ring-2 focus:ring-vgBlue"
+          >
+            <svg
+              class="w-4 h-4 text-slate-500"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M10 19l-7-7m0 0l7-7m-7 7h18"
+              ></path>
+            </svg>
+            <span class="">Back to Home</span>
+          </a>
         </div>
+      </div>
     </header>
 
     <!-- ================= MAIN CONTENT AREA ================= -->
-    <main class="flex-grow flex items-center justify-center px-4 py-8 sm:py-14 sm:px-6 lg:px-8">
-        <div class="w-full max-w-md sm:max-w-[460px] mx-auto">
-
-            <!-- Breadcrumb / Platform Context Indicator -->
-            <div class="text-center mb-6">
-                <div
-                    class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-slate-200 shadow-xs mb-3">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span class="text-xs font-semibold text-slate-600">Secure Municipal Portal</span>
-                    <span class="text-slate-300">•</span>
-                    <span class="text-[11px] font-mono font-medium text-slate-400">Node US-East-1</span>
-                </div>
-                <h1 id="page-hero-title"
-                    class="font-display font-extrabold text-2xl sm:text-3xl text-vgTextMain tracking-tight">Create Your
-                    <span class="text-vgBlue">Citizen Account</span>
-                </h1>
-                <p id="page-hero-desc" class="text-sm text-vgTextMuted mt-1.5 max-w-sm mx-auto leading-relaxed">Create
-                    an account to report defects, track inspection progress, and access your report history.</p>
-            </div>
-
-            <!-- Authentication Card (Landing Page Visual Consistency) -->
-            <div
-                class="bg-white rounded-2xl border border-vgBorder shadow-vg-card-lg overflow-hidden transition-all duration-300">
-
-                <!-- Two Equal-Width Tabs -->
-                <div class="p-2 sm:p-2.5 bg-slate-50/80 border-b border-vgBorder flex items-center gap-1.5"
-                    role="tablist" aria-label="Authentication Modes">
-                    <button id="tab-signin-btn" role="tab" aria-selected="false" aria-controls="panel-signin"
-                        onclick="switchTab('signin')"
-                        class="flex-1 h-11 py-2.5 px-4 rounded-xl font-semibold text-xs sm:text-sm text-center tab-transition flex items-center justify-center gap-2 bg-vgBlue text-white shadow-xs focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-vgBlue">
-                        <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                            stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1">
-                            </path>
-                        </svg>
-                        <span class="font-semibold">Sign In</span>
-                    </button>
-
-                    <button id="tab-register-btn" role="tab" aria-selected="true" aria-controls="panel-register"
-                        onclick="switchTab('register')"
-                        class="flex-1 h-11 py-2.5 px-4 rounded-xl font-semibold text-xs sm:text-sm text-center tab-transition flex items-center justify-center gap-2 text-vgTextMuted hover:text-vgTextMain hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-vgBlue">
-                        <svg class="w-4 h-4 text-slate-400 group-hover:text-slate-600" fill="none" viewBox="0 0 24 24"
-                            stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z">
-                            </path>
-                        </svg>
-                        <span class="font-semibold">Create Citizen Account</span>
-                    </button>
-                </div>
-
-                <!-- Global Inline Notification Box (Hidden by default, used for validation or failures) -->
-                <div id="status-alert"
-                    class="mx-5 sm:mx-7 mt-5 p-3.5 rounded-xl border text-xs sm:text-sm items-start gap-3 bg-red-50 border-red-200 text-red-900 hidden"
-                    role="alert">
-                    <div id="status-alert-icon" class="shrink-0 mt-0.5"><svg class="w-4 h-4 text-vgError" fill="none"
-                            viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg></div>
-                    <div class="flex-grow">
-                        <p id="status-alert-title" class="font-semibold">Authentication Failed</p>
-                        <p id="status-alert-message" class="text-xs mt-0.5 leading-relaxed">Invalid username or
-                            password. Please verify your municipal inspector ID or citizen account.</p>
-                    </div>
-                    <button type="button" onclick="dismissAlert()" class="text-slate-400 hover:text-slate-600 p-0.5"
-                        aria-label="Dismiss message">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                    </button>
-                </div>
-
-                <!-- Card Body Content -->
-                <div class="p-5 sm:p-7">
-
-                    <!-- ================= PANEL 1: SIGN IN FORM ================= -->
-                    <div id="panel-signin" role="tabpanel" aria-labelledby="tab-signin-btn" class="space-y-4 hidden">
-
-                        <form id="form-signin" onsubmit="handleSignInSubmit(event)" novalidate="" class="space-y-4">
-                            <!-- Username Field -->
-                            <div>
-                                <div class="flex items-center justify-between mb-1.5">
-                                    <label for="signin-username"
-                                        class="block text-xs font-semibold text-vgTextMain uppercase tracking-wider">
-                                        Username
-                                    </label>
-                                    <span class="text-[11px] text-slate-400">Citizen or Staff ID</span>
-                                </div>
-                                <div class="relative rounded-xl shadow-xs">
-                                    <div
-                                        class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                                            stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7 7z">
-                                            </path>
-                                        </svg>
-                                    </div>
-                                    <input type="text" id="signin-username" name="username" autocomplete="username"
-                                        required="" placeholder="Enter username"
-                                        class="w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm rounded-xl border border-vgBorder bg-white text-vgTextMain placeholder:text-slate-400 focus:border-vgBlue focus:shadow-vg-input-focus transition-all">
-                                </div>
-                                <p id="signin-username-error"
-                                    class="hidden text-xs text-vgError mt-1 font-medium flex items-center gap-1">
-                                    <span class="">Please enter your registered username or ID.</span>
-                                </p>
-                            </div>
-
-                            <!-- Password Field with Toggle -->
-                            <div>
-                                <div class="flex items-center justify-between mb-1.5">
-                                    <label for="signin-password"
-                                        class="block text-xs font-semibold text-vgTextMain uppercase tracking-wider">
-                                        Password
-                                    </label>
-                                    <a href="#" onclick="showForgotPasswordInfo(event)"
-                                        class="text-[11px] font-medium text-vgBlue hover:text-vgBlueHover hover:underline">
-                                        Forgot password?
-                                    </a>
-                                </div>
-                                <div class="relative rounded-xl shadow-xs">
-                                    <div
-                                        class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                                            stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
-                                            </path>
-                                        </svg>
-                                    </div>
-                                    <input type="password" id="signin-password" name="password"
-                                        autocomplete="current-password" required="" placeholder="Enter password"
-                                        class="w-full pl-10 pr-11 py-2.5 sm:py-3 text-sm rounded-xl border border-vgBorder bg-white text-vgTextMain placeholder:text-slate-400 focus:border-vgBlue focus:shadow-vg-input-focus transition-all">
-                                    <button type="button" onclick="togglePasswordVisibility('signin-password', this)"
-                                        class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
-                                        aria-label="Toggle password visibility">
-                                        <svg class="w-4 h-4 eye-open" fill="none" viewBox="0 0 24 24"
-                                            stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z">
-                                            </path>
-                                        </svg>
-                                        <svg class="w-4 h-4 eye-closed hidden" fill="none" viewBox="0 0 24 24"
-                                            stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18">
-                                            </path>
-                                        </svg>
-                                    </button>
-                                </div>
-                                <p id="signin-password-error"
-                                    class="hidden text-xs text-vgError mt-1 font-medium flex items-center gap-1">
-                                    <span class="">Please enter your password.</span>
-                                </p>
-                            </div>
-
-                            <!-- Remember Me & Security Assurance -->
-                            <div class="flex items-center justify-between pt-1">
-                                <label class="flex items-center gap-2 cursor-pointer select-none">
-                                    <input type="checkbox" id="signin-remember"
-                                        class="w-4 h-4 rounded text-vgBlue focus:ring-vgBlue border-slate-300">
-                                    <span class="text-xs font-medium text-slate-600">Keep me signed in</span>
-                                </label>
-                                <div class="flex items-center gap-1 text-[11px] text-slate-400">
-                                    <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24"
-                                        stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z">
-                                        </path>
-                                    </svg>
-                                    <span class="">256-bit Encrypted</span>
-                                </div>
-                            </div>
-
-                            <!-- Action Buttons -->
-                            <div class="pt-2 flex flex-col-reverse sm:flex-row items-center gap-2.5 sm:gap-3">
-                                <button type="button" onclick="resetSignInForm()"
-                                    class="w-full sm:w-1/3 h-11 px-4 rounded-full text-xs sm:text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-colors flex items-center justify-center focus:ring-2 focus:ring-slate-300">
-                                    Cancel
-                                </button>
-                                <button type="submit" id="signin-submit-btn"
-                                    class="w-full sm:w-2/3 h-11 px-5 rounded-full text-xs sm:text-sm font-semibold text-white bg-vgBlue hover:bg-vgBlueHover active:scale-[0.99] shadow-sm shadow-blue-500/30 transition-all flex items-center justify-center gap-2 focus:ring-2 focus:ring-offset-2 focus:ring-vgBlue">
-                                    <span id="signin-btn-text" class="">Sign In</span>
-                                    <svg id="signin-spinner" class="animate-spin w-4 h-4 text-white hidden"
-                                        xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
-                                            stroke-width="4"></circle>
-                                        <path class="opacity-75" fill="currentColor"
-                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
-                                        </path>
-                                    </svg>
-                                </button>
-                            </div>
-
-                        </form>
-
-                        <!-- Bottom helper banner inside card -->
-                        <div
-                            class="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-                            <span class="">Need municipal staff credentials?</span>
-                            <a href="#" onclick="showStaffHelp(event)"
-                                class="font-semibold text-vgBlue hover:underline">Contact Dispatch</a>
-                        </div>
-
-                    </div>
-
-                    <!-- ================= PANEL 2: CITIZEN REGISTRATION FORM ================= -->
-                    <div id="panel-register" role="tabpanel" aria-labelledby="tab-register-btn" class="space-y-4">
-
-                        <form id="form-register" onsubmit="handleRegisterSubmit(event)" novalidate=""
-                            class="space-y-3.5">
-
-                            <!-- Info pill -->
-                            <div
-                                class="p-3 bg-blue-50/70 border border-blue-100 rounded-xl text-xs text-blue-900 leading-relaxed flex items-start gap-2">
-                                <svg class="w-4 h-4 text-vgBlue shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24"
-                                    stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
-                                <span class="">Citizen accounts allow you to submit roadway hazard reports, upload
-                                    geotagged photos, and track repair status directly.</span>
-                            </div>
-
-                            <!-- Username Field -->
-                            <div>
-                                <label for="register-username"
-                                    class="block text-xs font-semibold text-vgTextMain uppercase tracking-wider mb-1.5">
-                                    Choose Username
-                                </label>
-                                <div class="relative rounded-xl shadow-xs">
-                                    <div
-                                        class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                                            stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7 7z">
-                                            </path>
-                                        </svg>
-                                    </div>
-                                    <input type="text" id="register-username" name="username" autocomplete="username"
-                                        required="" placeholder="e.g. j_citizen_tx"
-                                        class="w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm rounded-xl border border-vgBorder bg-white text-vgTextMain placeholder:text-slate-400 focus:border-vgBlue focus:shadow-vg-input-focus transition-all">
-                                </div>
-                                <p id="register-username-error"
-                                    class="hidden text-xs text-vgError mt-1 font-medium flex items-center gap-1">
-                                    <span class="">Username must be at least 3 characters.</span>
-                                </p>
-                            </div>
-
-                            <!-- Password Field -->
-                            <div>
-                                <label for="register-password"
-                                    class="block text-xs font-semibold text-vgTextMain uppercase tracking-wider mb-1.5">
-                                    Password
-                                </label>
-                                <div class="relative rounded-xl shadow-xs">
-                                    <div
-                                        class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                                            stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
-                                            </path>
-                                        </svg>
-                                    </div>
-                                    <input type="password" id="register-password" name="password"
-                                        autocomplete="new-password" required="" placeholder="Create a strong password"
-                                        class="w-full pl-10 pr-11 py-2.5 sm:py-3 text-sm rounded-xl border border-vgBorder bg-white text-vgTextMain placeholder:text-slate-400 focus:border-vgBlue focus:shadow-vg-input-focus transition-all">
-                                    <button type="button" onclick="togglePasswordVisibility('register-password', this)"
-                                        class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
-                                        aria-label="Toggle password visibility">
-                                        <svg class="w-4 h-4 eye-open" fill="none" viewBox="0 0 24 24"
-                                            stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z">
-                                            </path>
-                                        </svg>
-                                        <svg class="w-4 h-4 eye-closed hidden" fill="none" viewBox="0 0 24 24"
-                                            stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18">
-                                            </path>
-                                        </svg>
-                                    </button>
-                                </div>
-                                <p id="register-password-error"
-                                    class="hidden text-xs text-vgError mt-1 font-medium flex items-center gap-1">
-                                    <span class="">Password must be at least 6 characters.</span>
-                                </p>
-                            </div>
-
-                            <!-- Password Confirmation Field -->
-                            <div>
-                                <label for="register-confirm-password"
-                                    class="block text-xs font-semibold text-vgTextMain uppercase tracking-wider mb-1.5">
-                                    Confirm Password
-                                </label>
-                                <div class="relative rounded-xl shadow-xs">
-                                    <div
-                                        class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                                            stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z">
-                                            </path>
-                                        </svg>
-                                    </div>
-                                    <input type="password" id="register-confirm-password" name="confirm_password"
-                                        autocomplete="new-password" required="" placeholder="Re-enter your password"
-                                        class="w-full pl-10 pr-11 py-2.5 sm:py-3 text-sm rounded-xl border border-vgBorder bg-white text-vgTextMain placeholder:text-slate-400 focus:border-vgBlue focus:shadow-vg-input-focus transition-all">
-                                    <button type="button"
-                                        onclick="togglePasswordVisibility('register-confirm-password', this)"
-                                        class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
-                                        aria-label="Toggle password confirmation visibility">
-                                        <svg class="w-4 h-4 eye-open" fill="none" viewBox="0 0 24 24"
-                                            stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z">
-                                            </path>
-                                        </svg>
-                                        <svg class="w-4 h-4 eye-closed hidden" fill="none" viewBox="0 0 24 24"
-                                            stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18">
-                                            </path>
-                                        </svg>
-                                    </button>
-                                </div>
-                                <p id="register-confirm-error"
-                                    class="hidden text-xs text-vgError mt-1 font-medium flex items-center gap-1">
-                                    <span class="">Passwords do not match.</span>
-                                </p>
-                            </div>
-
-                            <!-- Citizen Terms Check -->
-                            <div class="pt-1">
-                                <label class="flex items-start gap-2 cursor-pointer select-none">
-                                    <input type="checkbox" id="register-terms" required=""
-                                        class="mt-0.5 w-4 h-4 rounded text-vgBlue focus:ring-vgBlue border-slate-300">
-                                    <span class="text-xs text-slate-500 leading-normal">
-                                        I agree to verify reported infrastructure incidents truthfully in accordance
-                                        with municipal reporting standards.
-                                    </span>
-                                </label>
-                                <p id="register-terms-error" class="hidden text-xs text-vgError mt-1 font-medium">
-                                    Please acknowledge municipal reporting guidelines.
-                                </p>
-                            </div>
-
-                            <!-- Action Buttons -->
-                            <div class="pt-2 flex flex-col-reverse sm:flex-row items-center gap-2.5 sm:gap-3">
-                                <button type="button" onclick="switchTab('signin')"
-                                    class="w-full sm:w-1/3 h-11 px-4 rounded-full text-xs sm:text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-colors flex items-center justify-center focus:ring-2 focus:ring-slate-300">
-                                    Back to Sign In
-                                </button>
-                                <button type="submit" id="register-submit-btn"
-                                    class="w-full sm:w-2/3 h-11 px-5 rounded-full text-xs sm:text-sm font-semibold text-white bg-vgBlue hover:bg-vgBlueHover active:scale-[0.99] shadow-sm shadow-blue-500/30 transition-all flex items-center justify-center gap-2 focus:ring-2 focus:ring-offset-2 focus:ring-vgBlue">
-                                    <span id="register-btn-text" class="">Create Account</span>
-                                    <svg id="register-spinner" class="hidden animate-spin w-4 h-4 text-white"
-                                        xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
-                                            stroke-width="4"></circle>
-                                        <path class="opacity-75" fill="currentColor"
-                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
-                                        </path>
-                                    </svg>
-                                </button>
-                            </div>
-
-                        </form>
-
-                        <div class="mt-4 pt-3 text-center">
-                            <button type="button" onclick="switchTab('signin')"
-                                class="text-xs font-semibold text-vgBlue hover:underline">
-                                Already registered? Sign in with existing credentials
-                            </button>
-                        </div>
-
-                    </div>
-
-                </div>
-
-                <!-- Trust Badges & Safety Bar -->
-                <div
-                    class="px-6 py-3.5 bg-slate-50 border-t border-vgBorder flex items-center justify-between text-[11px] text-slate-500">
-                    <div class="flex items-center gap-1.5">
-                        <svg class="w-3.5 h-3.5 text-vgBlue" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd"
-                                d="M10 1.944A11.954 11.954 0 012.166 5C2.056 5.649 2 6.319 2 7c0 5.225 3.34 9.67 8 11.317C14.66 16.67 18 12.225 18 7c0-.682-.057-1.35-.166-2.001A11.954 11.954 0 0110 1.944zM11 14a1 1 0 11-2 0 1 1 0 012 0zm0-7a1 1 0 10-2 0v3a1 1 0 102 0V7z"
-                                clip-rule="evenodd"></path>
-                        </svg>
-                        <span class="">ASTM-D6433 &amp; CJIS Standards</span>
-                    </div>
-                    <span class="text-slate-400 font-mono">v2.4.0-Production</span>
-                </div>
-
-            </div>
-
-            <!-- Feature cards beneath authenticating box (Light Theme matching landing page) -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
-                <div class="p-3.5 bg-white rounded-xl border border-slate-200 shadow-xs flex items-start gap-3">
-                    <div class="w-7 h-7 rounded-lg bg-blue-50 text-vgBlue flex items-center justify-center shrink-0">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                    </div>
-                    <div>
-                        <h4 class="text-xs font-bold text-vgTextMain">Instant AI Triage</h4>
-                        <p class="text-[11px] text-slate-500 mt-0.5 leading-snug">Sub-millimeter crack analysis &amp;
-                            automated hazard severity scoring.</p>
-                    </div>
-                </div>
-
-                <div class="p-3.5 bg-white rounded-xl border border-slate-200 shadow-xs flex items-start gap-3">
-                    <div class="w-7 h-7 rounded-lg bg-blue-50 text-vgBlue flex items-center justify-center shrink-0">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z">
-                            </path>
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z">
-                            </path>
-                        </svg>
-                    </div>
-                    <div>
-                        <h4 class="text-xs font-bold text-vgTextMain">Geotagged Dispatch</h4>
-                        <p class="text-[11px] text-slate-500 mt-0.5 leading-snug">Real-time sync to city works &amp;
-                            municipal road repair crews.</p>
-                    </div>
-                </div>
-            </div>
-
+    <main
+      class="flex-grow flex items-center justify-center px-4 py-8 sm:py-14 sm:px-6 lg:px-8"
+    >
+      <div class="w-full max-w-md sm:max-w-[460px] mx-auto">
+        <!-- Breadcrumb / Platform Context Indicator -->
+        <div class="text-center mb-6">
+          <div
+            class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-slate-200 shadow-xs mb-3"
+          >
+            <span
+              class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"
+            ></span>
+            <span class="text-xs font-semibold text-slate-600"
+              >Secure Municipal Portal</span
+            >
+            <span class="text-slate-300">•</span>
+            <span class="text-[11px] font-mono font-medium text-slate-400"
+              >Node US-East-1</span
+            >
+          </div>
+          <h1
+            id="page-hero-title"
+            class="font-display font-extrabold text-2xl sm:text-3xl text-vgTextMain tracking-tight"
+          >
+            Create Your
+            <span class="text-vgBlue">Citizen Account</span>
+          </h1>
+          <p
+            id="page-hero-desc"
+            class="text-sm text-vgTextMuted mt-1.5 max-w-sm mx-auto leading-relaxed"
+          >
+            Create an account to report defects, track inspection progress, and
+            access your report history.
+          </p>
         </div>
+
+        <!-- Authentication Card (Landing Page Visual Consistency) -->
+        <div
+          class="bg-white rounded-2xl border border-vgBorder shadow-vg-card-lg overflow-hidden transition-all duration-300"
+        >
+          <!-- Two Equal-Width Tabs -->
+          <div
+            class="p-2 sm:p-2.5 bg-slate-50/80 border-b border-vgBorder flex items-center gap-1.5"
+            role="tablist"
+            aria-label="Authentication Modes"
+          >
+            <button
+              id="tab-signin-btn"
+              role="tab"
+              aria-selected="false"
+              aria-controls="panel-signin"
+              onclick="switchTab('signin')"
+              class="flex-1 h-11 py-2.5 px-4 rounded-xl font-semibold text-xs sm:text-sm text-center tab-transition flex items-center justify-center gap-2 bg-vgBlue text-white shadow-xs focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-vgBlue"
+            >
+              <svg
+                class="w-4 h-4 text-white"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"
+                ></path>
+              </svg>
+              <span class="font-semibold">Sign In</span>
+            </button>
+
+            <button
+              id="tab-register-btn"
+              role="tab"
+              aria-selected="true"
+              aria-controls="panel-register"
+              onclick="switchTab('register')"
+              class="flex-1 h-11 py-2.5 px-4 rounded-xl font-semibold text-xs sm:text-sm text-center tab-transition flex items-center justify-center gap-2 text-vgTextMuted hover:text-vgTextMain hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-vgBlue"
+            >
+              <svg
+                class="w-4 h-4 text-slate-400 group-hover:text-slate-600"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
+                ></path>
+              </svg>
+              <span class="font-semibold">Create Citizen Account</span>
+            </button>
+          </div>
+
+          <!-- Global Inline Notification Box (Hidden by default, used for validation or failures) -->
+          <div
+            id="status-alert"
+            class="mx-5 sm:mx-7 mt-5 p-3.5 rounded-xl border text-xs sm:text-sm items-start gap-3 bg-red-50 border-red-200 text-red-900 hidden"
+            role="alert"
+          >
+            <div id="status-alert-icon" class="shrink-0 mt-0.5">
+              <svg
+                class="w-4 h-4 text-vgError"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                ></path>
+              </svg>
+            </div>
+            <div class="flex-grow">
+              <p id="status-alert-title" class="font-semibold">
+                Authentication Failed
+              </p>
+              <p
+                id="status-alert-message"
+                class="text-xs mt-0.5 leading-relaxed"
+              >
+                Invalid username or password. Please verify your municipal
+                inspector ID or citizen account.
+              </p>
+            </div>
+            <button
+              type="button"
+              onclick="dismissAlert()"
+              class="text-slate-400 hover:text-slate-600 p-0.5"
+              aria-label="Dismiss message"
+            >
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M6 18L18 6M6 6l12 12"
+                ></path>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Card Body Content -->
+          <div class="p-5 sm:p-7">
+            <!-- ================= PANEL 1: SIGN IN FORM ================= -->
+            <div
+              id="panel-signin"
+              role="tabpanel"
+              aria-labelledby="tab-signin-btn"
+              class="space-y-4 hidden"
+            >
+              <form
+                id="form-signin"
+                onsubmit="handleSignInSubmit(event)"
+                novalidate=""
+                class="space-y-4"
+              >
+                <!-- Username Field -->
+                <div>
+                  <div class="flex items-center justify-between mb-1.5">
+                    <label
+                      for="signin-username"
+                      class="block text-xs font-semibold text-vgTextMain uppercase tracking-wider"
+                    >
+                      Username
+                    </label>
+                    <span class="text-[11px] text-slate-400"
+                      >Citizen or Staff ID</span
+                    >
+                  </div>
+                  <div class="relative rounded-xl shadow-xs">
+                    <div
+                      class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400"
+                    >
+                      <svg
+                        class="w-4 h-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7 7z"
+                        ></path>
+                      </svg>
+                    </div>
+                    <input
+                      type="text"
+                      id="signin-username"
+                      name="username"
+                      autocomplete="username"
+                      required=""
+                      placeholder="Enter username"
+                      class="w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm rounded-xl border border-vgBorder bg-white text-vgTextMain placeholder:text-slate-400 focus:border-vgBlue focus:shadow-vg-input-focus transition-all"
+                    />
+                  </div>
+                  <p
+                    id="signin-username-error"
+                    class="hidden text-xs text-vgError mt-1 font-medium flex items-center gap-1"
+                  >
+                    <span class=""
+                      >Please enter your registered username or ID.</span
+                    >
+                  </p>
+                </div>
+
+                <!-- Password Field with Toggle -->
+                <div>
+                  <div class="flex items-center justify-between mb-1.5">
+                    <label
+                      for="signin-password"
+                      class="block text-xs font-semibold text-vgTextMain uppercase tracking-wider"
+                    >
+                      Password
+                    </label>
+                    <a
+                      href="#"
+                      onclick="showForgotPasswordInfo(event)"
+                      class="text-[11px] font-medium text-vgBlue hover:text-vgBlueHover hover:underline"
+                    >
+                      Forgot password?
+                    </a>
+                  </div>
+                  <div class="relative rounded-xl shadow-xs">
+                    <div
+                      class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400"
+                    >
+                      <svg
+                        class="w-4 h-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                        ></path>
+                      </svg>
+                    </div>
+                    <input
+                      type="password"
+                      id="signin-password"
+                      name="password"
+                      autocomplete="current-password"
+                      required=""
+                      placeholder="Enter password"
+                      class="w-full pl-10 pr-11 py-2.5 sm:py-3 text-sm rounded-xl border border-vgBorder bg-white text-vgTextMain placeholder:text-slate-400 focus:border-vgBlue focus:shadow-vg-input-focus transition-all"
+                    />
+                    <button
+                      type="button"
+                      onclick="
+                        togglePasswordVisibility('signin-password', this)
+                      "
+                      class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
+                      aria-label="Toggle password visibility"
+                    >
+                      <svg
+                        class="w-4 h-4 eye-open"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                        ></path>
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                        ></path>
+                      </svg>
+                      <svg
+                        class="w-4 h-4 eye-closed hidden"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"
+                        ></path>
+                      </svg>
+                    </button>
+                  </div>
+                  <p
+                    id="signin-password-error"
+                    class="hidden text-xs text-vgError mt-1 font-medium flex items-center gap-1"
+                  >
+                    <span class="">Please enter your password.</span>
+                  </p>
+                </div>
+
+                <!-- Remember Me & Security Assurance -->
+                <div class="flex items-center justify-between pt-1">
+                  <label
+                    class="flex items-center gap-2 cursor-pointer select-none"
+                  >
+                    <input
+                      type="checkbox"
+                      id="signin-remember"
+                      class="w-4 h-4 rounded text-vgBlue focus:ring-vgBlue border-slate-300"
+                    />
+                    <span class="text-xs font-medium text-slate-600"
+                      >Keep me signed in</span
+                    >
+                  </label>
+                  <div
+                    class="flex items-center gap-1 text-[11px] text-slate-400"
+                  >
+                    <svg
+                      class="w-3.5 h-3.5 text-emerald-600"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                      ></path>
+                    </svg>
+                    <span class="">256-bit Encrypted</span>
+                  </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div
+                  class="pt-2 flex flex-col-reverse sm:flex-row items-center gap-2.5 sm:gap-3"
+                >
+                  <button
+                    type="button"
+                    onclick="resetSignInForm()"
+                    class="w-full sm:w-1/3 h-11 px-4 rounded-full text-xs sm:text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-colors flex items-center justify-center focus:ring-2 focus:ring-slate-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    id="signin-submit-btn"
+                    class="w-full sm:w-2/3 h-11 px-5 rounded-full text-xs sm:text-sm font-semibold text-white bg-vgBlue hover:bg-vgBlueHover active:scale-[0.99] shadow-sm shadow-blue-500/30 transition-all flex items-center justify-center gap-2 focus:ring-2 focus:ring-offset-2 focus:ring-vgBlue"
+                  >
+                    <span id="signin-btn-text" class="">Sign In</span>
+                    <svg
+                      id="signin-spinner"
+                      class="animate-spin w-4 h-4 text-white hidden"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        class="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        stroke-width="4"
+                      ></circle>
+                      <path
+                        class="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                  </button>
+                </div>
+              </form>
+
+              <!-- Bottom helper banner inside card -->
+              <div
+                class="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500"
+              >
+                <span class="">Need municipal staff credentials?</span>
+                <a
+                  href="#"
+                  onclick="showStaffHelp(event)"
+                  class="font-semibold text-vgBlue hover:underline"
+                  >Contact Dispatch</a
+                >
+              </div>
+            </div>
+
+            <!-- ================= PANEL 2: CITIZEN REGISTRATION FORM ================= -->
+            <div
+              id="panel-register"
+              role="tabpanel"
+              aria-labelledby="tab-register-btn"
+              class="space-y-4"
+            >
+              <form
+                id="form-register"
+                onsubmit="handleRegisterSubmit(event)"
+                novalidate=""
+                class="space-y-3.5"
+              >
+                <!-- Info pill -->
+                <div
+                  class="p-3 bg-blue-50/70 border border-blue-100 rounded-xl text-xs text-blue-900 leading-relaxed flex items-start gap-2"
+                >
+                  <svg
+                    class="w-4 h-4 text-vgBlue shrink-0 mt-0.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    ></path>
+                  </svg>
+                  <span class=""
+                    >Citizen accounts allow you to submit roadway hazard
+                    reports, upload geotagged photos, and track repair status
+                    directly.</span
+                  >
+                </div>
+
+                <!-- Username Field -->
+                <div>
+                  <label
+                    for="register-username"
+                    class="block text-xs font-semibold text-vgTextMain uppercase tracking-wider mb-1.5"
+                  >
+                    Choose Username
+                  </label>
+                  <div class="relative rounded-xl shadow-xs">
+                    <div
+                      class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400"
+                    >
+                      <svg
+                        class="w-4 h-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7 7z"
+                        ></path>
+                      </svg>
+                    </div>
+                    <input
+                      type="text"
+                      id="register-username"
+                      name="username"
+                      autocomplete="username"
+                      required=""
+                      placeholder="e.g. j_citizen_tx"
+                      class="w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm rounded-xl border border-vgBorder bg-white text-vgTextMain placeholder:text-slate-400 focus:border-vgBlue focus:shadow-vg-input-focus transition-all"
+                    />
+                  </div>
+                  <p
+                    id="register-username-error"
+                    class="hidden text-xs text-vgError mt-1 font-medium flex items-center gap-1"
+                  >
+                    <span class=""
+                      >Username must be at least 3 characters.</span
+                    >
+                  </p>
+                </div>
+
+                <!-- Password Field -->
+                <div>
+                  <label
+                    for="register-password"
+                    class="block text-xs font-semibold text-vgTextMain uppercase tracking-wider mb-1.5"
+                  >
+                    Password
+                  </label>
+                  <div class="relative rounded-xl shadow-xs">
+                    <div
+                      class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400"
+                    >
+                      <svg
+                        class="w-4 h-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                        ></path>
+                      </svg>
+                    </div>
+                    <input
+                      type="password"
+                      id="register-password"
+                      name="password"
+                      autocomplete="new-password"
+                      required=""
+                      placeholder="Create a strong password"
+                      class="w-full pl-10 pr-11 py-2.5 sm:py-3 text-sm rounded-xl border border-vgBorder bg-white text-vgTextMain placeholder:text-slate-400 focus:border-vgBlue focus:shadow-vg-input-focus transition-all"
+                    />
+                    <button
+                      type="button"
+                      onclick="
+                        togglePasswordVisibility('register-password', this)
+                      "
+                      class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
+                      aria-label="Toggle password visibility"
+                    >
+                      <svg
+                        class="w-4 h-4 eye-open"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                        ></path>
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                        ></path>
+                      </svg>
+                      <svg
+                        class="w-4 h-4 eye-closed hidden"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"
+                        ></path>
+                      </svg>
+                    </button>
+                  </div>
+                  <p
+                    id="register-password-error"
+                    class="hidden text-xs text-vgError mt-1 font-medium flex items-center gap-1"
+                  >
+                    <span class=""
+                      >Password must be at least 6 characters.</span
+                    >
+                  </p>
+                </div>
+
+                <!-- Password Confirmation Field -->
+                <div>
+                  <label
+                    for="register-confirm-password"
+                    class="block text-xs font-semibold text-vgTextMain uppercase tracking-wider mb-1.5"
+                  >
+                    Confirm Password
+                  </label>
+                  <div class="relative rounded-xl shadow-xs">
+                    <div
+                      class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400"
+                    >
+                      <svg
+                        class="w-4 h-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                        ></path>
+                      </svg>
+                    </div>
+                    <input
+                      type="password"
+                      id="register-confirm-password"
+                      name="confirm_password"
+                      autocomplete="new-password"
+                      required=""
+                      placeholder="Re-enter your password"
+                      class="w-full pl-10 pr-11 py-2.5 sm:py-3 text-sm rounded-xl border border-vgBorder bg-white text-vgTextMain placeholder:text-slate-400 focus:border-vgBlue focus:shadow-vg-input-focus transition-all"
+                    />
+                    <button
+                      type="button"
+                      onclick="
+                        togglePasswordVisibility(
+                          'register-confirm-password',
+                          this,
+                        )
+                      "
+                      class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
+                      aria-label="Toggle password confirmation visibility"
+                    >
+                      <svg
+                        class="w-4 h-4 eye-open"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                        ></path>
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                        ></path>
+                      </svg>
+                      <svg
+                        class="w-4 h-4 eye-closed hidden"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"
+                        ></path>
+                      </svg>
+                    </button>
+                  </div>
+                  <p
+                    id="register-confirm-error"
+                    class="hidden text-xs text-vgError mt-1 font-medium flex items-center gap-1"
+                  >
+                    <span class="">Passwords do not match.</span>
+                  </p>
+                </div>
+
+                <!-- Citizen Terms Check -->
+                <div class="pt-1">
+                  <label
+                    class="flex items-start gap-2 cursor-pointer select-none"
+                  >
+                    <input
+                      type="checkbox"
+                      id="register-terms"
+                      required=""
+                      class="mt-0.5 w-4 h-4 rounded text-vgBlue focus:ring-vgBlue border-slate-300"
+                    />
+                    <span class="text-xs text-slate-500 leading-normal">
+                      I agree to verify reported infrastructure incidents
+                      truthfully in accordance with municipal reporting
+                      standards.
+                    </span>
+                  </label>
+                  <p
+                    id="register-terms-error"
+                    class="hidden text-xs text-vgError mt-1 font-medium"
+                  >
+                    Please acknowledge municipal reporting guidelines.
+                  </p>
+                </div>
+
+                <!-- Action Buttons -->
+                <div
+                  class="pt-2 flex flex-col-reverse sm:flex-row items-center gap-2.5 sm:gap-3"
+                >
+                  <button
+                    type="button"
+                    onclick="switchTab('signin')"
+                    class="w-full sm:w-1/3 h-11 px-4 rounded-full text-xs sm:text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-colors flex items-center justify-center focus:ring-2 focus:ring-slate-300"
+                  >
+                    Back to Sign In
+                  </button>
+                  <button
+                    type="submit"
+                    id="register-submit-btn"
+                    class="w-full sm:w-2/3 h-11 px-5 rounded-full text-xs sm:text-sm font-semibold text-white bg-vgBlue hover:bg-vgBlueHover active:scale-[0.99] shadow-sm shadow-blue-500/30 transition-all flex items-center justify-center gap-2 focus:ring-2 focus:ring-offset-2 focus:ring-vgBlue"
+                  >
+                    <span id="register-btn-text" class="">Create Account</span>
+                    <svg
+                      id="register-spinner"
+                      class="hidden animate-spin w-4 h-4 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        class="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        stroke-width="4"
+                      ></circle>
+                      <path
+                        class="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                  </button>
+                </div>
+              </form>
+
+              <div class="mt-4 pt-3 text-center">
+                <button
+                  type="button"
+                  onclick="switchTab('signin')"
+                  class="text-xs font-semibold text-vgBlue hover:underline"
+                >
+                  Already registered? Sign in with existing credentials
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Trust Badges & Safety Bar -->
+          <div
+            class="px-6 py-3.5 bg-slate-50 border-t border-vgBorder flex items-center justify-between text-[11px] text-slate-500"
+          >
+            <div class="flex items-center gap-1.5">
+              <svg
+                class="w-3.5 h-3.5 text-vgBlue"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  fill-rule="evenodd"
+                  d="M10 1.944A11.954 11.954 0 012.166 5C2.056 5.649 2 6.319 2 7c0 5.225 3.34 9.67 8 11.317C14.66 16.67 18 12.225 18 7c0-.682-.057-1.35-.166-2.001A11.954 11.954 0 0110 1.944zM11 14a1 1 0 11-2 0 1 1 0 012 0zm0-7a1 1 0 10-2 0v3a1 1 0 102 0V7z"
+                  clip-rule="evenodd"
+                ></path>
+              </svg>
+              <span class="">ASTM-D6433 &amp; CJIS Standards</span>
+            </div>
+            <span class="text-slate-400 font-mono">v2.4.0-Production</span>
+          </div>
+        </div>
+
+        <!-- Feature cards beneath authenticating box (Light Theme matching landing page) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
+          <div
+            class="p-3.5 bg-white rounded-xl border border-slate-200 shadow-xs flex items-start gap-3"
+          >
+            <div
+              class="w-7 h-7 rounded-lg bg-blue-50 text-vgBlue flex items-center justify-center shrink-0"
+            >
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                ></path>
+              </svg>
+            </div>
+            <div>
+              <h4 class="text-xs font-bold text-vgTextMain">
+                Instant AI Triage
+              </h4>
+              <p class="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                Sub-millimeter crack analysis &amp; automated hazard severity
+                scoring.
+              </p>
+            </div>
+          </div>
+
+          <div
+            class="p-3.5 bg-white rounded-xl border border-slate-200 shadow-xs flex items-start gap-3"
+          >
+            <div
+              class="w-7 h-7 rounded-lg bg-blue-50 text-vgBlue flex items-center justify-center shrink-0"
+            >
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                ></path>
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                ></path>
+              </svg>
+            </div>
+            <div>
+              <h4 class="text-xs font-bold text-vgTextMain">
+                Geotagged Dispatch
+              </h4>
+              <p class="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                Real-time sync to city works &amp; municipal road repair crews.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
     </main>
 
     <!-- ================= COMPACT FOOTER ================= -->
-    <footer class="w-full bg-white border-t border-vgBorder py-6 px-4 sm:px-6 lg:px-8">
-        <div
-            class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-vgTextMuted">
-            <div class="flex items-center gap-2">
-                <div class="w-2 h-2 rounded-full bg-vgBlue"></div>
-                <span class="">© 2025 VisionGuard AI Inc. Infrastructure Defect Detection System.</span>
-            </div>
-            <div class="flex items-center gap-6 font-medium">
-                <a href="#" class="hover:text-vgBlue transition-colors">Privacy Policy</a>
-                <a href="#" class="hover:text-vgBlue transition-colors">Terms of Service</a>
-                <a href="#" class="hover:text-vgBlue transition-colors">Municipal Network</a>
-                <a href="#" class="hover:text-vgBlue transition-colors">System Status</a>
-            </div>
+    <footer
+      class="w-full bg-white border-t border-vgBorder py-6 px-4 sm:px-6 lg:px-8"
+    >
+      <div
+        class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-vgTextMuted"
+      >
+        <div class="flex items-center gap-2">
+          <div class="w-2 h-2 rounded-full bg-vgBlue"></div>
+          <span class=""
+            >© 2025 VisionGuard AI Inc. Infrastructure Defect Detection
+            System.</span
+          >
         </div>
+        <div class="flex items-center gap-6 font-medium">
+          <a href="#" class="hover:text-vgBlue transition-colors"
+            >Privacy Policy</a
+          >
+          <a href="#" class="hover:text-vgBlue transition-colors"
+            >Terms of Service</a
+          >
+          <a href="#" class="hover:text-vgBlue transition-colors"
+            >Municipal Network</a
+          >
+          <a href="#" class="hover:text-vgBlue transition-colors"
+            >System Status</a
+          >
+        </div>
+      </div>
     </footer>
 
     <!-- ================= LOGIC & INTERACTION SCRIPTS ================= -->
     <script>
-        // Tab Switching Logic
-        function switchTab(tab) {
-            const signinBtn = document.getElementById('tab-signin-btn');
-            const registerBtn = document.getElementById('tab-register-btn');
-            const signinPanel = document.getElementById('panel-signin');
-            const registerPanel = document.getElementById('panel-register');
-            const heroTitle = document.getElementById('page-hero-title');
-            const heroDesc = document.getElementById('page-hero-desc');
+      // Tab Switching Logic
+      function switchTab(tab) {
+        const signinBtn = document.getElementById("tab-signin-btn");
+        const registerBtn = document.getElementById("tab-register-btn");
+        const signinPanel = document.getElementById("panel-signin");
+        const registerPanel = document.getElementById("panel-register");
+        const heroTitle = document.getElementById("page-hero-title");
+        const heroDesc = document.getElementById("page-hero-desc");
 
-            dismissAlert();
+        dismissAlert();
 
-            if (tab === 'signin') {
-                signinBtn.setAttribute('aria-selected', 'true');
-                registerBtn.setAttribute('aria-selected', 'false');
+        if (tab === "signin") {
+          signinBtn.setAttribute("aria-selected", "true");
+          registerBtn.setAttribute("aria-selected", "false");
 
-                // Active Tab Style
-                signinBtn.className = "flex-1 py-2.5 px-3 rounded-xl font-medium text-xs sm:text-sm text-center tab-transition flex items-center justify-center gap-2 bg-vgBlue text-white shadow-xs focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-vgBlue";
-                // Inactive Tab Style
-                registerBtn.className = "flex-1 py-2.5 px-3 rounded-xl font-medium text-xs sm:text-sm text-center tab-transition flex items-center justify-center gap-2 text-vgTextMuted hover:text-vgTextMain hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-vgBlue";
+          // Active Tab Style
+          signinBtn.className =
+            "flex-1 py-2.5 px-3 rounded-xl font-medium text-xs sm:text-sm text-center tab-transition flex items-center justify-center gap-2 bg-vgBlue text-white shadow-xs focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-vgBlue";
+          // Inactive Tab Style
+          registerBtn.className =
+            "flex-1 py-2.5 px-3 rounded-xl font-medium text-xs sm:text-sm text-center tab-transition flex items-center justify-center gap-2 text-vgTextMuted hover:text-vgTextMain hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-vgBlue";
 
-                signinPanel.classList.remove('hidden');
-                registerPanel.classList.add('hidden');
+          signinPanel.classList.remove("hidden");
+          registerPanel.classList.add("hidden");
 
-                heroTitle.innerHTML = 'Welcome to <span class="text-vgBlue">VisionGuard AI</span>';
-                heroDesc.textContent = 'Sign in to report infrastructure problems, review inspections, and manage your submitted reports.';
-            } else {
-                signinBtn.setAttribute('aria-selected', 'false');
-                registerBtn.setAttribute('aria-selected', 'true');
+          heroTitle.innerHTML =
+            'Welcome to <span class="text-vgBlue">VisionGuard AI</span>';
+          heroDesc.textContent =
+            "Sign in to report infrastructure problems, review inspections, and manage your submitted reports.";
+        } else {
+          signinBtn.setAttribute("aria-selected", "false");
+          registerBtn.setAttribute("aria-selected", "true");
 
-                registerBtn.className = "flex-1 py-2.5 px-3 rounded-xl font-medium text-xs sm:text-sm text-center tab-transition flex items-center justify-center gap-2 bg-vgBlue text-white shadow-xs focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-vgBlue";
-                signinBtn.className = "flex-1 py-2.5 px-3 rounded-xl font-medium text-xs sm:text-sm text-center tab-transition flex items-center justify-center gap-2 text-vgTextMuted hover:text-vgTextMain hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-vgBlue";
+          registerBtn.className =
+            "flex-1 py-2.5 px-3 rounded-xl font-medium text-xs sm:text-sm text-center tab-transition flex items-center justify-center gap-2 bg-vgBlue text-white shadow-xs focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-vgBlue";
+          signinBtn.className =
+            "flex-1 py-2.5 px-3 rounded-xl font-medium text-xs sm:text-sm text-center tab-transition flex items-center justify-center gap-2 text-vgTextMuted hover:text-vgTextMain hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-vgBlue";
 
-                signinPanel.classList.add('hidden');
-                registerPanel.classList.remove('hidden');
+          signinPanel.classList.add("hidden");
+          registerPanel.classList.remove("hidden");
 
-                heroTitle.innerHTML = 'Create Your <span class="text-vgBlue">Citizen Account</span>';
-                heroDesc.textContent = 'Create an account to report defects, track inspection progress, and access your report history.';
-            }
+          heroTitle.innerHTML =
+            'Create Your <span class="text-vgBlue">Citizen Account</span>';
+          heroDesc.textContent =
+            "Create an account to report defects, track inspection progress, and access your report history.";
+        }
+      }
+
+      // Toggle Password Visibility
+      function togglePasswordVisibility(inputId, btn) {
+        const input = document.getElementById(inputId);
+        const eyeOpen = btn.querySelector(".eye-open");
+        const eyeClosed = btn.querySelector(".eye-closed");
+
+        if (input.type === "password") {
+          input.type = "text";
+          eyeOpen.classList.add("hidden");
+          eyeClosed.classList.remove("hidden");
+        } else {
+          input.type = "password";
+          eyeOpen.classList.remove("hidden");
+          eyeClosed.classList.add("hidden");
+        }
+      }
+
+      // Sign In Form Submission (Validation & Loading)
+      function handleSignInSubmit(e) {
+        e.preventDefault();
+        const usernameInput = document.getElementById("signin-username");
+        const passwordInput = document.getElementById("signin-password");
+        const usernameErr = document.getElementById("signin-username-error");
+        const passwordErr = document.getElementById("signin-password-error");
+        let valid = true;
+
+        // Validate Username
+        if (!usernameInput.value.trim()) {
+          usernameInput.classList.add(
+            "border-vgError",
+            "shadow-vg-input-error",
+          );
+          usernameErr.classList.remove("hidden");
+          valid = false;
+        } else {
+          usernameInput.classList.remove(
+            "border-vgError",
+            "shadow-vg-input-error",
+          );
+          usernameErr.classList.add("hidden");
         }
 
-        // Toggle Password Visibility
-        function togglePasswordVisibility(inputId, btn) {
-            const input = document.getElementById(inputId);
-            const eyeOpen = btn.querySelector('.eye-open');
-            const eyeClosed = btn.querySelector('.eye-closed');
-
-            if (input.type === 'password') {
-                input.type = 'text';
-                eyeOpen.classList.add('hidden');
-                eyeClosed.classList.remove('hidden');
-            } else {
-                input.type = 'password';
-                eyeOpen.classList.remove('hidden');
-                eyeClosed.classList.add('hidden');
-            }
+        // Validate Password
+        if (!passwordInput.value) {
+          passwordInput.classList.add(
+            "border-vgError",
+            "shadow-vg-input-error",
+          );
+          passwordErr.classList.remove("hidden");
+          valid = false;
+        } else {
+          passwordInput.classList.remove(
+            "border-vgError",
+            "shadow-vg-input-error",
+          );
+          passwordErr.classList.add("hidden");
         }
 
-        // Sign In Form Submission (Validation & Loading)
-        function handleSignInSubmit(e) {
-            e.preventDefault();
-            const usernameInput = document.getElementById('signin-username');
-            const passwordInput = document.getElementById('signin-password');
-            const usernameErr = document.getElementById('signin-username-error');
-            const passwordErr = document.getElementById('signin-password-error');
-            let valid = true;
+        if (!valid) return;
 
-            // Validate Username
-            if (!usernameInput.value.trim()) {
-                usernameInput.classList.add('border-vgError', 'shadow-vg-input-error');
-                usernameErr.classList.remove('hidden');
-                valid = false;
-            } else {
-                usernameInput.classList.remove('border-vgError', 'shadow-vg-input-error');
-                usernameErr.classList.add('hidden');
-            }
+        // Trigger Loading State
+        setSignInLoading(true);
 
-            // Validate Password
-            if (!passwordInput.value) {
-                passwordInput.classList.add('border-vgError', 'shadow-vg-input-error');
-                passwordErr.classList.remove('hidden');
-                valid = false;
-            } else {
-                passwordInput.classList.remove('border-vgError', 'shadow-vg-input-error');
-                passwordErr.classList.add('hidden');
-            }
+        // Simulate backend API authentication response
+        setTimeout(() => {
+          setSignInLoading(false);
+          // Show status
+          showAlert(
+            "success",
+            "Authentication Successful",
+            "Welcome back, " +
+              usernameInput.value.trim() +
+              ". Redirecting to Municipal Inspection Dashboard...",
+          );
+        }, 1200);
+      }
 
-            if (!valid) return;
+      // Citizen Registration Submission
+      function handleRegisterSubmit(e) {
+        e.preventDefault();
+        const user = document.getElementById("register-username");
+        const pass = document.getElementById("register-password");
+        const confirm = document.getElementById("register-confirm-password");
+        const terms = document.getElementById("register-terms");
 
-            // Trigger Loading State
-            setSignInLoading(true);
+        const userErr = document.getElementById("register-username-error");
+        const passErr = document.getElementById("register-password-error");
+        const confirmErr = document.getElementById("register-confirm-error");
+        const termsErr = document.getElementById("register-terms-error");
 
-            // Simulate backend API authentication response
-            setTimeout(() => {
-                setSignInLoading(false);
-                // Show status
-                showAlert(
-                    'success',
-                    'Authentication Successful',
-                    'Welcome back, ' + usernameInput.value.trim() + '. Redirecting to Municipal Inspection Dashboard...'
-                );
-            }, 1200);
+        let valid = true;
+
+        if (!user.value || user.value.trim().length < 3) {
+          user.classList.add("border-vgError", "shadow-vg-input-error");
+          userErr.classList.remove("hidden");
+          valid = false;
+        } else {
+          user.classList.remove("border-vgError", "shadow-vg-input-error");
+          userErr.classList.add("hidden");
         }
 
-        // Citizen Registration Submission
-        function handleRegisterSubmit(e) {
-            e.preventDefault();
-            const user = document.getElementById('register-username');
-            const pass = document.getElementById('register-password');
-            const confirm = document.getElementById('register-confirm-password');
-            const terms = document.getElementById('register-terms');
-
-            const userErr = document.getElementById('register-username-error');
-            const passErr = document.getElementById('register-password-error');
-            const confirmErr = document.getElementById('register-confirm-error');
-            const termsErr = document.getElementById('register-terms-error');
-
-            let valid = true;
-
-            if (!user.value || user.value.trim().length < 3) {
-                user.classList.add('border-vgError', 'shadow-vg-input-error');
-                userErr.classList.remove('hidden');
-                valid = false;
-            } else {
-                user.classList.remove('border-vgError', 'shadow-vg-input-error');
-                userErr.classList.add('hidden');
-            }
-
-            if (!pass.value || pass.value.length < 6) {
-                pass.classList.add('border-vgError', 'shadow-vg-input-error');
-                passErr.classList.remove('hidden');
-                valid = false;
-            } else {
-                pass.classList.remove('border-vgError', 'shadow-vg-input-error');
-                passErr.classList.add('hidden');
-            }
-
-            if (pass.value !== confirm.value) {
-                confirm.classList.add('border-vgError', 'shadow-vg-input-error');
-                confirmErr.classList.remove('hidden');
-                valid = false;
-            } else {
-                confirm.classList.remove('border-vgError', 'shadow-vg-input-error');
-                confirmErr.classList.add('hidden');
-            }
-
-            if (!terms.checked) {
-                termsErr.classList.remove('hidden');
-                valid = false;
-            } else {
-                termsErr.classList.add('hidden');
-            }
-
-            if (!valid) return;
-
-            setRegisterLoading(true);
-
-            setTimeout(() => {
-                setRegisterLoading(false);
-                showAlert(
-                    'success',
-                    'Citizen Account Created',
-                    'Your account has been verified. You may now submit and track road defect reports.'
-                );
-            }, 1400);
+        if (!pass.value || pass.value.length < 6) {
+          pass.classList.add("border-vgError", "shadow-vg-input-error");
+          passErr.classList.remove("hidden");
+          valid = false;
+        } else {
+          pass.classList.remove("border-vgError", "shadow-vg-input-error");
+          passErr.classList.add("hidden");
         }
 
-        // Loading State Toggles
-        function setSignInLoading(isLoading) {
-            const btn = document.getElementById('signin-submit-btn');
-            const txt = document.getElementById('signin-btn-text');
-            const spinner = document.getElementById('signin-spinner');
-
-            if (isLoading) {
-                btn.disabled = true;
-                btn.classList.add('opacity-80', 'cursor-not-allowed');
-                txt.textContent = 'Verifying Credentials...';
-                spinner.classList.remove('hidden');
-            } else {
-                btn.disabled = false;
-                btn.classList.remove('opacity-80', 'cursor-not-allowed');
-                txt.textContent = 'Sign In';
-                spinner.classList.add('hidden');
-            }
+        if (pass.value !== confirm.value) {
+          confirm.classList.add("border-vgError", "shadow-vg-input-error");
+          confirmErr.classList.remove("hidden");
+          valid = false;
+        } else {
+          confirm.classList.remove("border-vgError", "shadow-vg-input-error");
+          confirmErr.classList.add("hidden");
         }
 
-        function setRegisterLoading(isLoading) {
-            const btn = document.getElementById('register-submit-btn');
-            const txt = document.getElementById('register-btn-text');
-            const spinner = document.getElementById('register-spinner');
-
-            if (isLoading) {
-                btn.disabled = true;
-                btn.classList.add('opacity-80', 'cursor-not-allowed');
-                txt.textContent = 'Registering Account...';
-                spinner.classList.remove('hidden');
-            } else {
-                btn.disabled = false;
-                btn.classList.remove('opacity-80', 'cursor-not-allowed');
-                txt.textContent = 'Create Account';
-                spinner.classList.add('hidden');
-            }
+        if (!terms.checked) {
+          termsErr.classList.remove("hidden");
+          valid = false;
+        } else {
+          termsErr.classList.add("hidden");
         }
 
-        // Alerts and notifications
-        function showAlert(type, title, message) {
-            const alert = document.getElementById('status-alert');
-            const icon = document.getElementById('status-alert-icon');
-            const titleElem = document.getElementById('status-alert-title');
-            const msgElem = document.getElementById('status-alert-message');
+        if (!valid) return;
 
-            alert.classList.remove('hidden', 'bg-red-50', 'border-red-200', 'text-red-900', 'bg-emerald-50', 'border-emerald-200', 'text-emerald-900', 'bg-blue-50', 'border-blue-200', 'text-blue-900');
+        setRegisterLoading(true);
 
-            if (type === 'error') {
-                alert.classList.add('bg-red-50', 'border-red-200', 'text-red-900', 'flex');
-                icon.innerHTML = `<svg class="w-4 h-4 text-vgError" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
-            } else if (type === 'success') {
-                alert.classList.add('bg-emerald-50', 'border-emerald-200', 'text-emerald-900', 'flex');
-                icon.innerHTML = `<svg class="w-4 h-4 text-vgSuccess" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
-            } else {
-                alert.classList.add('bg-blue-50', 'border-blue-200', 'text-blue-900', 'flex');
-                icon.innerHTML = `<svg class="w-4 h-4 text-vgBlue" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
-            }
+        setTimeout(() => {
+          setRegisterLoading(false);
+          showAlert(
+            "success",
+            "Citizen Account Created",
+            "Your account has been verified. You may now submit and track road defect reports.",
+          );
+        }, 1400);
+      }
 
-            titleElem.textContent = title;
-            msgElem.textContent = message;
+      // Loading State Toggles
+      function setSignInLoading(isLoading) {
+        const btn = document.getElementById("signin-submit-btn");
+        const txt = document.getElementById("signin-btn-text");
+        const spinner = document.getElementById("signin-spinner");
+
+        if (isLoading) {
+          btn.disabled = true;
+          btn.classList.add("opacity-80", "cursor-not-allowed");
+          txt.textContent = "Verifying Credentials...";
+          spinner.classList.remove("hidden");
+        } else {
+          btn.disabled = false;
+          btn.classList.remove("opacity-80", "cursor-not-allowed");
+          txt.textContent = "Sign In";
+          spinner.classList.add("hidden");
+        }
+      }
+
+      function setRegisterLoading(isLoading) {
+        const btn = document.getElementById("register-submit-btn");
+        const txt = document.getElementById("register-btn-text");
+        const spinner = document.getElementById("register-spinner");
+
+        if (isLoading) {
+          btn.disabled = true;
+          btn.classList.add("opacity-80", "cursor-not-allowed");
+          txt.textContent = "Registering Account...";
+          spinner.classList.remove("hidden");
+        } else {
+          btn.disabled = false;
+          btn.classList.remove("opacity-80", "cursor-not-allowed");
+          txt.textContent = "Create Account";
+          spinner.classList.add("hidden");
+        }
+      }
+
+      // Alerts and notifications
+      function showAlert(type, title, message) {
+        const alert = document.getElementById("status-alert");
+        const icon = document.getElementById("status-alert-icon");
+        const titleElem = document.getElementById("status-alert-title");
+        const msgElem = document.getElementById("status-alert-message");
+
+        alert.classList.remove(
+          "hidden",
+          "bg-red-50",
+          "border-red-200",
+          "text-red-900",
+          "bg-emerald-50",
+          "border-emerald-200",
+          "text-emerald-900",
+          "bg-blue-50",
+          "border-blue-200",
+          "text-blue-900",
+        );
+
+        if (type === "error") {
+          alert.classList.add(
+            "bg-red-50",
+            "border-red-200",
+            "text-red-900",
+            "flex",
+          );
+          icon.innerHTML = `<svg class="w-4 h-4 text-vgError" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
+        } else if (type === "success") {
+          alert.classList.add(
+            "bg-emerald-50",
+            "border-emerald-200",
+            "text-emerald-900",
+            "flex",
+          );
+          icon.innerHTML = `<svg class="w-4 h-4 text-vgSuccess" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
+        } else {
+          alert.classList.add(
+            "bg-blue-50",
+            "border-blue-200",
+            "text-blue-900",
+            "flex",
+          );
+          icon.innerHTML = `<svg class="w-4 h-4 text-vgBlue" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
         }
 
-        function dismissAlert() {
-            const alert = document.getElementById('status-alert');
-            alert.classList.add('hidden');
-            alert.classList.remove('flex');
-        }
+        titleElem.textContent = title;
+        msgElem.textContent = message;
+      }
 
-        // Helper functions for preview states
-        function triggerSimulatedError() {
-            showAlert('error', 'Authentication Failed', 'Invalid username or password. Please verify your municipal inspector ID or citizen account.');
-        }
+      function dismissAlert() {
+        const alert = document.getElementById("status-alert");
+        alert.classList.add("hidden");
+        alert.classList.remove("flex");
+      }
 
-        function triggerSimulatedLoading() {
-            switchTab('signin');
-            setSignInLoading(true);
-            setTimeout(() => setSignInLoading(false), 2000);
-        }
+      // Helper functions for preview states
+      function triggerSimulatedError() {
+        showAlert(
+          "error",
+          "Authentication Failed",
+          "Invalid username or password. Please verify your municipal inspector ID or citizen account.",
+        );
+      }
 
-        function resetSignInForm() {
-            document.getElementById('form-signin').reset();
-            dismissAlert();
-            document.getElementById('signin-username').classList.remove('border-vgError', 'shadow-vg-input-error');
-            document.getElementById('signin-password').classList.remove('border-vgError', 'shadow-vg-input-error');
-            document.getElementById('signin-username-error').classList.add('hidden');
-            document.getElementById('signin-password-error').classList.add('hidden');
-        }
+      function triggerSimulatedLoading() {
+        switchTab("signin");
+        setSignInLoading(true);
+        setTimeout(() => setSignInLoading(false), 2000);
+      }
 
-        function showForgotPasswordInfo(e) {
-            e.preventDefault();
-            showAlert('info', 'Password Reset Assistance', 'For citizen accounts, contact support@visionguard.gov. Municipal staff can request reset tokens directly via Central Dispatch radio/terminal.');
-        }
+      function resetSignInForm() {
+        document.getElementById("form-signin").reset();
+        dismissAlert();
+        document
+          .getElementById("signin-username")
+          .classList.remove("border-vgError", "shadow-vg-input-error");
+        document
+          .getElementById("signin-password")
+          .classList.remove("border-vgError", "shadow-vg-input-error");
+        document
+          .getElementById("signin-username-error")
+          .classList.add("hidden");
+        document
+          .getElementById("signin-password-error")
+          .classList.add("hidden");
+      }
 
-        function showStaffHelp(e) {
-            e.preventDefault();
-            showAlert('info', 'Inspector Access', 'Municipal and DoT field inspectors are provisioned through county GIS supervisors. Call extension 408-INFRA-OPS.');
-        }
+      function showForgotPasswordInfo(e) {
+        e.preventDefault();
+        showAlert(
+          "info",
+          "Password Reset Assistance",
+          "For citizen accounts, contact support@visionguard.gov. Municipal staff can request reset tokens directly via Central Dispatch radio/terminal.",
+        );
+      }
+
+      function showStaffHelp(e) {
+        e.preventDefault();
+        showAlert(
+          "info",
+          "Inspector Access",
+          "Municipal and DoT field inspectors are provisioned through county GIS supervisors. Call extension 408-INFRA-OPS.",
+        );
+      }
     </script>
-
-
-
-
-</body>
-
+  </body>
 </html>

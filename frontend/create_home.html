@@ -1,506 +1,1188 @@
-<!DOCTYPE html>
+<!doctype html>
 
 <html class="dark" lang="en">
-
-<head>
+  <head>
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <meta content="web_standard" name="shell-type" />
     <title>VisionGuard AI</title>
     <link
-        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
-        rel="stylesheet" />
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+      rel="stylesheet"
+    />
     <link
-        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
-        rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet" />
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap"
+      rel="stylesheet"
+    />
     <style>
-        @layer base {
-
-            html,
-            body {
-                margin: 0;
-                padding: 0;
-            }
-
-            body {
-                overscroll-behavior: none;
-            }
-
-            main> :first-child {
-                margin-top: 0 !important;
-            }
-
-            main> :last-child {
-                margin-bottom: 0 !important;
-            }
+      @layer base {
+        html,
+        body {
+          margin: 0;
+          padding: 0;
         }
 
-        ::-webkit-scrollbar {
-            display: none;
+        body {
+          overscroll-behavior: none;
         }
+
+        main > :first-child {
+          margin-top: 0 !important;
+        }
+
+        main > :last-child {
+          margin-bottom: 0 !important;
+        }
+      }
+
+      ::-webkit-scrollbar {
+        display: none;
+      }
     </style>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script
-        id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { colors: { "on-primary-fixed-variant": "#004395", "surface-container-lowest": "#010f1f", "on-primary-container": "#00285d", "surface-bright": "#2c3a4c", "tertiary-fixed": "#6ffbbe", "canvas-dark": "#0F172A", "error-ring": "rgba(248, 113, 113, 0.15)", "secondary-container": "#3e495d", "surface-container-highest": "#273647", "text-muted": "#94A3B8", "on-surface": "#d4e4fa", "tertiary-fixed-dim": "#4edea3", "surface-well": "#111C30", "on-tertiary-container": "#00311f", "on-primary-fixed": "#001a42", "status-warning": "#F59E0B", "primary-fixed": "#d8e2ff", "primary-container": "#4d8eff", "on-secondary-fixed-variant": "#3c475a", "status-error": "#F87171", "border-subtle": "#334155", "on-background": "#d4e4fa", "secondary": "#bcc7de", "surface-container-high": "#1c2b3c", "secondary-fixed-dim": "#bcc7de", "on-surface-variant": "#c2c6d6", "on-tertiary": "#003824", "on-secondary": "#263143", "outline-variant": "#424754", "inverse-primary": "#005ac2", "text-primary": "#F8FAFC", "background": "#051424", "on-error": "#690005", "outline": "#8c909f", "inverse-surface": "#d4e4fa", "status-success": "#10B981", "primary-fixed-dim": "#adc6ff", "primary": "#adc6ff", "secondary-fixed": "#d8e3fb", "focus-ring": "rgba(96, 165, 250, 0.18)", "on-error-container": "#ffdad6", "surface-tint": "#adc6ff", "surface-panel": "#1E293B", "on-secondary-fixed": "#111c2d", "inverse-on-surface": "#233143", "surface-container-low": "#0d1c2d", "surface-dim": "#051424", "on-secondary-container": "#aeb9d0", "on-tertiary-fixed": "#002113", "text-placeholder": "#64748B", "surface-container": "#122131", "on-primary": "#002e6a", "surface-variant": "#273647", "surface": "#051424", "tertiary-container": "#00a572", "tertiary": "#4edea3", "on-tertiary-fixed-variant": "#005236", "error-container": "#93000a", "error": "#ffb4ab" }, borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, spacing: { "gutter": "1.5rem", "space-xs": "0.375rem", "space-xl": "2rem", "space-lg": "1.5rem", "space-sm": "0.625rem", "margin": "1.5rem", "space-md": "1rem" }, fontFamily: { "body-md": ["Inter"], "headline-lg": ["Inter"], "label-sm": ["Inter"], "caption": ["Inter"], "body-sm": ["Inter"], "headline-md": ["Inter"], "label-md": ["Inter"], "label-xs": ["Inter"] }, fontSize: { "body-md": ["0.875rem", { "lineHeight": "1.375rem", "fontWeight": "400" }], "headline-lg": ["1.25rem", { "lineHeight": "1.75rem", "letterSpacing": "-0.02em", "fontWeight": "700" }], "label-sm": ["0.75rem", { "lineHeight": "1rem", "fontWeight": "600" }], "caption": ["0.625rem", { "lineHeight": "0.75rem", "letterSpacing": "0.05em", "fontWeight": "600" }], "body-sm": ["0.75rem", { "lineHeight": "1.125rem", "fontWeight": "400" }], "headline-md": ["1rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.015em", "fontWeight": "600" }], "label-md": ["0.875rem", { "lineHeight": "1.25rem", "fontWeight": "500" }], "label-xs": ["0.6875rem", { "lineHeight": "0.875rem", "fontWeight": "500" }] } } } };</script>
-</head>
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-primary-fixed-variant": "#004395",
+              "surface-container-lowest": "#010f1f",
+              "on-primary-container": "#00285d",
+              "surface-bright": "#2c3a4c",
+              "tertiary-fixed": "#6ffbbe",
+              "canvas-dark": "#0F172A",
+              "error-ring": "rgba(248, 113, 113, 0.15)",
+              "secondary-container": "#3e495d",
+              "surface-container-highest": "#273647",
+              "text-muted": "#94A3B8",
+              "on-surface": "#d4e4fa",
+              "tertiary-fixed-dim": "#4edea3",
+              "surface-well": "#111C30",
+              "on-tertiary-container": "#00311f",
+              "on-primary-fixed": "#001a42",
+              "status-warning": "#F59E0B",
+              "primary-fixed": "#d8e2ff",
+              "primary-container": "#4d8eff",
+              "on-secondary-fixed-variant": "#3c475a",
+              "status-error": "#F87171",
+              "border-subtle": "#334155",
+              "on-background": "#d4e4fa",
+              secondary: "#bcc7de",
+              "surface-container-high": "#1c2b3c",
+              "secondary-fixed-dim": "#bcc7de",
+              "on-surface-variant": "#c2c6d6",
+              "on-tertiary": "#003824",
+              "on-secondary": "#263143",
+              "outline-variant": "#424754",
+              "inverse-primary": "#005ac2",
+              "text-primary": "#F8FAFC",
+              background: "#051424",
+              "on-error": "#690005",
+              outline: "#8c909f",
+              "inverse-surface": "#d4e4fa",
+              "status-success": "#10B981",
+              "primary-fixed-dim": "#adc6ff",
+              primary: "#adc6ff",
+              "secondary-fixed": "#d8e3fb",
+              "focus-ring": "rgba(96, 165, 250, 0.18)",
+              "on-error-container": "#ffdad6",
+              "surface-tint": "#adc6ff",
+              "surface-panel": "#1E293B",
+              "on-secondary-fixed": "#111c2d",
+              "inverse-on-surface": "#233143",
+              "surface-container-low": "#0d1c2d",
+              "surface-dim": "#051424",
+              "on-secondary-container": "#aeb9d0",
+              "on-tertiary-fixed": "#002113",
+              "text-placeholder": "#64748B",
+              "surface-container": "#122131",
+              "on-primary": "#002e6a",
+              "surface-variant": "#273647",
+              surface: "#051424",
+              "tertiary-container": "#00a572",
+              tertiary: "#4edea3",
+              "on-tertiary-fixed-variant": "#005236",
+              "error-container": "#93000a",
+              error: "#ffb4ab",
+            },
+            borderRadius: {
+              DEFAULT: "0.25rem",
+              lg: "0.5rem",
+              xl: "0.75rem",
+              full: "9999px",
+            },
+            spacing: {
+              gutter: "1.5rem",
+              "space-xs": "0.375rem",
+              "space-xl": "2rem",
+              "space-lg": "1.5rem",
+              "space-sm": "0.625rem",
+              margin: "1.5rem",
+              "space-md": "1rem",
+            },
+            fontFamily: {
+              "body-md": ["Inter"],
+              "headline-lg": ["Inter"],
+              "label-sm": ["Inter"],
+              caption: ["Inter"],
+              "body-sm": ["Inter"],
+              "headline-md": ["Inter"],
+              "label-md": ["Inter"],
+              "label-xs": ["Inter"],
+            },
+            fontSize: {
+              "body-md": [
+                "0.875rem",
+                { lineHeight: "1.375rem", fontWeight: "400" },
+              ],
+              "headline-lg": [
+                "1.25rem",
+                {
+                  lineHeight: "1.75rem",
+                  letterSpacing: "-0.02em",
+                  fontWeight: "700",
+                },
+              ],
+              "label-sm": [
+                "0.75rem",
+                { lineHeight: "1rem", fontWeight: "600" },
+              ],
+              caption: [
+                "0.625rem",
+                {
+                  lineHeight: "0.75rem",
+                  letterSpacing: "0.05em",
+                  fontWeight: "600",
+                },
+              ],
+              "body-sm": [
+                "0.75rem",
+                { lineHeight: "1.125rem", fontWeight: "400" },
+              ],
+              "headline-md": [
+                "1rem",
+                {
+                  lineHeight: "1.5rem",
+                  letterSpacing: "-0.015em",
+                  fontWeight: "600",
+                },
+              ],
+              "label-md": [
+                "0.875rem",
+                { lineHeight: "1.25rem", fontWeight: "500" },
+              ],
+              "label-xs": [
+                "0.6875rem",
+                { lineHeight: "0.875rem", fontWeight: "500" },
+              ],
+            },
+          },
+        },
+      };
+    </script>
+  </head>
 
-<body class="bg-surface font-body-md text-on-surface antialiased">
-    <header class="fixed top-0 left-0 right-0 z-50 bg-[#FFFFFF] border-b border-[#E2E8F0] shadow-sm">
-        <div
-            class="w-full px-4 sm:px-6 lg:px-8 py-2.5 sm:py-3 flex flex-wrap md:flex-nowrap items-center justify-between gap-3">
-            <div class="flex items-center gap-3 shrink-0">
-                <div
-                    class="w-9 h-9 rounded-xl bg-primary-container flex items-center justify-center text-white shadow-sm shadow-blue-500/20 shrink-0">
-                    <span class="material-symbols-outlined text-[20px]">verified_user</span>
-                </div>
-                <div class="flex flex-col"><span
-                        class="text-[#0F172A] font-headline-md text-headline-md leading-none">VisionGuard AI</span><span
-                        class="text-[#64748B] font-caption text-caption tracking-wider uppercase mt-0.5">Infrastructure
-                        Inspection Platform</span></div>
-            </div>
-            <div class="order-3 md:order-2 w-full md:flex-1 md:max-w-xl md:mx-4">
-                <div class="relative flex items-center w-full"><span
-                        class="material-symbols-outlined absolute left-3.5 text-[#64748B] text-[18px] pointer-events-none">search</span><input
-                        class="w-full h-10 pl-10 pr-4 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] text-[#0F172A] font-body-sm text-body-sm placeholder-[#64748B] focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-blue-100 transition-all"
-                        placeholder="Search Reports, IDs, Locations..." type="text" /></div>
-            </div>
-            <div class="order-2 md:order-3 flex items-center gap-2 sm:gap-3 shrink-0"><button
-                    class="w-9 h-9 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] text-[#64748B] hover:text-[#0F172A] hover:bg-slate-100 flex items-center justify-center transition-colors"
-                    title="Help and Documentation" type="button"><span
-                        class="material-symbols-outlined text-[18px]">help</span></button><button
-                    class="inline-flex items-center gap-1.5 h-9 px-3 sm:px-4 rounded-full bg-primary-container text-white font-label-md text-label-md hover:bg-blue-600 transition-colors shadow-sm shadow-blue-500/20 shrink-0"
-                    type="button"><span class="material-symbols-outlined text-[18px]">add</span><span
-                        class="hidden sm:inline">New Report</span><span class="sm:hidden">New</span></button>
-                <div class="h-6 w-px bg-[#E2E8F0] mx-0.5 sm:mx-1"></div>
-                <div class="flex items-center gap-2 sm:gap-2.5 pl-0.5 sm:pl-1">
-                    <div class="flex flex-col items-end text-right hidden lg:flex"><span
-                            class="text-[#0F172A] font-label-md text-label-md leading-none">Harsh</span><span
-                            class="text-[#64748B] font-caption text-caption uppercase mt-0.5">Citizen Auditor</span>
-                    </div>
-                    <div
-                        class="w-8 h-8 rounded-full bg-primary flex items-center justify-center ring-2 ring-blue-100 shrink-0">
-                        <span class="material-symbols-outlined text-on-primary text-[18px]">person</span>
-                    </div>
-                </div>
-            </div>
+  <body class="bg-surface font-body-md text-on-surface antialiased">
+    <header
+      class="fixed top-0 left-0 right-0 z-50 bg-[#FFFFFF] border-b border-[#E2E8F0] shadow-sm"
+    >
+      <div
+        class="w-full px-4 sm:px-6 lg:px-8 py-2.5 sm:py-3 flex flex-wrap md:flex-nowrap items-center justify-between gap-3"
+      >
+        <div class="flex items-center gap-3 shrink-0">
+          <div
+            class="w-9 h-9 rounded-xl bg-primary-container flex items-center justify-center text-white shadow-sm shadow-blue-500/20 shrink-0"
+          >
+            <span class="material-symbols-outlined text-[20px]"
+              >verified_user</span
+            >
+          </div>
+          <div class="flex flex-col">
+            <span
+              class="text-[#0F172A] font-headline-md text-headline-md leading-none"
+              >VisionGuard AI</span
+            ><span
+              class="text-[#64748B] font-caption text-caption tracking-wider uppercase mt-0.5"
+              >Infrastructure Inspection Platform</span
+            >
+          </div>
         </div>
+        <div class="order-3 md:order-2 w-full md:flex-1 md:max-w-xl md:mx-4">
+          <div class="relative flex items-center w-full">
+            <span
+              class="material-symbols-outlined absolute left-3.5 text-[#64748B] text-[18px] pointer-events-none"
+              >search</span
+            ><input
+              class="w-full h-10 pl-10 pr-4 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] text-[#0F172A] font-body-sm text-body-sm placeholder-[#64748B] focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-blue-100 transition-all"
+              placeholder="Search Reports, IDs, Locations..."
+              type="text"
+            />
+          </div>
+        </div>
+        <div
+          class="order-2 md:order-3 flex items-center gap-2 sm:gap-3 shrink-0"
+        >
+          <button
+            class="w-9 h-9 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] text-[#64748B] hover:text-[#0F172A] hover:bg-slate-100 flex items-center justify-center transition-colors"
+            title="Help and Documentation"
+            type="button"
+          >
+            <span class="material-symbols-outlined text-[18px]"
+              >help</span
+            ></button
+          ><button
+            class="inline-flex items-center gap-1.5 h-9 px-3 sm:px-4 rounded-full bg-primary-container text-white font-label-md text-label-md hover:bg-blue-600 transition-colors shadow-sm shadow-blue-500/20 shrink-0"
+            type="button"
+          >
+            <span class="material-symbols-outlined text-[18px]">add</span
+            ><span class="hidden sm:inline">New Report</span
+            ><span class="sm:hidden">New</span>
+          </button>
+          <div class="h-6 w-px bg-[#E2E8F0] mx-0.5 sm:mx-1"></div>
+          <div class="flex items-center gap-2 sm:gap-2.5 pl-0.5 sm:pl-1">
+            <div class="flex flex-col items-end text-right hidden lg:flex">
+              <span
+                class="text-[#0F172A] font-label-md text-label-md leading-none"
+                >Harsh</span
+              ><span
+                class="text-[#64748B] font-caption text-caption uppercase mt-0.5"
+                >Citizen Auditor</span
+              >
+            </div>
+            <div
+              class="w-8 h-8 rounded-full bg-primary flex items-center justify-center ring-2 ring-blue-100 shrink-0"
+            >
+              <span
+                class="material-symbols-outlined text-on-primary text-[18px]"
+                >person</span
+              >
+            </div>
+          </div>
+        </div>
+      </div>
     </header>
     <main class="w-full pt-28 md:pt-20 bg-[#F8FAFC] min-h-screen">
-        <div class="flex flex-col w-full">
-            <div
-                class="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-8 font-body-md text-on-secondary-fixed">
-                <!-- 1. Breadcrumb & Page Introduction -->
-                <header
-                    class="flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-6 pb-2 border-b border-slate-200">
-                    <div class="space-y-2">
-                        <nav aria-label="Breadcrumb"
-                            class="flex flex-wrap items-center gap-1.5 sm:gap-2 font-caption text-caption uppercase text-text-placeholder tracking-wider">
-                            <a class="hover:text-primary-container transition-colors" href="#">Home</a><span
-                                class="text-slate-300">/</span><span class="text-slate-500 font-semibold">Inspection
-                                &amp; Defect Ingestion</span>
-                        </nav>
-                        <h1
-                            class="font-headline-lg text-[24px] sm:text-[28px] leading-tight font-bold text-on-secondary-fixed tracking-tight">
-                            Defect Ingestion &amp; Inspection</h1>
-                        <p class="font-body-md text-text-placeholder text-[14px] sm:text-[15px] max-w-2xl">Upload or
-                            capture a surface photograph for genuine computer-vision inference. Standardized across
-                            municipal civil engineering and structural inspection standards.</p>
-                    </div>
-                    <div class="flex flex-wrap sm:flex-nowrap items-center gap-2.5 sm:gap-3 shrink-0 w-full sm:w-auto">
-                        <button
-                            class="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 h-10 px-4 rounded-full bg-white border border-slate-200 text-slate-700 font-label-md text-label-md hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
-                            type="button"><span
-                                class="material-symbols-outlined text-[18px] text-slate-500">tune</span><span>Filter
-                                &amp; Sort</span></button><button
-                            class="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 h-10 px-5 rounded-full bg-primary-container text-white font-label-md text-label-md hover:bg-blue-600 transition-all shadow-md shadow-blue-500/20"
-                            type="button"><span
-                                class="material-symbols-outlined text-[18px]">location_on</span><span>Defect
-                                Map</span></button>
-                    </div>
-                </header><!-- 2. Target Inspection Workflow & Model -->
-                <section aria-labelledby="workflow-heading" class="space-y-4">
-                    <div class="flex flex-col">
-                        <div class="flex items-center gap-2"><span
-                                class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-primary-container text-xs font-bold shrink-0">1</span>
-                            <h2 class="font-headline-md text-headline-md font-semibold text-on-secondary-fixed"
-                                id="workflow-heading">Target Inspection Workflow &amp; Model</h2>
-                        </div>
-                        <p class="font-body-sm text-body-sm text-text-placeholder ml-8">Select the tailored
-                            computer-vision pipeline suited to the target infrastructure topology.</p>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="workflow-selector">
-                        <!-- Card A — Road Surface Distress -->
-                        <div class="relative flex flex-col p-5 sm:p-6 rounded-2xl bg-white border-2 border-slate-200 hover:border-slate-300 cursor-pointer transition-all shadow-sm hover:shadow-md group"
-                            id="card-road" onclick="selectWorkflow('road')">
-                            <div class="flex items-start justify-between gap-3 sm:gap-4 mb-3 sm:mb-4">
-                                <div class="flex items-center gap-3 sm:gap-3.5">
-                                    <div
-                                        class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
-                                        <span
-                                            class="material-symbols-outlined text-[24px] sm:text-[26px]">add_road</span>
-                                    </div>
-                                    <div><span
-                                            class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-amber-100 text-amber-800 mb-1">ROAD
-                                            DISTRESS</span>
-                                        <h3
-                                            class="font-headline-md text-headline-md font-semibold text-slate-900 group-hover:text-primary-container transition-colors">
-                                            Road Surface Distress</h3>
-                                    </div>
-                                </div>
-                                <div class="w-6 h-6 rounded-full border-2 border-slate-300 flex items-center justify-center transition-colors shrink-0"
-                                    id="check-road"><span
-                                        class="material-symbols-outlined text-[16px] text-transparent">check</span>
-                                </div>
-                            </div>
-                            <p class="font-body-sm text-body-sm text-text-placeholder leading-relaxed mb-4">YOLOv8 Nano
-                                (RDD2022) — Automated identification of longitudinal, transverse, alligator cracks,
-                                rutting, and pothole subsidence on civil asphalt corridors.</p>
-                            <div
-                                class="mt-auto pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 font-caption text-caption text-text-muted">
-                                <span class="flex items-center gap-1.5"><span
-                                        class="material-symbols-outlined text-[14px]">speed</span> Latency:
-                                    ~140ms</span><span class="font-medium text-slate-600">Model: v8n-rdd-v2.1</span>
-                            </div>
-                        </div><!-- Card B — Home & Building Defect (Selected by default) -->
-                        <div class="relative flex flex-col p-5 sm:p-6 rounded-2xl bg-blue-50/50 border-2 border-primary-container cursor-pointer transition-all shadow-sm hover:shadow-md group"
-                            id="card-building" onclick="selectWorkflow('building')">
-                            <div class="flex items-start justify-between gap-3 sm:gap-4 mb-3 sm:mb-4">
-                                <div class="flex items-center gap-3 sm:gap-3.5">
-                                    <div
-                                        class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center shrink-0">
-                                        <span class="material-symbols-outlined text-[24px] sm:text-[26px]">domain</span>
-                                    </div>
-                                    <div><span
-                                            class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-indigo-100 text-indigo-800 mb-1">BUILDING
-                                            DEFECT</span>
-                                        <h3
-                                            class="font-headline-md text-headline-md font-semibold text-slate-900 group-hover:text-primary-container transition-colors">
-                                            Home &amp; Building Defect</h3>
-                                    </div>
-                                </div>
-                                <div class="w-6 h-6 rounded-full bg-primary-container text-white flex items-center justify-center ring-2 ring-blue-100 transition-colors shrink-0"
-                                    id="check-building"><span class="material-symbols-outlined text-[16px]">check</span>
-                                </div>
-                            </div>
-                            <p class="font-body-sm text-body-sm text-text-placeholder leading-relaxed mb-4">YOLOv8 Home
-                                Model — Specialized for structural diagnostics: wall fracture lines, sub-surface
-                                dampness, efflorescence, paint flaking, and concrete spalling.</p>
-                            <div
-                                class="mt-auto pt-3 border-t border-blue-100 flex flex-wrap items-center justify-between gap-2 font-caption text-caption text-text-muted">
-                                <span class="flex items-center gap-1.5"><span
-                                        class="material-symbols-outlined text-[14px]">speed</span> Latency:
-                                    ~180ms</span><span class="font-medium text-slate-600">Model:
-                                    v8h-structural-v4</span>
-                            </div>
-                        </div>
-                    </div>
-                </section><!-- 3. Defect Location & Geospatial Context -->
-                <section aria-labelledby="location-heading"
-                    class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 md:p-8 shadow-sm space-y-6">
-                    <div
-                        class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100">
-                        <div>
-                            <div class="flex items-center gap-2"><span
-                                    class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-primary-container text-xs font-bold shrink-0">2</span>
-                                <h2 class="font-headline-md text-headline-md font-semibold text-on-secondary-fixed"
-                                    id="location-heading">Defect Location &amp; Geospatial Context</h2>
-                            </div>
-                            <p class="font-body-sm text-body-sm text-text-placeholder ml-8 mt-0.5">Pinpoint the location
-                                where this structural defect was observed for spatial mapping &amp; field crew routing.
-                            </p>
-                        </div>
-                        <div class="flex flex-wrap items-center gap-2.5 sm:gap-3 ml-8 lg:ml-0"><span
-                                class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200"><span
-                                    class="material-symbols-outlined text-[14px] text-slate-500">lock</span>Confidential
-                                Civic Data</span><button
-                                class="inline-flex items-center gap-2 h-9 px-3.5 sm:px-4 rounded-full bg-slate-50 border border-slate-200 text-slate-700 font-label-md text-label-md hover:bg-slate-100 hover:border-slate-300 transition-colors shadow-xs"
-                                onclick="detectGPSLocation()" type="button"><span
-                                    class="material-symbols-outlined text-[16px] text-primary-container">my_location</span><span>Use
-                                    My Current Location</span></button></div>
-                    </div><!-- Form Grid -->
-                    <div class="space-y-4"><!-- Row 1: Building, Area, City -->
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                            <div class="space-y-1.5"><label
-                                    class="block font-label-sm text-label-sm font-semibold text-slate-700"
-                                    for="loc-building">Building / Room <span
-                                        class="text-text-placeholder font-normal">(Optional)</span></label><input
-                                    class="w-full h-11 px-3.5 rounded-xl bg-white border border-slate-300 text-slate-900 font-body-sm placeholder-slate-400 focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-blue-100 transition-all shadow-xs"
-                                    id="loc-building" placeholder="Block B, Apt 302" type="text" /></div>
-                            <div class="space-y-1.5"><label
-                                    class="block font-label-sm text-label-sm font-semibold text-slate-700"
-                                    for="loc-area">Floor / Wing / Area <span
-                                        class="text-text-placeholder font-normal">(Optional)</span></label><input
-                                    class="w-full h-11 px-3.5 rounded-xl bg-white border border-slate-300 text-slate-900 font-body-sm placeholder-slate-400 focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-blue-100 transition-all shadow-xs"
-                                    id="loc-area" placeholder="Exterior facade, 3rd floor slab" type="text" /></div>
-                            <div class="space-y-1.5 sm:col-span-2 lg:col-span-1"><label
-                                    class="block font-label-sm text-label-sm font-semibold text-slate-700"
-                                    for="loc-city">City / Region <span
-                                        class="text-primary-container">*</span></label><input
-                                    class="w-full h-11 px-3.5 rounded-xl bg-white border border-slate-300 text-slate-900 font-body-sm placeholder-slate-400 focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-blue-100 transition-all shadow-xs"
-                                    id="loc-city" placeholder="Mumbai" type="text" value="Mumbai" /></div>
-                        </div><!-- Row 2: Latitude & Longitude -->
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div class="space-y-1.5"><label
-                                    class="block font-label-sm text-label-sm font-semibold text-slate-700"
-                                    for="loc-lat">Latitude (GPS — Optional)</label>
-                                <div class="relative"><span
-                                        class="material-symbols-outlined absolute left-3.5 top-3 text-[16px] text-slate-400">explore</span><input
-                                        class="w-full h-11 pl-10 pr-3.5 rounded-xl bg-white border border-slate-300 text-slate-900 font-body-sm placeholder-slate-400 focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-blue-100 transition-all shadow-xs"
-                                        id="loc-lat" placeholder="e.g. 19.0760" type="text" /></div>
-                            </div>
-                            <div class="space-y-1.5"><label
-                                    class="block font-label-sm text-label-sm font-semibold text-slate-700"
-                                    for="loc-lng">Longitude (GPS — Optional)</label>
-                                <div class="relative"><span
-                                        class="material-symbols-outlined absolute left-3.5 top-3 text-[16px] text-slate-400">explore</span><input
-                                        class="w-full h-11 pl-10 pr-3.5 rounded-xl bg-white border border-slate-300 text-slate-900 font-body-sm placeholder-slate-400 focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-blue-100 transition-all shadow-xs"
-                                        id="loc-lng" placeholder="e.g. 72.8777" type="text" /></div>
-                            </div>
-                        </div><!-- Row 3: Landmarks / Specific Notes -->
-                        <div class="space-y-1.5"><label
-                                class="block font-label-sm text-label-sm font-semibold text-slate-700"
-                                for="loc-notes">Location Notes / Specific Landmarks</label><textarea
-                                class="w-full py-2.5 px-3.5 rounded-xl bg-white border border-slate-300 text-slate-900 font-body-sm placeholder-slate-400 focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-blue-100 transition-all shadow-xs resize-none"
-                                id="loc-notes"
-                                placeholder="Opposite pillar 42, north-facing elevation, directly beneath perimeter rainwater gutter..."
-                                rows="2"></textarea></div>
-                    </div><!-- Location Status Footer Bar -->
-                    <div
-                        class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200">
-                        <div class="flex items-start sm:items-center gap-3">
-                            <div
-                                class="w-8 h-8 rounded-full bg-blue-100 text-primary-container flex items-center justify-center shrink-0">
-                                <span class="material-symbols-outlined text-[18px]">pin_drop</span>
-                            </div>
-                            <div class="flex flex-col"><span
-                                    class="font-label-md text-label-md font-semibold text-slate-800"
-                                    id="loc-status-text">Selected Location: Municipal Zone 4 — Western Suburban
-                                    Ward</span><span class="font-caption text-caption text-text-placeholder"
-                                    id="loc-status-sub">Geocoded via City / Region: Mumbai. Precise coordinate tagging
-                                    pending confirmation.</span></div>
-                        </div><button
-                            class="w-full sm:w-auto h-9 px-4 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 font-label-md text-label-md transition-colors shadow-xs shrink-0 self-stretch sm:self-auto"
-                            onclick="confirmLocation()" type="button">Confirm Location</button>
-                    </div>
-                </section><!-- 4. Image Capture / Upload -->
-                <section aria-labelledby="upload-heading"
-                    class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 md:p-8 shadow-sm space-y-5">
-                    <div
-                        class="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 pb-2 border-b border-slate-100">
-                        <div>
-                            <div class="flex items-center gap-2"><span
-                                    class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-primary-container text-xs font-bold shrink-0">3</span>
-                                <h2 class="font-headline-md text-headline-md font-semibold text-on-secondary-fixed"
-                                    id="upload-heading">Image Capture / Upload</h2>
-                            </div>
-                            <p class="font-body-sm text-body-sm text-text-placeholder ml-8 mt-0.5">Provide a clean,
-                                well-lit surface photograph perpendicular to the distress surface.</p>
-                        </div><span
-                            class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0"><span
-                                class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>Ready for
-                            Ingestion</span>
-                    </div><!-- Upload Container -->
-                    <div class="relative group rounded-2xl border-2 border-dashed border-slate-300 hover:border-primary-container bg-slate-50/60 hover:bg-blue-50/20 p-6 sm:p-10 md:p-12 text-center transition-all cursor-pointer flex flex-col items-center justify-center"
-                        id="dropzone"><input accept="image/*" class="sr-only" id="file-input"
-                            onchange="handleFileSelected(event)" type="file" /><!-- Interactive Empty State -->
-                        <div class="flex flex-col items-center w-full" id="upload-prompt">
-                            <div
-                                class="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-blue-100 text-primary-container flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-105 transition-transform shadow-sm shrink-0">
-                                <span class="material-symbols-outlined text-[28px] sm:text-[32px]">cloud_upload</span>
-                            </div>
-                            <p class="font-headline-md text-slate-800 font-semibold mb-1 text-base sm:text-lg">Drag
-                                &amp; Drop Home or Building Image Here</p>
-                            <p class="font-body-sm text-body-sm text-text-placeholder max-w-md mb-5 sm:mb-6">Choose an
-                                existing photograph or capture a new one from your handheld device camera.</p>
-                            <div
-                                class="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 w-full sm:w-auto">
-                                <button
-                                    class="w-full sm:w-auto inline-flex items-center justify-center gap-2 h-10 px-5 rounded-full bg-primary-container text-white font-label-md text-label-md hover:bg-blue-600 transition-colors shadow-sm"
-                                    onclick="document.getElementById('file-input').click()" type="button"><span
-                                        class="material-symbols-outlined text-[18px]">folder_open</span><span>Browse
-                                        Files</span></button><button
-                                    class="w-full sm:w-auto inline-flex items-center justify-center gap-2 h-10 px-5 rounded-full bg-white border border-slate-300 text-slate-700 font-label-md text-label-md hover:bg-slate-100 transition-colors shadow-xs"
-                                    onclick="simulateCameraCapture()" type="button"><span
-                                        class="material-symbols-outlined text-[18px] text-slate-500">photo_camera</span><span>Capture
-                                        Photo</span></button>
-                            </div>
-                            <div
-                                class="mt-5 sm:mt-6 flex flex-wrap items-center justify-center gap-2 text-slate-400 font-caption text-caption">
-                                <span class="material-symbols-outlined text-[14px]">info</span><span>JPG, PNG, WEBP •
-                                    Max file size: 15 MB</span>
-                            </div>
-                        </div><!-- Simulated Active Upload Preview State (Hidden by default) -->
-                        <div class="hidden w-full max-w-xl flex-col items-center" id="upload-preview">
-                            <div
-                                class="relative w-full h-56 sm:h-64 rounded-xl overflow-hidden shadow-md bg-slate-900 border border-slate-200">
-                                <img class="w-full h-full object-cover"
-                                    data-alt="Close-up inspection photograph of concrete masonry wall showing extensive structural vertical hairline cracking, surface spalling, and moisture efflorescence under natural diffused daylight for engineering audit."
-                                    id="preview-image"
-                                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuAWioj3BL-2c3SiWe8kivfmZ3F2hcNxslgOJ1WgQMDS2A6qxbcWQSGJmTQNkmVKYx6ZI-ANF6VGXc2wtKp-Y5rQ0el35RLAEugkmorDlw9mXi057sW2FeckaLl0O_gd4xE0xq5ttocnbclWmcdIk34SXqSaSE3GtpH3IWW3_Lt4nZGlf8Sa2JBW0vGK-DhvkMLtRsJ7CVAcZYP1QZBzIKYuZcq7HDprPDFf5fL4HkG4" />
-                                <div
-                                    class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent">
-                                </div>
-                                <div
-                                    class="absolute bottom-3 left-4 right-4 flex flex-wrap items-center justify-between gap-1 text-white font-caption text-caption">
-                                    <span class="flex items-center gap-1.5"><span
-                                            class="w-2 h-2 rounded-full bg-emerald-400"></span>
-                                        IMG_CIVIL_2025_042.jpg</span><span>3.2 MB • 4032 × 3024</span>
-                                </div>
-                            </div>
-                            <div class="mt-4 flex flex-wrap items-center justify-center gap-3"><button
-                                    class="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-white border border-slate-300 text-slate-700 font-label-sm text-label-sm hover:bg-slate-50"
-                                    onclick="document.getElementById('file-input').click()" type="button"><span
-                                        class="material-symbols-outlined text-[14px]">autorenew</span> Replace
-                                    Image</button><button
-                                    class="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-rose-50 text-rose-700 border border-rose-200 font-label-sm text-label-sm hover:bg-rose-100"
-                                    onclick="clearUploadedFile()" type="button"><span
-                                        class="material-symbols-outlined text-[14px]">delete</span> Remove</button>
-                            </div>
-                        </div>
-                    </div>
-                </section><!-- 5. Inference Configuration & Controls -->
-                <section aria-labelledby="inference-heading"
-                    class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 md:p-8 shadow-sm space-y-6">
-                    <div class="flex items-center gap-2 pb-4 border-b border-slate-100"><span
-                            class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-primary-container text-xs font-bold shrink-0">4</span>
-                        <div>
-                            <h2 class="font-headline-md text-headline-md font-semibold text-on-secondary-fixed"
-                                id="inference-heading">Inference Configuration &amp; Controls</h2>
-                            <p class="font-body-sm text-body-sm text-text-placeholder">Municipal engineering confidence
-                                parameters and inference resolution settings.</p>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <!-- Subsection A: Detection Confidence Threshold (Strictly Locked) -->
-                        <div
-                            class="p-4 sm:p-5 rounded-xl bg-slate-50/70 border border-slate-200 flex flex-col justify-between space-y-4">
-                            <div>
-                                <div class="flex items-center justify-between gap-2 mb-2"><span
-                                        class="font-headline-md text-slate-900 font-semibold text-sm">Detection
-                                        Confidence Threshold</span><span
-                                        class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-200/80 text-slate-700 shrink-0"><span
-                                            class="material-symbols-outlined text-[12px]">lock</span> Locked</span>
-                                </div>
-                                <p class="font-body-sm text-body-sm text-text-placeholder leading-relaxed mb-4">Minimum
-                                    statistical probability required to register a distress bounding box on the target
-                                    concrete matrix.</p>
-                                <div class="space-y-2">
-                                    <div class="flex items-center justify-between text-xs font-semibold text-slate-700">
-                                        <span>Confidence Floor</span><span
-                                            class="font-mono text-primary-container bg-blue-50 px-2 py-0.5 rounded border border-blue-200">Threshold:
-                                            0.25</span>
-                                    </div><!-- Simulated Locked Slider -->
-                                    <div
-                                        class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden relative opacity-70 cursor-not-allowed">
-                                        <div class="bg-primary-container h-full rounded-full" style="width: 25%"></div>
-                                    </div>
-                                    <div class="flex justify-between text-[11px] text-slate-400"><span>0.00
-                                            (Loose)</span><span>0.25 (Standard)</span><span>1.00 (Rigid)</span></div>
-                                </div>
-                            </div>
-                            <div
-                                class="p-3 rounded-lg bg-white border border-slate-200 flex items-start sm:items-center gap-2 text-xs text-slate-600">
-                                <span
-                                    class="material-symbols-outlined text-[16px] text-slate-400 shrink-0 mt-0.5 sm:mt-0">lock_clock</span><span>🔒
-                                    This setting is locked to ASTM D6433 municipal audit compliance and cannot be
-                                    altered.</span>
-                            </div>
-                        </div><!-- Subsection B: Inspection Mode -->
-                        <div
-                            class="p-4 sm:p-5 rounded-xl bg-slate-50/70 border border-slate-200 flex flex-col justify-between space-y-4">
-                            <div>
-                                <div class="flex items-center justify-between gap-2 mb-2"><span
-                                        class="font-headline-md text-slate-900 font-semibold text-sm">Inspection
-                                        Mode</span><span
-                                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200 shrink-0">Standard
-                                        Profile Active</span></div>
-                                <p class="font-body-sm text-body-sm text-text-placeholder leading-relaxed mb-4">Choose
-                                    compute partition strategy for ultra-high-resolution structural orthomosaics.</p>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="mode-selector">
-                                    <!-- Mode 1: Standard (Selected) -->
-                                    <div class="p-3.5 rounded-xl bg-white border-2 border-primary-container cursor-pointer transition-all hover:shadow-xs flex flex-col justify-between"
-                                        id="mode-standard" onclick="selectInspectionMode('standard')">
-                                        <div class="flex items-center justify-between mb-2">
-                                            <div
-                                                class="w-8 h-8 rounded-lg bg-blue-50 text-primary-container flex items-center justify-center shrink-0">
-                                                <span class="material-symbols-outlined text-[18px]">bolt</span>
-                                            </div>
-                                            <span
-                                                class="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded shrink-0"
-                                                id="badge-standard"><span
-                                                    class="material-symbols-outlined text-[11px]">lock</span>
-                                                Locked</span>
-                                        </div>
-                                        <h4 class="font-label-md text-label-md font-semibold text-slate-900 mb-1">
-                                            Standard (Fast)</h4>
-                                        <p class="font-caption text-caption text-text-placeholder leading-normal">Fast
-                                            inspection using the standard single-pass scanning workflow.</p>
-                                    </div><!-- Mode 2: Tiled Slicing -->
-                                    <div class="p-3.5 rounded-xl bg-white border border-slate-200 opacity-80 cursor-pointer hover:border-slate-300 transition-all hover:shadow-xs flex flex-col justify-between"
-                                        id="mode-tiled" onclick="selectInspectionMode('tiled')">
-                                        <div class="flex items-center justify-between mb-2">
-                                            <div
-                                                class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
-                                                <span class="material-symbols-outlined text-[18px]">biotech</span>
-                                            </div>
-                                            <span
-                                                class="hidden inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded shrink-0"
-                                                id="badge-tiled"><span
-                                                    class="material-symbols-outlined text-[11px]">lock</span>
-                                                Locked</span>
-                                        </div>
-                                        <h4 class="font-label-md text-label-md font-semibold text-slate-900 mb-1">Tiled
-                                            Slicing</h4>
-                                        <p class="font-caption text-caption text-text-placeholder leading-normal">
-                                            Detailed tiled sub-window inspection for deep crack coverage.</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="flex flex-wrap items-center justify-between gap-2 pt-2 text-xs text-text-muted">
-                                <span class="flex items-center gap-1"><span
-                                        class="material-symbols-outlined text-[14px] text-emerald-600">verified</span>SAHI
-                                    Pipeline Enabled</span><span>Batch Size: 1</span>
-                            </div>
-                        </div>
-                    </div>
-                </section><!-- 6. Primary CTA & Compliance Footer Assurance -->
-                <section class="flex flex-col items-center justify-center pt-2 pb-12 space-y-4 px-2"><button
-                        class="w-full sm:w-auto sm:min-w-[340px] md:min-w-[420px] h-12 sm:h-13 py-3 px-6 sm:px-8 rounded-full bg-primary-container hover:bg-blue-600 text-white font-label-md text-base font-semibold shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-3 group active:scale-[0.99]"
-                        id="btn-run-inspection" onclick="triggerInspection()" type="button"><span
-                            class="material-symbols-outlined text-[22px] group-hover:rotate-12 transition-transform">auto_awesome</span><span
-                            id="cta-label">Run Defect Inspection</span><span
-                            class="material-symbols-outlined text-[20px] group-hover:translate-x-1 transition-transform">arrow_forward</span></button>
-                    <div
-                        class="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-2 sm:gap-4 text-center font-caption text-caption text-slate-500 max-w-xl">
-                        <span class="inline-flex items-center gap-1.5"><span
-                                class="material-symbols-outlined text-[14px] text-emerald-600 shrink-0">security</span>Certified
-                            ASTM D6433 &amp; YOLOv8 Municipal Audit Engine</span><span
-                            class="hidden sm:inline">•</span><span class="inline-flex items-center gap-1"><span
-                                class="material-symbols-outlined text-[14px] text-slate-400 shrink-0">lock</span>Data
-                            encrypted in transit (TLS 1.3 256-bit)</span>
-                    </div>
-                </section>
+      <div class="flex flex-col w-full">
+        <div
+          class="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-8 font-body-md text-on-secondary-fixed"
+        >
+          <!-- 1. Breadcrumb & Page Introduction -->
+          <header
+            class="flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-6 pb-2 border-b border-slate-200"
+          >
+            <div class="space-y-2">
+              <nav
+                aria-label="Breadcrumb"
+                class="flex flex-wrap items-center gap-1.5 sm:gap-2 font-caption text-caption uppercase text-text-placeholder tracking-wider"
+              >
+                <a
+                  class="hover:text-primary-container transition-colors"
+                  href="#"
+                  >Home</a
+                ><span class="text-slate-300">/</span
+                ><span class="text-slate-500 font-semibold"
+                  >Inspection &amp; Defect Ingestion</span
+                >
+              </nav>
+              <h1
+                class="font-headline-lg text-[24px] sm:text-[28px] leading-tight font-bold text-on-secondary-fixed tracking-tight"
+              >
+                Defect Ingestion &amp; Inspection
+              </h1>
+              <p
+                class="font-body-md text-text-placeholder text-[14px] sm:text-[15px] max-w-2xl"
+              >
+                Upload or capture a surface photograph for genuine
+                computer-vision inference. Standardized across municipal civil
+                engineering and structural inspection standards.
+              </p>
             </div>
+            <div
+              class="flex flex-wrap sm:flex-nowrap items-center gap-2.5 sm:gap-3 shrink-0 w-full sm:w-auto"
+            >
+              <button
+                class="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 h-10 px-4 rounded-full bg-white border border-slate-200 text-slate-700 font-label-md text-label-md hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
+                type="button"
+              >
+                <span
+                  class="material-symbols-outlined text-[18px] text-slate-500"
+                  >tune</span
+                ><span>Filter &amp; Sort</span></button
+              ><button
+                class="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 h-10 px-5 rounded-full bg-primary-container text-white font-label-md text-label-md hover:bg-blue-600 transition-all shadow-md shadow-blue-500/20"
+                type="button"
+              >
+                <span class="material-symbols-outlined text-[18px]"
+                  >location_on</span
+                ><span>Defect Map</span>
+              </button>
+            </div>
+          </header>
+          <!-- 2. Target Inspection Workflow & Model -->
+          <section aria-labelledby="workflow-heading" class="space-y-4">
+            <div class="flex flex-col">
+              <div class="flex items-center gap-2">
+                <span
+                  class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-primary-container text-xs font-bold shrink-0"
+                  >1</span
+                >
+                <h2
+                  class="font-headline-md text-headline-md font-semibold text-on-secondary-fixed"
+                  id="workflow-heading"
+                >
+                  Target Inspection Workflow &amp; Model
+                </h2>
+              </div>
+              <p class="font-body-sm text-body-sm text-text-placeholder ml-8">
+                Select the tailored computer-vision pipeline suited to the
+                target infrastructure topology.
+              </p>
+            </div>
+            <div
+              class="grid grid-cols-1 md:grid-cols-2 gap-4"
+              id="workflow-selector"
+            >
+              <!-- Card A — Road Surface Distress -->
+              <div
+                class="relative flex flex-col p-5 sm:p-6 rounded-2xl bg-white border-2 border-slate-200 hover:border-slate-300 cursor-pointer transition-all shadow-sm hover:shadow-md group"
+                id="card-road"
+                onclick="selectWorkflow('road')"
+              >
+                <div
+                  class="flex items-start justify-between gap-3 sm:gap-4 mb-3 sm:mb-4"
+                >
+                  <div class="flex items-center gap-3 sm:gap-3.5">
+                    <div
+                      class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0"
+                    >
+                      <span
+                        class="material-symbols-outlined text-[24px] sm:text-[26px]"
+                        >add_road</span
+                      >
+                    </div>
+                    <div>
+                      <span
+                        class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-amber-100 text-amber-800 mb-1"
+                        >ROAD DISTRESS</span
+                      >
+                      <h3
+                        class="font-headline-md text-headline-md font-semibold text-slate-900 group-hover:text-primary-container transition-colors"
+                      >
+                        Road Surface Distress
+                      </h3>
+                    </div>
+                  </div>
+                  <div
+                    class="w-6 h-6 rounded-full border-2 border-slate-300 flex items-center justify-center transition-colors shrink-0"
+                    id="check-road"
+                  >
+                    <span
+                      class="material-symbols-outlined text-[16px] text-transparent"
+                      >check</span
+                    >
+                  </div>
+                </div>
+                <p
+                  class="font-body-sm text-body-sm text-text-placeholder leading-relaxed mb-4"
+                >
+                  YOLOv8 Nano (RDD2022) — Automated identification of
+                  longitudinal, transverse, alligator cracks, rutting, and
+                  pothole subsidence on civil asphalt corridors.
+                </p>
+                <div
+                  class="mt-auto pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 font-caption text-caption text-text-muted"
+                >
+                  <span class="flex items-center gap-1.5"
+                    ><span class="material-symbols-outlined text-[14px]"
+                      >speed</span
+                    >
+                    Latency: ~140ms</span
+                  ><span class="font-medium text-slate-600"
+                    >Model: v8n-rdd-v2.1</span
+                  >
+                </div>
+              </div>
+              <!-- Card B — Home & Building Defect (Selected by default) -->
+              <div
+                class="relative flex flex-col p-5 sm:p-6 rounded-2xl bg-blue-50/50 border-2 border-primary-container cursor-pointer transition-all shadow-sm hover:shadow-md group"
+                id="card-building"
+                onclick="selectWorkflow('building')"
+              >
+                <div
+                  class="flex items-start justify-between gap-3 sm:gap-4 mb-3 sm:mb-4"
+                >
+                  <div class="flex items-center gap-3 sm:gap-3.5">
+                    <div
+                      class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center shrink-0"
+                    >
+                      <span
+                        class="material-symbols-outlined text-[24px] sm:text-[26px]"
+                        >domain</span
+                      >
+                    </div>
+                    <div>
+                      <span
+                        class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-indigo-100 text-indigo-800 mb-1"
+                        >BUILDING DEFECT</span
+                      >
+                      <h3
+                        class="font-headline-md text-headline-md font-semibold text-slate-900 group-hover:text-primary-container transition-colors"
+                      >
+                        Home &amp; Building Defect
+                      </h3>
+                    </div>
+                  </div>
+                  <div
+                    class="w-6 h-6 rounded-full bg-primary-container text-white flex items-center justify-center ring-2 ring-blue-100 transition-colors shrink-0"
+                    id="check-building"
+                  >
+                    <span class="material-symbols-outlined text-[16px]"
+                      >check</span
+                    >
+                  </div>
+                </div>
+                <p
+                  class="font-body-sm text-body-sm text-text-placeholder leading-relaxed mb-4"
+                >
+                  YOLOv8 Home Model — Specialized for structural diagnostics:
+                  wall fracture lines, sub-surface dampness, efflorescence,
+                  paint flaking, and concrete spalling.
+                </p>
+                <div
+                  class="mt-auto pt-3 border-t border-blue-100 flex flex-wrap items-center justify-between gap-2 font-caption text-caption text-text-muted"
+                >
+                  <span class="flex items-center gap-1.5"
+                    ><span class="material-symbols-outlined text-[14px]"
+                      >speed</span
+                    >
+                    Latency: ~180ms</span
+                  ><span class="font-medium text-slate-600"
+                    >Model: v8h-structural-v4</span
+                  >
+                </div>
+              </div>
+            </div>
+          </section>
+          <!-- 3. Defect Location & Geospatial Context -->
+          <section
+            aria-labelledby="location-heading"
+            class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 md:p-8 shadow-sm space-y-6"
+          >
+            <div
+              class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100"
+            >
+              <div>
+                <div class="flex items-center gap-2">
+                  <span
+                    class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-primary-container text-xs font-bold shrink-0"
+                    >2</span
+                  >
+                  <h2
+                    class="font-headline-md text-headline-md font-semibold text-on-secondary-fixed"
+                    id="location-heading"
+                  >
+                    Defect Location &amp; Geospatial Context
+                  </h2>
+                </div>
+                <p
+                  class="font-body-sm text-body-sm text-text-placeholder ml-8 mt-0.5"
+                >
+                  Pinpoint the location where this structural defect was
+                  observed for spatial mapping &amp; field crew routing.
+                </p>
+              </div>
+              <div
+                class="flex flex-wrap items-center gap-2.5 sm:gap-3 ml-8 lg:ml-0"
+              >
+                <span
+                  class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200"
+                  ><span
+                    class="material-symbols-outlined text-[14px] text-slate-500"
+                    >lock</span
+                  >Confidential Civic Data</span
+                ><button
+                  class="inline-flex items-center gap-2 h-9 px-3.5 sm:px-4 rounded-full bg-slate-50 border border-slate-200 text-slate-700 font-label-md text-label-md hover:bg-slate-100 hover:border-slate-300 transition-colors shadow-xs"
+                  onclick="detectGPSLocation()"
+                  type="button"
+                >
+                  <span
+                    class="material-symbols-outlined text-[16px] text-primary-container"
+                    >my_location</span
+                  ><span>Use My Current Location</span>
+                </button>
+              </div>
+            </div>
+            <!-- Form Grid -->
+            <div class="space-y-4">
+              <!-- Row 1: Building, Area, City -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="space-y-1.5">
+                  <label
+                    class="block font-label-sm text-label-sm font-semibold text-slate-700"
+                    for="loc-building"
+                    >Building / Room
+                    <span class="text-text-placeholder font-normal"
+                      >(Optional)</span
+                    ></label
+                  ><input
+                    class="w-full h-11 px-3.5 rounded-xl bg-white border border-slate-300 text-slate-900 font-body-sm placeholder-slate-400 focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-blue-100 transition-all shadow-xs"
+                    id="loc-building"
+                    placeholder="Block B, Apt 302"
+                    type="text"
+                  />
+                </div>
+                <div class="space-y-1.5">
+                  <label
+                    class="block font-label-sm text-label-sm font-semibold text-slate-700"
+                    for="loc-area"
+                    >Floor / Wing / Area
+                    <span class="text-text-placeholder font-normal"
+                      >(Optional)</span
+                    ></label
+                  ><input
+                    class="w-full h-11 px-3.5 rounded-xl bg-white border border-slate-300 text-slate-900 font-body-sm placeholder-slate-400 focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-blue-100 transition-all shadow-xs"
+                    id="loc-area"
+                    placeholder="Exterior facade, 3rd floor slab"
+                    type="text"
+                  />
+                </div>
+                <div class="space-y-1.5 sm:col-span-2 lg:col-span-1">
+                  <label
+                    class="block font-label-sm text-label-sm font-semibold text-slate-700"
+                    for="loc-city"
+                    >City / Region
+                    <span class="text-primary-container">*</span></label
+                  ><input
+                    class="w-full h-11 px-3.5 rounded-xl bg-white border border-slate-300 text-slate-900 font-body-sm placeholder-slate-400 focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-blue-100 transition-all shadow-xs"
+                    id="loc-city"
+                    placeholder="Mumbai"
+                    type="text"
+                    value="Mumbai"
+                  />
+                </div>
+              </div>
+              <!-- Row 2: Latitude & Longitude -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="space-y-1.5">
+                  <label
+                    class="block font-label-sm text-label-sm font-semibold text-slate-700"
+                    for="loc-lat"
+                    >Latitude (GPS — Optional)</label
+                  >
+                  <div class="relative">
+                    <span
+                      class="material-symbols-outlined absolute left-3.5 top-3 text-[16px] text-slate-400"
+                      >explore</span
+                    ><input
+                      class="w-full h-11 pl-10 pr-3.5 rounded-xl bg-white border border-slate-300 text-slate-900 font-body-sm placeholder-slate-400 focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-blue-100 transition-all shadow-xs"
+                      id="loc-lat"
+                      placeholder="e.g. 19.0760"
+                      type="text"
+                    />
+                  </div>
+                </div>
+                <div class="space-y-1.5">
+                  <label
+                    class="block font-label-sm text-label-sm font-semibold text-slate-700"
+                    for="loc-lng"
+                    >Longitude (GPS — Optional)</label
+                  >
+                  <div class="relative">
+                    <span
+                      class="material-symbols-outlined absolute left-3.5 top-3 text-[16px] text-slate-400"
+                      >explore</span
+                    ><input
+                      class="w-full h-11 pl-10 pr-3.5 rounded-xl bg-white border border-slate-300 text-slate-900 font-body-sm placeholder-slate-400 focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-blue-100 transition-all shadow-xs"
+                      id="loc-lng"
+                      placeholder="e.g. 72.8777"
+                      type="text"
+                    />
+                  </div>
+                </div>
+              </div>
+              <!-- Row 3: Landmarks / Specific Notes -->
+              <div class="space-y-1.5">
+                <label
+                  class="block font-label-sm text-label-sm font-semibold text-slate-700"
+                  for="loc-notes"
+                  >Location Notes / Specific Landmarks</label
+                ><textarea
+                  class="w-full py-2.5 px-3.5 rounded-xl bg-white border border-slate-300 text-slate-900 font-body-sm placeholder-slate-400 focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-blue-100 transition-all shadow-xs resize-none"
+                  id="loc-notes"
+                  placeholder="Opposite pillar 42, north-facing elevation, directly beneath perimeter rainwater gutter..."
+                  rows="2"
+                ></textarea>
+              </div>
+            </div>
+            <!-- Location Status Footer Bar -->
+            <div
+              class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200"
+            >
+              <div class="flex items-start sm:items-center gap-3">
+                <div
+                  class="w-8 h-8 rounded-full bg-blue-100 text-primary-container flex items-center justify-center shrink-0"
+                >
+                  <span class="material-symbols-outlined text-[18px]"
+                    >pin_drop</span
+                  >
+                </div>
+                <div class="flex flex-col">
+                  <span
+                    class="font-label-md text-label-md font-semibold text-slate-800"
+                    id="loc-status-text"
+                    >Selected Location: Municipal Zone 4 — Western Suburban
+                    Ward</span
+                  ><span
+                    class="font-caption text-caption text-text-placeholder"
+                    id="loc-status-sub"
+                    >Geocoded via City / Region: Mumbai. Precise coordinate
+                    tagging pending confirmation.</span
+                  >
+                </div>
+              </div>
+              <button
+                class="w-full sm:w-auto h-9 px-4 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 font-label-md text-label-md transition-colors shadow-xs shrink-0 self-stretch sm:self-auto"
+                onclick="confirmLocation()"
+                type="button"
+              >
+                Confirm Location
+              </button>
+            </div>
+          </section>
+          <!-- 4. Image Capture / Upload -->
+          <section
+            aria-labelledby="upload-heading"
+            class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 md:p-8 shadow-sm space-y-5"
+          >
+            <div
+              class="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 pb-2 border-b border-slate-100"
+            >
+              <div>
+                <div class="flex items-center gap-2">
+                  <span
+                    class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-primary-container text-xs font-bold shrink-0"
+                    >3</span
+                  >
+                  <h2
+                    class="font-headline-md text-headline-md font-semibold text-on-secondary-fixed"
+                    id="upload-heading"
+                  >
+                    Image Capture / Upload
+                  </h2>
+                </div>
+                <p
+                  class="font-body-sm text-body-sm text-text-placeholder ml-8 mt-0.5"
+                >
+                  Provide a clean, well-lit surface photograph perpendicular to
+                  the distress surface.
+                </p>
+              </div>
+              <span
+                class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0"
+                ><span
+                  class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"
+                ></span
+                >Ready for Ingestion</span
+              >
+            </div>
+            <!-- Upload Container -->
+            <div
+              class="relative group rounded-2xl border-2 border-dashed border-slate-300 hover:border-primary-container bg-slate-50/60 hover:bg-blue-50/20 p-6 sm:p-10 md:p-12 text-center transition-all cursor-pointer flex flex-col items-center justify-center"
+              id="dropzone"
+            >
+              <input
+                accept="image/*"
+                class="sr-only"
+                id="file-input"
+                onchange="handleFileSelected(event)"
+                type="file"
+              /><!-- Interactive Empty State -->
+              <div class="flex flex-col items-center w-full" id="upload-prompt">
+                <div
+                  class="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-blue-100 text-primary-container flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-105 transition-transform shadow-sm shrink-0"
+                >
+                  <span
+                    class="material-symbols-outlined text-[28px] sm:text-[32px]"
+                    >cloud_upload</span
+                  >
+                </div>
+                <p
+                  class="font-headline-md text-slate-800 font-semibold mb-1 text-base sm:text-lg"
+                >
+                  Drag &amp; Drop Home or Building Image Here
+                </p>
+                <p
+                  class="font-body-sm text-body-sm text-text-placeholder max-w-md mb-5 sm:mb-6"
+                >
+                  Choose an existing photograph or capture a new one from your
+                  handheld device camera.
+                </p>
+                <div
+                  class="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 w-full sm:w-auto"
+                >
+                  <button
+                    class="w-full sm:w-auto inline-flex items-center justify-center gap-2 h-10 px-5 rounded-full bg-primary-container text-white font-label-md text-label-md hover:bg-blue-600 transition-colors shadow-sm"
+                    onclick="document.getElementById('file-input').click()"
+                    type="button"
+                  >
+                    <span class="material-symbols-outlined text-[18px]"
+                      >folder_open</span
+                    ><span>Browse Files</span></button
+                  ><button
+                    class="w-full sm:w-auto inline-flex items-center justify-center gap-2 h-10 px-5 rounded-full bg-white border border-slate-300 text-slate-700 font-label-md text-label-md hover:bg-slate-100 transition-colors shadow-xs"
+                    onclick="simulateCameraCapture()"
+                    type="button"
+                  >
+                    <span
+                      class="material-symbols-outlined text-[18px] text-slate-500"
+                      >photo_camera</span
+                    ><span>Capture Photo</span>
+                  </button>
+                </div>
+                <div
+                  class="mt-5 sm:mt-6 flex flex-wrap items-center justify-center gap-2 text-slate-400 font-caption text-caption"
+                >
+                  <span class="material-symbols-outlined text-[14px]">info</span
+                  ><span>JPG, PNG, WEBP • Max file size: 15 MB</span>
+                </div>
+              </div>
+              <!-- Simulated Active Upload Preview State (Hidden by default) -->
+              <div
+                class="hidden w-full max-w-xl flex-col items-center"
+                id="upload-preview"
+              >
+                <div
+                  class="relative w-full h-56 sm:h-64 rounded-xl overflow-hidden shadow-md bg-slate-900 border border-slate-200"
+                >
+                  <img
+                    class="w-full h-full object-cover"
+                    data-alt="Close-up inspection photograph of concrete masonry wall showing extensive structural vertical hairline cracking, surface spalling, and moisture efflorescence under natural diffused daylight for engineering audit."
+                    id="preview-image"
+                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuAWioj3BL-2c3SiWe8kivfmZ3F2hcNxslgOJ1WgQMDS2A6qxbcWQSGJmTQNkmVKYx6ZI-ANF6VGXc2wtKp-Y5rQ0el35RLAEugkmorDlw9mXi057sW2FeckaLl0O_gd4xE0xq5ttocnbclWmcdIk34SXqSaSE3GtpH3IWW3_Lt4nZGlf8Sa2JBW0vGK-DhvkMLtRsJ7CVAcZYP1QZBzIKYuZcq7HDprPDFf5fL4HkG4"
+                  />
+                  <div
+                    class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"
+                  ></div>
+                  <div
+                    class="absolute bottom-3 left-4 right-4 flex flex-wrap items-center justify-between gap-1 text-white font-caption text-caption"
+                  >
+                    <span class="flex items-center gap-1.5"
+                      ><span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                      IMG_CIVIL_2025_042.jpg</span
+                    ><span>3.2 MB • 4032 × 3024</span>
+                  </div>
+                </div>
+                <div
+                  class="mt-4 flex flex-wrap items-center justify-center gap-3"
+                >
+                  <button
+                    class="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-white border border-slate-300 text-slate-700 font-label-sm text-label-sm hover:bg-slate-50"
+                    onclick="document.getElementById('file-input').click()"
+                    type="button"
+                  >
+                    <span class="material-symbols-outlined text-[14px]"
+                      >autorenew</span
+                    >
+                    Replace Image</button
+                  ><button
+                    class="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-rose-50 text-rose-700 border border-rose-200 font-label-sm text-label-sm hover:bg-rose-100"
+                    onclick="clearUploadedFile()"
+                    type="button"
+                  >
+                    <span class="material-symbols-outlined text-[14px]"
+                      >delete</span
+                    >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+          <!-- 5. Inference Configuration & Controls -->
+          <section
+            aria-labelledby="inference-heading"
+            class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 md:p-8 shadow-sm space-y-6"
+          >
+            <div class="flex items-center gap-2 pb-4 border-b border-slate-100">
+              <span
+                class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-primary-container text-xs font-bold shrink-0"
+                >4</span
+              >
+              <div>
+                <h2
+                  class="font-headline-md text-headline-md font-semibold text-on-secondary-fixed"
+                  id="inference-heading"
+                >
+                  Inference Configuration &amp; Controls
+                </h2>
+                <p class="font-body-sm text-body-sm text-text-placeholder">
+                  Municipal engineering confidence parameters and inference
+                  resolution settings.
+                </p>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <!-- Subsection A: Detection Confidence Threshold (Strictly Locked) -->
+              <div
+                class="p-4 sm:p-5 rounded-xl bg-slate-50/70 border border-slate-200 flex flex-col justify-between space-y-4"
+              >
+                <div>
+                  <div class="flex items-center justify-between gap-2 mb-2">
+                    <span
+                      class="font-headline-md text-slate-900 font-semibold text-sm"
+                      >Detection Confidence Threshold</span
+                    ><span
+                      class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-200/80 text-slate-700 shrink-0"
+                      ><span class="material-symbols-outlined text-[12px]"
+                        >lock</span
+                      >
+                      Locked</span
+                    >
+                  </div>
+                  <p
+                    class="font-body-sm text-body-sm text-text-placeholder leading-relaxed mb-4"
+                  >
+                    Minimum statistical probability required to register a
+                    distress bounding box on the target concrete matrix.
+                  </p>
+                  <div class="space-y-2">
+                    <div
+                      class="flex items-center justify-between text-xs font-semibold text-slate-700"
+                    >
+                      <span>Confidence Floor</span
+                      ><span
+                        class="font-mono text-primary-container bg-blue-50 px-2 py-0.5 rounded border border-blue-200"
+                        >Threshold: 0.25</span
+                      >
+                    </div>
+                    <!-- Simulated Locked Slider -->
+                    <div
+                      class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden relative opacity-70 cursor-not-allowed"
+                    >
+                      <div
+                        class="bg-primary-container h-full rounded-full"
+                        style="width: 25%"
+                      ></div>
+                    </div>
+                    <div
+                      class="flex justify-between text-[11px] text-slate-400"
+                    >
+                      <span>0.00 (Loose)</span><span>0.25 (Standard)</span
+                      ><span>1.00 (Rigid)</span>
+                    </div>
+                  </div>
+                </div>
+                <div
+                  class="p-3 rounded-lg bg-white border border-slate-200 flex items-start sm:items-center gap-2 text-xs text-slate-600"
+                >
+                  <span
+                    class="material-symbols-outlined text-[16px] text-slate-400 shrink-0 mt-0.5 sm:mt-0"
+                    >lock_clock</span
+                  ><span
+                    >🔒 This setting is locked to ASTM D6433 municipal audit
+                    compliance and cannot be altered.</span
+                  >
+                </div>
+              </div>
+              <!-- Subsection B: Inspection Mode -->
+              <div
+                class="p-4 sm:p-5 rounded-xl bg-slate-50/70 border border-slate-200 flex flex-col justify-between space-y-4"
+              >
+                <div>
+                  <div class="flex items-center justify-between gap-2 mb-2">
+                    <span
+                      class="font-headline-md text-slate-900 font-semibold text-sm"
+                      >Inspection Mode</span
+                    ><span
+                      class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200 shrink-0"
+                      >Standard Profile Active</span
+                    >
+                  </div>
+                  <p
+                    class="font-body-sm text-body-sm text-text-placeholder leading-relaxed mb-4"
+                  >
+                    Choose compute partition strategy for ultra-high-resolution
+                    structural orthomosaics.
+                  </p>
+                  <div
+                    class="grid grid-cols-1 sm:grid-cols-2 gap-3"
+                    id="mode-selector"
+                  >
+                    <!-- Mode 1: Standard (Selected) -->
+                    <div
+                      class="p-3.5 rounded-xl bg-white border-2 border-primary-container cursor-pointer transition-all hover:shadow-xs flex flex-col justify-between"
+                      id="mode-standard"
+                      onclick="selectInspectionMode('standard')"
+                    >
+                      <div class="flex items-center justify-between mb-2">
+                        <div
+                          class="w-8 h-8 rounded-lg bg-blue-50 text-primary-container flex items-center justify-center shrink-0"
+                        >
+                          <span class="material-symbols-outlined text-[18px]"
+                            >bolt</span
+                          >
+                        </div>
+                        <span
+                          class="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded shrink-0"
+                          id="badge-standard"
+                          ><span class="material-symbols-outlined text-[11px]"
+                            >lock</span
+                          >
+                          Locked</span
+                        >
+                      </div>
+                      <h4
+                        class="font-label-md text-label-md font-semibold text-slate-900 mb-1"
+                      >
+                        Standard (Fast)
+                      </h4>
+                      <p
+                        class="font-caption text-caption text-text-placeholder leading-normal"
+                      >
+                        Fast inspection using the standard single-pass scanning
+                        workflow.
+                      </p>
+                    </div>
+                    <!-- Mode 2: Tiled Slicing -->
+                    <div
+                      class="p-3.5 rounded-xl bg-white border border-slate-200 opacity-80 cursor-pointer hover:border-slate-300 transition-all hover:shadow-xs flex flex-col justify-between"
+                      id="mode-tiled"
+                      onclick="selectInspectionMode('tiled')"
+                    >
+                      <div class="flex items-center justify-between mb-2">
+                        <div
+                          class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0"
+                        >
+                          <span class="material-symbols-outlined text-[18px]"
+                            >biotech</span
+                          >
+                        </div>
+                        <span
+                          class="hidden inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded shrink-0"
+                          id="badge-tiled"
+                          ><span class="material-symbols-outlined text-[11px]"
+                            >lock</span
+                          >
+                          Locked</span
+                        >
+                      </div>
+                      <h4
+                        class="font-label-md text-label-md font-semibold text-slate-900 mb-1"
+                      >
+                        Tiled Slicing
+                      </h4>
+                      <p
+                        class="font-caption text-caption text-text-placeholder leading-normal"
+                      >
+                        Detailed tiled sub-window inspection for deep crack
+                        coverage.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div
+                  class="flex flex-wrap items-center justify-between gap-2 pt-2 text-xs text-text-muted"
+                >
+                  <span class="flex items-center gap-1"
+                    ><span
+                      class="material-symbols-outlined text-[14px] text-emerald-600"
+                      >verified</span
+                    >SAHI Pipeline Enabled</span
+                  ><span>Batch Size: 1</span>
+                </div>
+              </div>
+            </div>
+          </section>
+          <!-- 6. Primary CTA & Compliance Footer Assurance -->
+          <section
+            class="flex flex-col items-center justify-center pt-2 pb-12 space-y-4 px-2"
+          >
+            <button
+              class="w-full sm:w-auto sm:min-w-[340px] md:min-w-[420px] h-12 sm:h-13 py-3 px-6 sm:px-8 rounded-full bg-primary-container hover:bg-blue-600 text-white font-label-md text-base font-semibold shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-3 group active:scale-[0.99]"
+              id="btn-run-inspection"
+              onclick="triggerInspection()"
+              type="button"
+            >
+              <span
+                class="material-symbols-outlined text-[22px] group-hover:rotate-12 transition-transform"
+                >auto_awesome</span
+              ><span id="cta-label">Run Defect Inspection</span
+              ><span
+                class="material-symbols-outlined text-[20px] group-hover:translate-x-1 transition-transform"
+                >arrow_forward</span
+              >
+            </button>
+            <div
+              class="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-2 sm:gap-4 text-center font-caption text-caption text-slate-500 max-w-xl"
+            >
+              <span class="inline-flex items-center gap-1.5"
+                ><span
+                  class="material-symbols-outlined text-[14px] text-emerald-600 shrink-0"
+                  >security</span
+                >Certified ASTM D6433 &amp; YOLOv8 Municipal Audit Engine</span
+              ><span class="hidden sm:inline">•</span
+              ><span class="inline-flex items-center gap-1"
+                ><span
+                  class="material-symbols-outlined text-[14px] text-slate-400 shrink-0"
+                  >lock</span
+                >Data encrypted in transit (TLS 1.3 256-bit)</span
+              >
+            </div>
+          </section>
         </div>
-        <script>let activeWorkflow = 'building'; let activeMode = 'standard'; function selectWorkflow(type) { activeWorkflow = type; const roadCard = document.getElementById('card-road'); const bldCard = document.getElementById('card-building'); const roadCheck = document.getElementById('check-road'); const bldCheck = document.getElementById('check-building'); if (type === 'road') { roadCard.className = 'relative flex flex-col p-5 sm:p-6 rounded-2xl bg-blue-50/50 border-2 border-primary-container cursor-pointer transition-all shadow-sm group'; roadCheck.className = 'w-6 h-6 rounded-full bg-primary-container text-white flex items-center justify-center ring-2 ring-blue-100 transition-colors shrink-0'; roadCheck.innerHTML = '<span class="material-symbols-outlined text-[16px]">check</span>'; bldCard.className = 'relative flex flex-col p-5 sm:p-6 rounded-2xl bg-white border-2 border-slate-200 hover:border-slate-300 cursor-pointer transition-all shadow-sm group'; bldCheck.className = 'w-6 h-6 rounded-full border-2 border-slate-300 flex items-center justify-center transition-colors shrink-0'; bldCheck.innerHTML = '<span class="material-symbols-outlined text-[16px] text-transparent">check</span>'; } else { bldCard.className = 'relative flex flex-col p-5 sm:p-6 rounded-2xl bg-blue-50/50 border-2 border-primary-container cursor-pointer transition-all shadow-sm group'; bldCheck.className = 'w-6 h-6 rounded-full bg-primary-container text-white flex items-center justify-center ring-2 ring-blue-100 transition-colors shrink-0'; bldCheck.innerHTML = '<span class="material-symbols-outlined text-[16px]">check</span>'; roadCard.className = 'relative flex flex-col p-5 sm:p-6 rounded-2xl bg-white border-2 border-slate-200 hover:border-slate-300 cursor-pointer transition-all shadow-sm group'; roadCheck.className = 'w-6 h-6 rounded-full border-2 border-slate-300 flex items-center justify-center transition-colors shrink-0'; roadCheck.innerHTML = '<span class="material-symbols-outlined text-[16px] text-transparent">check</span>'; } } function selectInspectionMode(mode) { activeMode = mode; const stdCard = document.getElementById('mode-standard'); const tiledCard = document.getElementById('mode-tiled'); const badgeStd = document.getElementById('badge-standard'); const badgeTiled = document.getElementById('badge-tiled'); if (mode === 'standard') { stdCard.className = 'p-3.5 rounded-xl bg-white border-2 border-primary-container cursor-pointer transition-all shadow-xs flex flex-col justify-between'; tiledCard.className = 'p-3.5 rounded-xl bg-white border border-slate-200 opacity-80 cursor-pointer hover:border-slate-300 transition-all shadow-xs flex flex-col justify-between'; badgeStd.classList.remove('hidden'); badgeTiled.classList.add('hidden'); } else { tiledCard.className = 'p-3.5 rounded-xl bg-white border-2 border-primary-container cursor-pointer transition-all shadow-xs flex flex-col justify-between'; stdCard.className = 'p-3.5 rounded-xl bg-white border border-slate-200 opacity-80 cursor-pointer hover:border-slate-300 transition-all shadow-xs flex flex-col justify-between'; badgeTiled.classList.remove('hidden'); badgeStd.classList.add('hidden'); } } function detectGPSLocation() { const lat = document.getElementById('loc-lat'); const lng = document.getElementById('loc-lng'); const statusText = document.getElementById('loc-status-text'); const statusSub = document.getElementById('loc-status-sub'); lat.value = '19.076090'; lng.value = '72.877426'; statusText.innerText = 'Selected Location: 19.076090° N, 72.877426° E (High Accuracy GPS)'; statusSub.innerText = 'Validated via hardware sensor • Mumbai South Central Administrative Area'; } function confirmLocation() { const statusText = document.getElementById('loc-status-text'); const city = document.getElementById('loc-city').value || 'Mumbai'; const building = document.getElementById('loc-building').value || 'Target Site'; statusText.innerText = 'Location Locked: ' + building + ', ' + city; } function handleFileSelected(event) { if (event.target.files && event.target.files[0]) { document.getElementById('upload-prompt').classList.add('hidden'); document.getElementById('upload-preview').classList.remove('hidden'); } } function simulateCameraCapture() { document.getElementById('upload-prompt').classList.add('hidden'); document.getElementById('upload-preview').classList.remove('hidden'); } function clearUploadedFile() { document.getElementById('file-input').value = ''; document.getElementById('upload-preview').classList.add('hidden'); document.getElementById('upload-prompt').classList.remove('hidden'); } function triggerInspection() { const btn = document.getElementById('btn-run-inspection'); const label = document.getElementById('cta-label'); label.innerText = 'Executing Neural Inference...'; btn.classList.add('opacity-90', 'cursor-wait'); setTimeout(() => { label.innerText = 'Analysis Complete • Forwarding Report'; setTimeout(() => { label.innerText = 'Run Defect Inspection'; btn.classList.remove('opacity-90', 'cursor-wait'); }, 1500); }, 1800); } </script>
+      </div>
+      <script>
+        let activeWorkflow = "building";
+        let activeMode = "standard";
+        function selectWorkflow(type) {
+          activeWorkflow = type;
+          const roadCard = document.getElementById("card-road");
+          const bldCard = document.getElementById("card-building");
+          const roadCheck = document.getElementById("check-road");
+          const bldCheck = document.getElementById("check-building");
+          if (type === "road") {
+            roadCard.className =
+              "relative flex flex-col p-5 sm:p-6 rounded-2xl bg-blue-50/50 border-2 border-primary-container cursor-pointer transition-all shadow-sm group";
+            roadCheck.className =
+              "w-6 h-6 rounded-full bg-primary-container text-white flex items-center justify-center ring-2 ring-blue-100 transition-colors shrink-0";
+            roadCheck.innerHTML =
+              '<span class="material-symbols-outlined text-[16px]">check</span>';
+            bldCard.className =
+              "relative flex flex-col p-5 sm:p-6 rounded-2xl bg-white border-2 border-slate-200 hover:border-slate-300 cursor-pointer transition-all shadow-sm group";
+            bldCheck.className =
+              "w-6 h-6 rounded-full border-2 border-slate-300 flex items-center justify-center transition-colors shrink-0";
+            bldCheck.innerHTML =
+              '<span class="material-symbols-outlined text-[16px] text-transparent">check</span>';
+          } else {
+            bldCard.className =
+              "relative flex flex-col p-5 sm:p-6 rounded-2xl bg-blue-50/50 border-2 border-primary-container cursor-pointer transition-all shadow-sm group";
+            bldCheck.className =
+              "w-6 h-6 rounded-full bg-primary-container text-white flex items-center justify-center ring-2 ring-blue-100 transition-colors shrink-0";
+            bldCheck.innerHTML =
+              '<span class="material-symbols-outlined text-[16px]">check</span>';
+            roadCard.className =
+              "relative flex flex-col p-5 sm:p-6 rounded-2xl bg-white border-2 border-slate-200 hover:border-slate-300 cursor-pointer transition-all shadow-sm group";
+            roadCheck.className =
+              "w-6 h-6 rounded-full border-2 border-slate-300 flex items-center justify-center transition-colors shrink-0";
+            roadCheck.innerHTML =
+              '<span class="material-symbols-outlined text-[16px] text-transparent">check</span>';
+          }
+        }
+        function selectInspectionMode(mode) {
+          activeMode = mode;
+          const stdCard = document.getElementById("mode-standard");
+          const tiledCard = document.getElementById("mode-tiled");
+          const badgeStd = document.getElementById("badge-standard");
+          const badgeTiled = document.getElementById("badge-tiled");
+          if (mode === "standard") {
+            stdCard.className =
+              "p-3.5 rounded-xl bg-white border-2 border-primary-container cursor-pointer transition-all shadow-xs flex flex-col justify-between";
+            tiledCard.className =
+              "p-3.5 rounded-xl bg-white border border-slate-200 opacity-80 cursor-pointer hover:border-slate-300 transition-all shadow-xs flex flex-col justify-between";
+            badgeStd.classList.remove("hidden");
+            badgeTiled.classList.add("hidden");
+          } else {
+            tiledCard.className =
+              "p-3.5 rounded-xl bg-white border-2 border-primary-container cursor-pointer transition-all shadow-xs flex flex-col justify-between";
+            stdCard.className =
+              "p-3.5 rounded-xl bg-white border border-slate-200 opacity-80 cursor-pointer hover:border-slate-300 transition-all shadow-xs flex flex-col justify-between";
+            badgeTiled.classList.remove("hidden");
+            badgeStd.classList.add("hidden");
+          }
+        }
+        function detectGPSLocation() {
+          const lat = document.getElementById("loc-lat");
+          const lng = document.getElementById("loc-lng");
+          const statusText = document.getElementById("loc-status-text");
+          const statusSub = document.getElementById("loc-status-sub");
+          lat.value = "19.076090";
+          lng.value = "72.877426";
+          statusText.innerText =
+            "Selected Location: 19.076090° N, 72.877426° E (High Accuracy GPS)";
+          statusSub.innerText =
+            "Validated via hardware sensor • Mumbai South Central Administrative Area";
+        }
+        function confirmLocation() {
+          const statusText = document.getElementById("loc-status-text");
+          const city = document.getElementById("loc-city").value || "Mumbai";
+          const building =
+            document.getElementById("loc-building").value || "Target Site";
+          statusText.innerText = "Location Locked: " + building + ", " + city;
+        }
+        function handleFileSelected(event) {
+          if (event.target.files && event.target.files[0]) {
+            document.getElementById("upload-prompt").classList.add("hidden");
+            document
+              .getElementById("upload-preview")
+              .classList.remove("hidden");
+          }
+        }
+        function simulateCameraCapture() {
+          document.getElementById("upload-prompt").classList.add("hidden");
+          document.getElementById("upload-preview").classList.remove("hidden");
+        }
+        function clearUploadedFile() {
+          document.getElementById("file-input").value = "";
+          document.getElementById("upload-preview").classList.add("hidden");
+          document.getElementById("upload-prompt").classList.remove("hidden");
+        }
+        function triggerInspection() {
+          const btn = document.getElementById("btn-run-inspection");
+          const label = document.getElementById("cta-label");
+          label.innerText = "Executing Neural Inference...";
+          btn.classList.add("opacity-90", "cursor-wait");
+          setTimeout(() => {
+            label.innerText = "Analysis Complete • Forwarding Report";
+            setTimeout(() => {
+              label.innerText = "Run Defect Inspection";
+              btn.classList.remove("opacity-90", "cursor-wait");
+            }, 1500);
+          }, 1800);
+        }
+      </script>
     </main>
     <footer class="w-full bg-[#FFFFFF] border-t border-[#E2E8F0] py-6">
+      <div
+        class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4 font-body-sm text-body-sm text-center md:text-left"
+      >
         <div
-            class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4 font-body-sm text-body-sm text-center md:text-left">
-            <div class="flex flex-wrap items-center justify-center md:justify-start gap-2 sm:gap-3"><span
-                    class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-wider shrink-0">ASTM
-                    D6433 COMPLIANT SYSTEM</span><span class="text-[#64748B]">© 2025 VisionGuard AI Municipal
-                    Operations</span></div>
-            <nav class="flex flex-wrap items-center justify-center gap-4 sm:gap-6"
-                data-active-classes="text-primary-container font-semibold"><a aria-current="page"
-                    class="transition-colors text-primary-container font-semibold" data-path="security-protocol"
-                    href="#">Security Protocol</a><a class="text-[#64748B] hover:text-[#0F172A] transition-colors"
-                    data-path="audit-logs" href="#">Audit Logs</a><a
-                    class="text-[#64748B] hover:text-[#0F172A] transition-colors" data-path="terms-of-service"
-                    href="#">Terms</a></nav>
+          class="flex flex-wrap items-center justify-center md:justify-start gap-2 sm:gap-3"
+        >
+          <span
+            class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-wider shrink-0"
+            >ASTM D6433 COMPLIANT SYSTEM</span
+          ><span class="text-[#64748B]"
+            >© 2025 VisionGuard AI Municipal Operations</span
+          >
         </div>
+        <nav
+          class="flex flex-wrap items-center justify-center gap-4 sm:gap-6"
+          data-active-classes="text-primary-container font-semibold"
+        >
+          <a
+            aria-current="page"
+            class="transition-colors text-primary-container font-semibold"
+            data-path="security-protocol"
+            href="#"
+            >Security Protocol</a
+          ><a
+            class="text-[#64748B] hover:text-[#0F172A] transition-colors"
+            data-path="audit-logs"
+            href="#"
+            >Audit Logs</a
+          ><a
+            class="text-[#64748B] hover:text-[#0F172A] transition-colors"
+            data-path="terms-of-service"
+            href="#"
+            >Terms</a
+          >
+        </nav>
+      </div>
     </footer>
-</body>
-
+  </body>
 </html>
