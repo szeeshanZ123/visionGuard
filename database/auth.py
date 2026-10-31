@@ -12,6 +12,7 @@ import sys
 import sqlite3
 import argparse
 import getpass
+import secrets
 import datetime
 from typing import Dict, Any, List, Optional, Tuple
 
@@ -180,15 +181,262 @@ def create_user(
         raise ValueError(f"Database integrity error: {str(e)}")
 
 
-def get_user_by_id(user_id: int, db_path: str = DEFAULT_DB_PATH) -> Optional[Dict[str, Any]]:
-    """Fetches user by primary key ID (excluding password hash)."""
+def get_user_by_id(
+    user_id: int,
+    include_password_hash: bool = False,
+    db_path: str = DEFAULT_DB_PATH
+) -> Optional[Dict[str, Any]]:
+    """Fetches user by primary key ID (optionally including password hash for secure verification)."""
     init_db(db_path)
     conn = get_db_connection(db_path)
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM users WHERE id = ?;", (user_id,))
     row = cursor.fetchone()
     conn.close()
-    return sanitize_user_dict(row) if row else None
+    if not row:
+        return None
+    if include_password_hash:
+        d = dict(row)
+        d["role_display"] = ROLE_DISPLAY_NAMES.get(d.get("role"), d.get("role"))
+        d["is_active"] = bool(d.get("is_active", 1))
+        return d
+    return sanitize_user_dict(row)
+
+
+def get_user_by_email(
+    email: str,
+    include_password_hash: bool = False,
+    db_path: str = DEFAULT_DB_PATH
+) -> Optional[Dict[str, Any]]:
+    """
+    Fetches user record by email address (case-insensitive).
+    Optionally includes password_hash solely for authentication routines.
+    """
+    if not email or not str(email).strip():
+        return None
+    init_db(db_path)
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users WHERE LOWER(email) = LOWER(?);", (str(email).strip(),))
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return None
+    if include_password_hash:
+        d = dict(row)
+        d["role_display"] = ROLE_DISPLAY_NAMES.get(d.get("role"), d.get("role"))
+        d["is_active"] = bool(d.get("is_active", 1))
+        return d
+    return sanitize_user_dict(row)
+
+
+def get_user_by_google_sub(
+    google_sub: str,
+    include_password_hash: bool = False,
+    db_path: str = DEFAULT_DB_PATH
+) -> Optional[Dict[str, Any]]:
+    """
+    Fetches a user record by their unique Google Subject identifier.
+    Returns None if not found or if google_sub is blank.
+    """
+    if not google_sub or not str(google_sub).strip():
+        return None
+    init_db(db_path)
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users WHERE google_sub = ?;", (str(google_sub).strip(),))
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return None
+    if include_password_hash:
+        d = dict(row)
+        d["role_display"] = ROLE_DISPLAY_NAMES.get(d.get("role"), d.get("role"))
+        d["is_active"] = bool(d.get("is_active", 1))
+        return d
+    return sanitize_user_dict(row)
+
+
+def create_google_user(
+    username: str,
+    email: str,
+    google_sub: str,
+    avatar_url: Optional[str] = None,
+    db_path: str = DEFAULT_DB_PATH
+) -> Dict[str, Any]:
+    """
+    Registers a new citizen account authenticated via Google OAuth.
+    Strictly assigns role = ROLE_CITIZEN.
+    Generates an unguessable disabled password hash satisfying NOT NULL constraint.
+    """
+    init_db(db_path)
+
+    if not google_sub or not str(google_sub).strip():
+        raise ValueError("Google Subject ID (sub) is required.")
+
+    norm_sub = str(google_sub).strip()
+    norm_email = str(email).strip().lower() if email and str(email).strip() else None
+    if not norm_email:
+        raise ValueError("Verified email address is required for Google authentication.")
+
+    is_valid_e, e_err = validate_email(norm_email)
+    if not is_valid_e:
+        raise ValueError(e_err)
+
+    norm_username = str(username).strip()
+    is_valid_u, u_err = validate_username(norm_username)
+    if not is_valid_u:
+        sanitized = re.sub(r"[^a-zA-Z0-9_.-]", "_", norm_username)[:30]
+        if len(sanitized) < 3:
+            sanitized = f"citizen_{secrets.token_hex(4)}"
+        norm_username = sanitized
+
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+
+    # Pre-insert uniqueness check for google_sub
+    cursor.execute("SELECT id FROM users WHERE google_sub = ?;", (norm_sub,))
+    if cursor.fetchone():
+        conn.close()
+        raise ValueError("Google identity is already registered to an existing account.")
+
+    # Pre-insert uniqueness check for email
+    cursor.execute("SELECT id FROM users WHERE LOWER(email) = LOWER(?);", (norm_email,))
+    if cursor.fetchone():
+        conn.close()
+        raise ValueError(f"Email '{norm_email}' is already in use.")
+
+    # Uniqueness check for username, appending suffix if already in use
+    cursor.execute("SELECT id FROM users WHERE LOWER(username) = LOWER(?);", (norm_username,))
+    if cursor.fetchone():
+        norm_username = f"{norm_username[:30]}_{secrets.token_hex(3)}"
+
+    disabled_pw_hash = f"!google_oauth_disabled_{secrets.token_hex(16)}"
+
+    try:
+        cursor.execute("""
+        INSERT INTO users (
+            username, email, password_hash, role, is_active,
+            google_sub, google_email, auth_provider, avatar_url
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+        """, (
+            norm_username,
+            norm_email,
+            disabled_pw_hash,
+            ROLE_CITIZEN,
+            1,
+            norm_sub,
+            norm_email,
+            "google",
+            str(avatar_url).strip() if avatar_url else None
+        ))
+        new_id = cursor.lastrowid
+        conn.commit()
+
+        cursor.execute("SELECT * FROM users WHERE id = ?;", (new_id,))
+        row = cursor.fetchone()
+        conn.close()
+        return sanitize_user_dict(row)
+    except Exception as e:
+        conn.close()
+        raise ValueError(f"Failed to create Google user: {str(e)}")
+
+
+def link_google_to_user(
+    user_id: int,
+    google_sub: str,
+    google_email: Optional[str] = None,
+    avatar_url: Optional[str] = None,
+    db_path: str = DEFAULT_DB_PATH
+) -> Dict[str, Any]:
+    """
+    Links a verified Google identity to an existing user account.
+    Enforces that google_sub is not already bound to another user.
+    Sets auth_provider = 'both'.
+    """
+    init_db(db_path)
+
+    if not google_sub or not str(google_sub).strip():
+        raise ValueError("Google Subject ID (sub) is required.")
+
+    norm_sub = str(google_sub).strip()
+    norm_email = str(google_email).strip().lower() if google_email and str(google_email).strip() else None
+
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM users WHERE id = ?;", (user_id,))
+    user = cursor.fetchone()
+    if not user:
+        conn.close()
+        raise ValueError(f"User ID {user_id} not found.")
+
+    # Verify google_sub is not linked to someone else
+    cursor.execute("SELECT id FROM users WHERE google_sub = ? AND id != ?;", (norm_sub, user_id))
+    conflict = cursor.fetchone()
+    if conflict:
+        conn.close()
+        raise ValueError("This Google identity is already linked to another user account.")
+
+    user_dict = dict(user)
+    curr_email = user_dict.get("email")
+    final_email = norm_email or curr_email
+    final_avatar = str(avatar_url).strip() if avatar_url else user_dict.get("avatar_url")
+
+    cursor.execute("""
+    UPDATE users SET
+        google_sub = ?,
+        google_email = ?,
+        auth_provider = 'both',
+        avatar_url = COALESCE(?, avatar_url),
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?;
+    """, (norm_sub, final_email, final_avatar, user_id))
+    conn.commit()
+
+    cursor.execute("SELECT * FROM users WHERE id = ?;", (user_id,))
+    updated_row = cursor.fetchone()
+    conn.close()
+    return sanitize_user_dict(updated_row)
+
+
+def unlink_google_from_user(
+    user_id: int,
+    db_path: str = DEFAULT_DB_PATH
+) -> Dict[str, Any]:
+    """
+    Unlinks Google identity from an account.
+    Fails if the account has no password set (pure Google account) to prevent account lockout.
+    """
+    init_db(db_path)
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users WHERE id = ?;", (user_id,))
+    user = cursor.fetchone()
+    if not user:
+        conn.close()
+        raise ValueError(f"User ID {user_id} not found.")
+
+    u_dict = dict(user)
+    pw_hash = u_dict.get("password_hash") or ""
+    if pw_hash.startswith("!google_oauth_disabled_"):
+        conn.close()
+        raise ValueError("Cannot unlink Google identity without first setting a local password.")
+
+    cursor.execute("""
+    UPDATE users SET
+        google_sub = NULL,
+        google_email = NULL,
+        auth_provider = 'local',
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?;
+    """, (user_id,))
+    conn.commit()
+
+    cursor.execute("SELECT * FROM users WHERE id = ?;", (user_id,))
+    updated_row = cursor.fetchone()
+    conn.close()
+    return sanitize_user_dict(updated_row)
 
 
 def get_user_by_username(

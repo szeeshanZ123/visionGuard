@@ -10,6 +10,7 @@ Provides REST API endpoints and web client serving for infrastructure inspection
 
 import io
 import os
+import re
 import sys
 import time
 import uuid
@@ -88,7 +89,7 @@ except Exception:
     cv2 = None
 from werkzeug.utils import secure_filename
 from werkzeug.exceptions import HTTPException
-from flask import Flask, request, jsonify, render_template, send_file, session, redirect
+from flask import Flask, request, jsonify, render_template, send_file, session, redirect, url_for
 
 from database.db import (
     init_db,
@@ -119,6 +120,12 @@ from database.auth import (
     create_user,
     get_user_by_id,
     get_user_by_username,
+    get_user_by_email,
+    get_user_by_google_sub,
+    create_google_user,
+    link_google_to_user,
+    unlink_google_from_user,
+    verify_password,
     list_users,
     count_users,
     count_admin_users,
@@ -129,6 +136,7 @@ from database.auth import (
     validate_password_strength,
     validate_role,
 )
+from app.oauth import init_oauth, is_google_oauth_configured, oauth
 from database.reports import (
     validate_report_filters,
     generate_report_data,
@@ -315,6 +323,12 @@ def create_app(
             "SECURITY NOTICE: VISIONGUARD_ADMIN_PASSWORD is not set in production. "
             "Ensure default development accounts have their passwords updated."
         )
+
+    # Initialize Authlib OAuth provider (Google Identity)
+    try:
+        init_oauth(app)
+    except Exception as oauth_err:
+        logger.warning(f"Failed to initialize Google OAuth extension: {oauth_err}")
 
     # AI Provider Selection (Google Gemini Multimodal Vision vs Archived YOLO fallback)
     # Default is 'gemini' (VisionGuard Multimodal AI — Powered by Google Gemini Vision)
@@ -506,6 +520,8 @@ def create_app(
             "/api/auth/login",
             "/api/auth/register",
             "/api/auth/setup-admin",
+            "/api/auth/google/confirm-link",
+            "/api/auth/google/cancel-link",
         ]
         if request.path in exempt_paths:
             return None
@@ -832,12 +848,23 @@ def create_app(
         ) and not app.config.get("TESTING", False)
 
         user = get_current_user_record()
+        pending_link = session.get("pending_google_link")
+        link_pending_data = None
+        if pending_link and isinstance(pending_link, dict) and (time.time() - pending_link.get("timestamp", 0) <= 900):
+            link_pending_data = {
+                "email": pending_link.get("email"),
+                "username": pending_link.get("username"),
+            }
+
         return jsonify({
             "status": "success",
             "authenticated": user is not None,
             "requires_setup": requires_setup,
             "setup_token_required": setup_token_expected,
             "web_setup_enabled": not (is_production_mode and not setup_token_expected),
+            "google_oauth_configured": is_google_oauth_configured(app),
+            "link_pending": bool(link_pending_data),
+            "pending_link": link_pending_data,
             "user": user,
             "csrf_token": csrf_tok,
         }), 200
@@ -931,6 +958,347 @@ def create_app(
                 "error_code": "INTERNAL_SERVER_ERROR",
                 "message": f"Failed to bootstrap administrator: {str(e)}",
             }), 500
+
+    # -------------------------------------------------------------------------
+    # Google OAuth 2.0 & Account Linking Routes (Authlib)
+    # -------------------------------------------------------------------------
+    @app.route("/auth/google", methods=["GET"])
+    @app.route("/api/auth/google", methods=["GET"])
+    def auth_google():
+        """
+        Initiates Google OAuth 2.0 authorization code flow with OpenID Connect.
+        Enforces state and nonce parameters to prevent CSRF and replay attacks.
+        """
+        if not is_google_oauth_configured(app):
+            logger.warning("Google OAuth sign-in attempted, but client credentials are not configured.")
+            return redirect("/login?error=oauth_not_configured")
+
+        return_url = request.args.get("return") or request.args.get("next")
+        if return_url and return_url.startswith("/") and not return_url.startswith("//"):
+            session["oauth_return_url"] = return_url
+
+        configured_uri = os.environ.get("GOOGLE_REDIRECT_URI")
+        if configured_uri and configured_uri.strip():
+            redirect_uri = configured_uri.strip()
+        else:
+            redirect_uri = url_for("auth_google_callback", _external=True)
+            if request.headers.get("X-Forwarded-Proto") == "https" and redirect_uri.startswith("http://"):
+                redirect_uri = "https://" + redirect_uri[7:]
+
+        return oauth.google.authorize_redirect(redirect_uri)
+
+    @app.route("/auth/google/callback", methods=["GET"])
+    @app.route("/api/auth/google/callback", methods=["GET"])
+    def auth_google_callback():
+        """
+        Handles the Google OAuth 2.0 redirect callback.
+        Validates ID token, enforces email verification, prevents account takeover (ATO)
+        via explicit password confirmation, and provisions citizen accounts.
+        """
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+
+        google_error = request.args.get("error")
+        if google_error:
+            logger.info("Google OAuth callback returned error: %s", google_error)
+            if google_error in ("access_denied", "consent_required"):
+                return redirect("/login?error=google_cancelled")
+            return redirect(f"/login?error=oauth_{google_error}")
+
+        if not is_google_oauth_configured(app):
+            return redirect("/login?error=oauth_not_configured")
+
+        try:
+            token = oauth.google.authorize_access_token()
+        except Exception as e:
+            logger.warning("Failed to exchange Google OAuth code for token: %s", e)
+            return redirect("/login?error=token_exchange_failed")
+
+        if not token:
+            return redirect("/login?error=token_missing")
+
+        userinfo = token.get("userinfo")
+        if not userinfo:
+            try:
+                userinfo = oauth.google.userinfo(token=token)
+            except Exception:
+                userinfo = None
+        if not userinfo:
+            try:
+                userinfo = oauth.google.parse_id_token(token)
+            except Exception:
+                userinfo = None
+
+        if not userinfo:
+            logger.error("Unable to extract userinfo or ID token claims from Google response.")
+            return redirect("/login?error=userinfo_missing")
+
+        google_sub = userinfo.get("sub")
+        raw_email = userinfo.get("email")
+        raw_verified = userinfo.get("email_verified")
+        email_verified = (raw_verified is True) or (isinstance(raw_verified, str) and raw_verified.lower() == "true")
+        picture = userinfo.get("picture")
+
+        if not google_sub:
+            return redirect("/login?error=invalid_sub")
+
+        if not raw_email:
+            return redirect("/login?error=email_missing")
+
+        norm_email = str(raw_email).strip().lower()
+
+        # Strict email verification check
+        if not email_verified:
+            logger.warning("Rejected Google login for unverified email: %s", norm_email)
+            return redirect("/login?error=email_not_verified")
+
+        # Defense-in-depth: Validate token issuer if provided
+        token_iss = userinfo.get("iss")
+        if token_iss and token_iss not in ("https://accounts.google.com", "accounts.google.com"):
+            logger.warning("Rejected Google login with invalid token issuer: %s", token_iss)
+            return redirect("/login?error=invalid_issuer")
+
+        # Defense-in-depth: Validate token expiry if provided
+        token_exp = userinfo.get("exp")
+        if token_exp and isinstance(token_exp, (int, float)) and token_exp < (time.time() - 60):
+            logger.warning("Rejected Google login with expired token.")
+            return redirect("/login?error=token_expired")
+
+        # Defense-in-depth: Validate token audience if client ID is configured and aud is present
+        expected_client_id = (os.environ.get("GOOGLE_CLIENT_ID") or app.config.get("GOOGLE_CLIENT_ID") or "").strip()
+        token_aud = userinfo.get("aud")
+        if expected_client_id and token_aud and token_aud != expected_client_id:
+            logger.warning("Rejected Google login with mismatching audience.")
+            return redirect("/login?error=invalid_audience")
+
+        # Step 1: Existing Google Sub lookup
+        existing_google_user = get_user_by_google_sub(google_sub, db_path=db_path)
+        if existing_google_user:
+            if not existing_google_user.get("is_active"):
+                return redirect("/login?error=account_deactivated")
+
+            conn = get_db_connection(db_path)
+            cursor = conn.cursor()
+            cursor.execute("UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?;", (existing_google_user["id"],))
+            conn.commit()
+            conn.close()
+
+            return_url = session.pop("oauth_return_url", None)
+            session.clear()
+            session["user_id"] = existing_google_user["id"]
+            session["username"] = existing_google_user["username"]
+            session["role"] = existing_google_user["role"]
+            session["csrf_token"] = secrets.token_hex(32)
+            session.permanent = True
+
+            target = return_url or ("/app" if existing_google_user["role"] in (ROLE_ADMIN, ROLE_INSPECTOR, ROLE_MAINTENANCE) else "/create_home")
+            return redirect(target)
+
+        # Step 2: Anti-Account-Takeover check against existing email
+        existing_email_user = get_user_by_email(norm_email, include_password_hash=True, db_path=db_path)
+        if existing_email_user:
+            if not existing_email_user.get("is_active"):
+                return redirect("/login?error=account_deactivated")
+
+            session["pending_google_link"] = {
+                "user_id": existing_email_user["id"],
+                "username": existing_email_user["username"],
+                "email": norm_email,
+                "google_sub": google_sub,
+                "avatar_url": picture,
+                "timestamp": time.time(),
+                "failed_attempts": 0,
+            }
+
+            # Avoid leaking user PII (email/username) into URL query parameters
+            return redirect("/login?link_pending=1")
+
+        # Step 3: First-time Registration — Citizens only
+        base_username = re.sub(r"[^a-zA-Z0-9_.-]", "_", norm_email.split("@")[0])[:30]
+        if len(base_username) < 3:
+            base_username = f"citizen_{secrets.token_hex(3)}"
+
+        try:
+            new_user = create_google_user(
+                username=base_username,
+                email=norm_email,
+                google_sub=google_sub,
+                avatar_url=picture,
+                db_path=db_path,
+            )
+        except Exception as e:
+            logger.exception("Failed to provision new Google citizen account: %s", e)
+            return redirect("/login?error=registration_failed")
+
+        return_url = session.pop("oauth_return_url", None)
+        session.clear()
+        session["user_id"] = new_user["id"]
+        session["username"] = new_user["username"]
+        session["role"] = new_user["role"]  # strictly citizen
+        session["csrf_token"] = secrets.token_hex(32)
+        session.permanent = True
+
+        target = return_url or "/create_home?welcome=google"
+        return redirect(target)
+
+    @app.route("/api/auth/google/confirm-link", methods=["POST"])
+    def api_auth_google_confirm_link():
+        """
+        Explicit Account-Linking Confirmation.
+        Requires the user to authenticate with their existing local password
+        to prove account ownership before linking Google OAuth credentials.
+        """
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        pending = session.get("pending_google_link")
+
+        if not pending:
+            return jsonify({
+                "status": "error",
+                "error_code": "NO_PENDING_LINK",
+                "message": "No pending Google account link request found. Please sign in with Google again.",
+            }), 400
+
+        # Enforce 15-minute link challenge expiration
+        if time.time() - pending.get("timestamp", 0) > 900:
+            session.pop("pending_google_link", None)
+            return jsonify({
+                "status": "error",
+                "error_code": "LINK_EXPIRED",
+                "message": "The account linking session has expired. Please sign in with Google again.",
+            }), 400
+
+        payload = request.get_json(silent=True) or {}
+        password = payload.get("password")
+
+        if not password or not str(password).strip():
+            return jsonify({
+                "status": "error",
+                "error_code": "PASSWORD_REQUIRED",
+                "message": "Password is required to confirm account ownership.",
+            }), 400
+
+        user_id = pending.get("user_id")
+        user = get_user_by_id(user_id, include_password_hash=True, db_path=db_path)
+        if not user:
+            session.pop("pending_google_link", None)
+            return jsonify({
+                "status": "error",
+                "error_code": "USER_NOT_FOUND",
+                "message": "Target account not found.",
+            }), 404
+
+        if not user.get("is_active"):
+            session.pop("pending_google_link", None)
+            return jsonify({
+                "status": "error",
+                "error_code": "ACCOUNT_DEACTIVATED",
+                "message": "This account is deactivated.",
+            }), 403
+
+        # Enforce rate limiting: maximum 5 failed attempts per pending link challenge
+        failed_count = pending.get("failed_attempts", 0)
+        if failed_count >= 5:
+            session.pop("pending_google_link", None)
+            return jsonify({
+                "status": "error",
+                "error_code": "TOO_MANY_ATTEMPTS",
+                "message": "Too many failed password attempts. Account linking session terminated for security.",
+            }), 429
+
+        # Enforce CSRF verification when CSRF protection is active
+        if is_auth_enforced() and is_csrf_enforced():
+            client_token = (
+                request.headers.get("X-CSRF-Token")
+                or request.headers.get("X-CSRFToken")
+                or payload.get("csrf_token")
+            )
+            expected_token = session.get("csrf_token")
+            if not client_token or not expected_token or not secrets.compare_digest(str(client_token), str(expected_token)):
+                return jsonify({
+                    "status": "error",
+                    "error_code": "CSRF_TOKEN_INVALID",
+                    "message": "Missing or invalid CSRF token.",
+                }), 403
+
+        # Verify password
+        if not verify_password(user.get("password_hash", ""), str(password)):
+            pending["failed_attempts"] = failed_count + 1
+            session.modified = True
+            return jsonify({
+                "status": "error",
+                "error_code": "INVALID_PASSWORD",
+                "message": "Incorrect password. Account linking denied.",
+            }), 401
+
+        # Re-verify Google identity from session before saving link
+        google_sub = pending.get("google_sub")
+        google_email = pending.get("email")
+        avatar_url = pending.get("avatar_url")
+
+        try:
+            updated_user = link_google_to_user(
+                user_id=user["id"],
+                google_sub=google_sub,
+                google_email=google_email,
+                avatar_url=avatar_url,
+                db_path=db_path,
+            )
+        except ValueError as ve:
+            return jsonify({
+                "status": "error",
+                "error_code": "LINK_FAILED",
+                "message": str(ve),
+            }), 400
+
+        # Clear pending link state and establish fresh authenticated session
+        return_url = session.pop("oauth_return_url", None)
+        session.clear()
+        session["user_id"] = updated_user["id"]
+        session["username"] = updated_user["username"]
+        session["role"] = updated_user["role"]
+        csrf_tok = secrets.token_hex(32)
+        session["csrf_token"] = csrf_tok
+        session.permanent = True
+
+        is_staff = updated_user["role"] in (ROLE_ADMIN, ROLE_INSPECTOR, ROLE_MAINTENANCE)
+        redirect_url = return_url or ("/app" if is_staff else "/create_home")
+
+        return jsonify({
+            "status": "success",
+            "message": f"Successfully linked Google account ({google_email}) to '{updated_user['username']}'.",
+            "user": updated_user,
+            "redirect_url": redirect_url,
+            "csrf_token": csrf_tok,
+        }), 200
+
+    @app.route("/api/auth/google/cancel-link", methods=["POST"])
+    def api_auth_google_cancel_link():
+        """Cancels a pending account-linking request and clears session state."""
+        session.pop("pending_google_link", None)
+        return jsonify({
+            "status": "success",
+            "message": "Account linking cancelled.",
+        }), 200
+
+    @app.route("/api/auth/google/unlink", methods=["POST"])
+    @login_required
+    def api_auth_google_unlink():
+        """Unlinks Google identity from the currently authenticated account."""
+        db_path = app.config.get("DATABASE_PATH", DEFAULT_DB_PATH)
+        user_id = session.get("user_id")
+        try:
+            updated_user = unlink_google_from_user(user_id, db_path=db_path)
+            session.pop("pending_google_link", None)
+            return jsonify({
+                "status": "success",
+                "message": "Google account unlinked successfully.",
+                "user": updated_user,
+            }), 200
+        except ValueError as ve:
+            return jsonify({
+                "status": "error",
+                "error_code": "UNLINK_FAILED",
+                "message": str(ve),
+            }), 400
 
     # -------------------------------------------------------------------------
     # User Management API Routes (Phase 4.6 — Admin Only)

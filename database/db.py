@@ -205,13 +205,32 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
         is_active INTEGER NOT NULL DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        last_login_at TIMESTAMP
+        last_login_at TIMESTAMP,
+        google_sub TEXT,
+        google_email TEXT,
+        auth_provider TEXT DEFAULT 'local',
+        avatar_url TEXT
     );
     """)
 
     # Safe additive indexes for case-insensitive username and email uniqueness
     cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username_nocase ON users(username COLLATE NOCASE);")
     cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_nocase ON users(email COLLATE NOCASE) WHERE email IS NOT NULL AND email != '';")
+
+    # Safe additive schema migration for users table (Google OAuth columns)
+    cursor.execute("PRAGMA table_info(users);")
+    existing_user_cols = {row["name"] for row in cursor.fetchall()}
+    user_columns_to_add = [
+        ("google_sub", "TEXT"),
+        ("google_email", "TEXT"),
+        ("auth_provider", "TEXT DEFAULT 'local'"),
+        ("avatar_url", "TEXT"),
+    ]
+    for col_name, col_type in user_columns_to_add:
+        if col_name not in existing_user_cols:
+            cursor.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_type};")
+
+    cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_sub ON users(google_sub) WHERE google_sub IS NOT NULL AND google_sub != '';")
 
     # Table for civic complaint assistance drafts
     cursor.execute("""

@@ -57,15 +57,69 @@
             }
         }
 
-        // On Page Load: Handle URL query params and check session
+        // On Page Load: Handle URL query params, Google OAuth callbacks, and check session
         document.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
             const tab = urlParams.get('tab') || urlParams.get('mode');
-            if (tab === 'register' || tab === 'signup') {
-                switchTab('register');
+            const isLinkPending = urlParams.get('link_pending') === '1';
+            const pendingEmail = urlParams.get('email') || '';
+            const pendingUsername = urlParams.get('username') || '';
+            const oauthError = urlParams.get('error');
+
+            // Preserve return/next URL on Google Auth button
+            const returnUrl = urlParams.get('return') || urlParams.get('next');
+            const googleBtn = document.getElementById('btn-google-auth');
+            if (googleBtn && returnUrl) {
+                googleBtn.href = '/auth/google?return=' + encodeURIComponent(returnUrl);
+            }
+
+            function activateAccountLinkingView(email, username) {
+                const navTabs = document.getElementById('nav-auth-tabs');
+                if (navTabs) navTabs.classList.add('hidden');
+                const gSec = document.getElementById('google-auth-section');
+                if (gSec) gSec.classList.add('hidden');
+                const signinP = document.getElementById('panel-signin');
+                if (signinP) signinP.classList.add('hidden');
+                const regP = document.getElementById('panel-register');
+                if (regP) regP.classList.add('hidden');
+                const linkP = document.getElementById('panel-link-account');
+                if (linkP) linkP.classList.remove('hidden');
+
+                const emDisp = document.getElementById('link-email-display');
+                if (emDisp && email) emDisp.textContent = email;
+                const unDisp = document.getElementById('link-username-display');
+                if (unDisp && username) unDisp.textContent = username;
+
+                const heroTitle = document.getElementById('page-hero-title');
+                const heroDesc = document.getElementById('page-hero-desc');
+                if (heroTitle) heroTitle.innerHTML = 'Confirm <span class="text-vgBlue">Account Linking</span>';
+                if (heroDesc) heroDesc.textContent = 'Verify your existing password to link your Google identity and enable 1-click access.';
+            }
+
+            if (isLinkPending) {
+                activateAccountLinkingView(pendingEmail, pendingUsername);
+            } else if (oauthError) {
+                const errorMap = {
+                    'oauth_not_configured': 'Google Sign-In is not configured yet on this instance. Please use standard username and password.',
+                    'google_cancelled': 'Google sign-in was cancelled.',
+                    'email_not_verified': 'Your Google email address is not verified by Google. Please verify it before signing in.',
+                    'account_deactivated': 'Your account has been deactivated. Please contact an administrator.',
+                    'registration_failed': 'Could not complete Google registration. Please try again or create an account with username and password.',
+                    'token_exchange_failed': 'Authentication exchange with Google failed. Please retry.'
+                };
+                showAlert('error', 'Google Authentication', errorMap[oauthError] || ('Google authentication notice: ' + oauthError));
+                if (tab === 'register' || tab === 'signup') {
+                    switchTab('register');
+                } else {
+                    switchTab('signin');
+                }
             } else {
-                // Default to sign-in tab for cleaner return UX
-                switchTab('signin');
+                if (tab === 'register' || tab === 'signup') {
+                    switchTab('register');
+                } else {
+                    // Default to sign-in tab for cleaner return UX
+                    switchTab('signin');
+                }
             }
 
             fetch('/api/auth/status')
@@ -75,6 +129,9 @@
                         try { sessionStorage.setItem('vg_csrf_token', data.csrf_token); } catch (e) {}
                         const meta = document.querySelector('meta[name="csrf-token"]');
                         if (meta) meta.setAttribute('content', data.csrf_token);
+                    }
+                    if (data && data.link_pending && data.pending_link) {
+                        activateAccountLinkingView(data.pending_link.email, data.pending_link.username);
                     }
                     if (data && data.authenticated && data.user) {
                         const container = document.createElement('div');
@@ -275,6 +332,98 @@
 
                 <!-- Card Body Content -->
                 <div class="p-5 sm:p-7">
+
+                    <!-- ================= GOOGLE IDENTITY AUTHENTICATION ================= -->
+                    <div id="google-auth-section" class="mb-5">
+                        <a href="/auth/google" id="btn-google-auth"
+                            class="w-full h-11 px-4 rounded-xl border border-vgBorder hover:border-vgBorderHover bg-white hover:bg-slate-50 transition-all flex items-center justify-center gap-3 text-xs sm:text-sm font-semibold text-vgTextMain shadow-xs focus:ring-2 focus:ring-offset-2 focus:ring-vgBlue group">
+                            <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+                                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                            </svg>
+                            <span class="group-hover:text-vgBlue transition-colors font-medium">Continue with Google</span>
+                        </a>
+
+                        <div class="relative my-4">
+                            <div class="absolute inset-0 flex items-center">
+                                <div class="w-full border-t border-slate-200"></div>
+                            </div>
+                            <div class="relative flex justify-center text-[11px] uppercase">
+                                <span class="bg-white px-3 text-slate-400 font-semibold tracking-wider">Or continue with credentials</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ================= ACCOUNT LINKING CONFIRMATION PANEL ================= -->
+                    <div id="panel-link-account" class="space-y-4 hidden" role="region" aria-labelledby="link-heading">
+                        <div class="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                            <div class="flex items-start gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
+                                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                                    </svg>
+                                </div>
+                                <div class="flex-1">
+                                    <h3 id="link-heading" class="text-sm font-bold text-amber-900">Link Existing Account</h3>
+                                    <p class="text-xs text-amber-800 mt-1 leading-relaxed">
+                                        An existing account was found for <span id="link-email-display" class="font-semibold underline"></span>
+                                        (username: <span id="link-username-display" class="font-semibold font-mono"></span>).
+                                    </p>
+                                    <p class="text-xs text-amber-700 mt-1">
+                                        To protect against unauthorized access, please confirm by entering your existing password.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <form id="form-link-account" onsubmit="handleLinkAccountSubmit(event)" novalidate class="space-y-4">
+                            <div>
+                                <label for="link-password" class="block text-xs font-semibold text-vgTextMain uppercase tracking-wider mb-1.5">
+                                    Account Password
+                                </label>
+                                <div class="relative rounded-xl shadow-xs">
+                                    <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                        </svg>
+                                    </div>
+                                    <input type="password" id="link-password" name="password" autocomplete="current-password" required
+                                        placeholder="Enter your existing password"
+                                        class="w-full pl-10 pr-11 py-2.5 sm:py-3 text-sm rounded-xl border border-vgBorder bg-white text-vgTextMain placeholder:text-slate-400 focus:border-vgBlue focus:shadow-vg-input-focus transition-all">
+                                    <button type="button" onclick="togglePasswordVisibility('link-password', this)"
+                                        class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
+                                        aria-label="Toggle password visibility">
+                                        <svg class="w-4 h-4 eye-open" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                        </svg>
+                                        <svg class="w-4 h-4 eye-closed hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                                <p id="link-password-error" class="hidden text-xs text-vgError mt-1 font-medium">Please enter your password to link accounts.</p>
+                            </div>
+
+                            <div class="pt-2 flex flex-col-reverse sm:flex-row items-center gap-2.5 sm:gap-3">
+                                <button type="button" onclick="cancelAccountLinking()"
+                                    class="w-full sm:w-1/3 h-11 px-4 rounded-full text-xs sm:text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-colors flex items-center justify-center focus:ring-2 focus:ring-slate-300">
+                                    Cancel
+                                </button>
+                                <button type="submit" id="link-submit-btn"
+                                    class="w-full sm:w-2/3 h-11 px-5 rounded-full text-xs sm:text-sm font-semibold text-white bg-vgBlue hover:bg-vgBlueHover active:scale-[0.99] shadow-sm shadow-blue-500/30 transition-all flex items-center justify-center gap-2 focus:ring-2 focus:ring-offset-2 focus:ring-vgBlue">
+                                    <span id="link-btn-text">Confirm &amp; Link Account</span>
+                                    <svg id="link-spinner" class="animate-spin w-4 h-4 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
 
                     <!-- ================= PANEL 1: SIGN IN FORM ================= -->
                     <div id="panel-signin" role="tabpanel" aria-labelledby="tab-signin-btn" class="space-y-4 hidden">

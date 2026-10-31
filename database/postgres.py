@@ -395,7 +395,11 @@ CREATE TABLE IF NOT EXISTS users (
     is_active INTEGER NOT NULL DEFAULT 1,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    last_login_at TIMESTAMP WITH TIME ZONE
+    last_login_at TIMESTAMP WITH TIME ZONE,
+    google_sub VARCHAR(255) UNIQUE,
+    google_email VARCHAR(255),
+    auth_provider VARCHAR(50) DEFAULT 'local',
+    avatar_url TEXT
 );
 
 CREATE TABLE IF NOT EXISTS complaint_drafts (
@@ -486,6 +490,23 @@ def init_postgres_db(conn) -> None:
             cursor.execute(f"ALTER TABLE defect_inspections ADD COLUMN IF NOT EXISTS {col_name} {col_def};")
         except Exception:
             pass
+
+    # Safe additive migrations for users table (Google OAuth columns)
+    for col_name, col_def in [
+        ("google_sub", "VARCHAR(255)"),
+        ("google_email", "VARCHAR(255)"),
+        ("auth_provider", "VARCHAR(50) DEFAULT 'local'"),
+        ("avatar_url", "TEXT"),
+    ]:
+        try:
+            cursor.execute(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col_name} {col_def};")
+        except Exception:
+            pass
+
+    try:
+        cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_sub ON users (google_sub) WHERE google_sub IS NOT NULL;")
+    except Exception:
+        pass
 
     # Ensure schema_version metadata is recorded
     cursor.execute("""
