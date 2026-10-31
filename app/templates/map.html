@@ -99,6 +99,67 @@
             transform: scale(1.15) translateY(-4px);
             z-index: 1000 !important;
         }
+
+        /* ===== VisionGuard profile logout dropdown ===== */
+        .vg-nav-user-container {
+            position: relative;
+        }
+
+        #vg-profile-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            width: 160px;
+            box-sizing: border-box;
+            padding: 6px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            box-shadow:
+                0 4px 6px -1px rgba(15, 23, 42, 0.08),
+                0 10px 24px rgba(15, 23, 42, 0.1);
+            z-index: 60;
+        }
+
+        #vg-profile-dropdown.vg-open {
+            display: block;
+        }
+
+        #vg-logout-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            padding: 9px 10px;
+            border: 0;
+            border-radius: 8px;
+            background: transparent;
+            color: #dc2626;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            line-height: 1.2;
+            text-align: left;
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+        }
+
+        #vg-logout-btn:hover,
+        #vg-logout-btn:focus-visible {
+            background: #fee2e2;
+            outline: none;
+        }
+
+        #vg-logout-btn .material-symbols-outlined {
+            font-size: 18px;
+            color: #dc2626;
+        }
+
+        #vg-logout-btn:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
     </style>
 </head>
 
@@ -165,6 +226,12 @@
                             title="Account Status">
                             <span class="material-symbols-outlined text-[18px]">person</span>
                         </a>
+                        <div id="vg-profile-dropdown" role="menu" aria-label="Account menu">
+                            <button type="button" id="vg-logout-btn" role="menuitem">
+                                <span class="material-symbols-outlined">logout</span>
+                                <span>Logout</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1037,6 +1104,96 @@
                 })
                 .catch(() => { });
         });
+
+        function getCsrfToken() {
+            return (
+                document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+                sessionStorage.getItem('vg_csrf_token') ||
+                ''
+            );
+        }
+
+        // ===== VisionGuard profile logout dropdown =====
+        (function () {
+            const VG_LOGOUT_URL = '/api/auth/logout';
+            const VG_LOGOUT_METHOD = 'POST';
+            const VG_AFTER_LOGOUT_URL = '/login';
+
+            const avatar = document.getElementById('map-user-avatar');
+            const dropdown = document.getElementById('vg-profile-dropdown');
+            const logoutBtn = document.getElementById('vg-logout-btn');
+            if (!avatar || !dropdown || !logoutBtn) return;
+
+            function openDropdown() {
+                dropdown.classList.add('vg-open');
+            }
+            function closeDropdown() {
+                dropdown.classList.remove('vg-open');
+            }
+
+            // Avatar click: toggle for signed-in users, normal link for guests
+            avatar.addEventListener('click', function (e) {
+                const href = avatar.getAttribute('href') || '';
+                const isGuest = href.indexOf('/login') !== -1;
+                if (isGuest) return; // guests still go to the login page as before
+                e.preventDefault();
+                e.stopPropagation();
+                dropdown.classList.contains('vg-open')
+                    ? closeDropdown()
+                    : openDropdown();
+            });
+
+            // Click anywhere outside closes it
+            document.addEventListener('click', function (e) {
+                if (!dropdown.classList.contains('vg-open')) return;
+                if (dropdown.contains(e.target) || avatar.contains(e.target))
+                    return;
+                closeDropdown();
+            });
+
+            // Escape closes it
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') closeDropdown();
+            });
+
+            // Logout: use the existing backend logout
+            logoutBtn.addEventListener('click', async function () {
+                const existingFn =
+                    window.vgLogout || window.handleLogout || window.logout;
+                if (typeof existingFn === 'function') {
+                    closeDropdown();
+                    existingFn();
+                    return;
+                }
+
+                if (!VG_LOGOUT_URL) {
+                    closeDropdown();
+                    alert('Logout Not Configured: Set VG_LOGOUT_URL to your existing backend logout route.');
+                    return;
+                }
+
+                logoutBtn.disabled = true;
+                try {
+                    const csrfTok =
+                        typeof getCsrfToken === 'function' ? getCsrfToken() : '';
+                    const res = await fetch(VG_LOGOUT_URL, {
+                        method: VG_LOGOUT_METHOD,
+                        headers: csrfTok ? { 'X-CSRF-Token': csrfTok } : {},
+                        credentials: 'same-origin',
+                    });
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    try {
+                        sessionStorage.removeItem('vg_csrf_token');
+                    } catch (_) {}
+                    window.location.href = VG_AFTER_LOGOUT_URL;
+                } catch (err) {
+                    closeDropdown();
+                    alert('Logout Failed: ' + (err.message || 'Could not log out. Please try again.'));
+                } finally {
+                    logoutBtn.disabled = false;
+                }
+            });
+        })();
     </script>
 </body>
 
