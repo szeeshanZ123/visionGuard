@@ -116,6 +116,7 @@
       /* ===== VisionGuard profile logout dropdown ===== */
       .vg-nav-user-container {
         position: relative;
+        z-index: 100;
       }
 
       #vg-profile-dropdown {
@@ -124,6 +125,7 @@
         top: calc(100% + 8px);
         right: 0;
         width: 160px;
+        max-width: calc(100vw - 24px);
         box-sizing: border-box;
         padding: 6px;
         background: #ffffff;
@@ -132,11 +134,11 @@
         box-shadow:
           0 4px 6px -1px rgba(15, 23, 42, 0.08),
           0 10px 24px rgba(15, 23, 42, 0.1);
-        z-index: 60;
+        z-index: 9999 !important;
       }
 
       #vg-profile-dropdown.vg-open {
-        display: block;
+        display: block !important;
       }
 
       #vg-logout-btn {
@@ -155,18 +157,20 @@
         line-height: 1.2;
         text-align: left;
         cursor: pointer;
-        transition: background-color 0.15s ease;
+        transition: background-color 0.15s ease, color 0.15s ease;
       }
 
       #vg-logout-btn:hover,
       #vg-logout-btn:focus-visible {
         background: #fee2e2;
+        color: #b91c1c;
         outline: none;
       }
 
       #vg-logout-btn .material-symbols-outlined {
         font-size: 18px;
-        color: #dc2626;
+        color: inherit;
+        line-height: 1;
       }
 
       #vg-logout-btn:disabled {
@@ -181,7 +185,7 @@
   >
     <!-- TOP RESPONSIVE LIGHT NAVBAR -->
     <header
-      class="sticky top-0 z-50 bg-white border-b border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] w-full"
+      class="sticky top-0 z-[1050] bg-white border-b border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] w-full"
     >
       <!-- Top Row -->
       <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
@@ -259,7 +263,7 @@
             <div class="h-6 w-px bg-slate-200 hidden sm:block"></div>
             <!-- User Profile -->
             <div class="flex items-center gap-2 vg-nav-user-container">
-              <div class="hidden lg:block text-right">
+              <div class="hidden sm:block text-right">
                 <div
                   id="map-username"
                   class="text-xs font-bold text-slate-900 leading-tight"
@@ -1430,7 +1434,7 @@
         }
 
         // Sync user auth status in header & CSRF token
-        fetch("/api/auth/status")
+        window.__vgAuthPromise = fetch("/api/auth/status")
           .then((r) => r.json())
           .then((data) => {
             if (data && data.csrf_token) {
@@ -1444,29 +1448,29 @@
               const nameEl = document.getElementById("map-username");
               const roleEl = document.getElementById("map-role");
               const avatarEl = document.getElementById("map-user-avatar");
-              if (avatarEl) avatarEl.setAttribute("data-authenticated", "true");
+              if (avatarEl) {
+                avatarEl.setAttribute("data-authenticated", "true");
+                avatarEl.setAttribute("href", "javascript:void(0)");
+                avatarEl.title = `${data.user.username} (${data.user.role}) - Account Menu`;
+              }
               if (nameEl) nameEl.innerText = data.user.username;
               if (roleEl)
                 roleEl.innerText = (data.user.role || "citizen").toUpperCase();
-              if (avatarEl) {
-                const isStaff =
-                  data.user.role === "admin" ||
-                  data.user.role === "inspector" ||
-                  data.user.role === "maintenance";
-                avatarEl.href = isStaff ? "/app" : "/report";
-                avatarEl.title = `${data.user.username} (${data.user.role}) - Click for ${isStaff ? "Operations Dashboard" : "My Reports"}`;
-              }
             } else {
               const nameEl = document.getElementById("map-username");
               const roleEl = document.getElementById("map-role");
               const avatarEl = document.getElementById("map-user-avatar");
-              if (avatarEl) avatarEl.removeAttribute("data-authenticated");
+              if (avatarEl) {
+                avatarEl.removeAttribute("data-authenticated");
+                avatarEl.href = "/login?return=/map";
+                avatarEl.title = "Click to Sign In";
+              }
               if (nameEl) nameEl.innerText = "Guest";
               if (roleEl) roleEl.innerText = "Sign In";
-              if (avatarEl) avatarEl.href = "/login?return=/map";
             }
+            return data;
           })
-          .catch(() => {});
+          .catch(() => ({ authenticated: false }));
       });
 
       function getCsrfToken() {
@@ -1498,13 +1502,34 @@
         }
 
         // Avatar click: toggle for signed-in users, normal link for guests
-        avatar.addEventListener("click", function (e) {
-          const isAuth = avatar.getAttribute("data-authenticated") === "true";
-          const href = avatar.getAttribute("href") || "";
-          const isGuest = !isAuth && href.indexOf("/login") !== -1;
-          if (isGuest) return; // guests still go to the login page as before
+        avatar.addEventListener("click", async function (e) {
           e.preventDefault();
           e.stopPropagation();
+
+          let isAuth = avatar.getAttribute("data-authenticated") === "true";
+          if (!isAuth && window.__vgAuthPromise) {
+            try {
+              const data = await window.__vgAuthPromise;
+              isAuth = !!(data && data.authenticated);
+            } catch (_) {
+              isAuth = false;
+            }
+          }
+
+          if (!isAuth) {
+            const targetHref = avatar.getAttribute("href");
+            if (
+              targetHref &&
+              targetHref !== "javascript:void(0)" &&
+              targetHref !== "#"
+            ) {
+              window.location.href = targetHref;
+            } else {
+              window.location.href = "/login?return=/map";
+            }
+            return;
+          }
+
           dropdown.classList.contains("vg-open")
             ? closeDropdown()
             : openDropdown();
