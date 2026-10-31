@@ -1,778 +1,1086 @@
-<!DOCTYPE html>
+<!doctype html>
 
 <html lang="en">
-
-<head>
+  <head>
     <meta charset="utf-8" />
-    <meta name="csrf-token" content="{{ csrf_token or '' }}">
-    <meta content="width=device-width, initial-scale=1.0, maximum-scale=5.0" name="viewport" />
+    <meta name="csrf-token" content="{{ csrf_token or '' }}" />
+    <meta
+      content="width=device-width, initial-scale=1.0, maximum-scale=5.0"
+      name="viewport"
+    />
     <title>Geospatial Defect Map - VisionGuard AI</title>
     <!-- Fonts & Icons -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap"
-        rel="stylesheet" />
     <link
-        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
-        rel="stylesheet" />
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
     <!-- Leaflet CSS & JS -->
-    <link crossorigin="" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" rel="stylesheet" />
-    <script crossorigin="" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-        src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link
+      crossorigin=""
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      rel="stylesheet"
+    />
+    <script
+      crossorigin=""
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    ></script>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    }
-                }
-            }
-        }
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+            },
+          },
+        },
+      };
     </script>
     <style>
-        @layer base {
-
-            html,
-            body {
-                margin: 0;
-                padding: 0;
-                font-family: 'Inter', sans-serif;
-                background-color: #F8FAFC;
-                color: #0F172A;
-                overflow-x: hidden;
-            }
+      @layer base {
+        html,
+        body {
+          margin: 0;
+          padding: 0;
+          font-family: "Inter", sans-serif;
+          background-color: #f8fafc;
+          color: #0f172a;
+          overflow-x: hidden;
         }
+      }
 
-        .no-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
 
-        .no-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
 
-        ::-webkit-scrollbar {
-            width: 5px;
-            height: 5px;
-        }
+      ::-webkit-scrollbar {
+        width: 5px;
+        height: 5px;
+      }
 
-        ::-webkit-scrollbar-track {
-            background: #F1F5F9;
-        }
+      ::-webkit-scrollbar-track {
+        background: #f1f5f9;
+      }
 
-        ::-webkit-scrollbar-thumb {
-            background: #CBD5E1;
-            border-radius: 9999px;
-        }
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 9999px;
+      }
 
-        /* Custom Leaflet styling */
-        .leaflet-popup-content-wrapper {
-            padding: 0 !important;
-            border-radius: 0.875rem !important;
-            box-shadow: 0 12px 24px -4px rgba(15, 23, 42, 0.12), 0 4px 6px -2px rgba(15, 23, 42, 0.05) !important;
-            border: 1px solid #E2E8F0;
-            overflow: hidden;
-        }
+      /* Custom Leaflet styling */
+      .leaflet-popup-content-wrapper {
+        padding: 0 !important;
+        border-radius: 0.875rem !important;
+        box-shadow:
+          0 12px 24px -4px rgba(15, 23, 42, 0.12),
+          0 4px 6px -2px rgba(15, 23, 42, 0.05) !important;
+        border: 1px solid #e2e8f0;
+        overflow: hidden;
+      }
 
-        .leaflet-popup-content {
-            margin: 0 !important;
-            line-height: inherit !important;
-        }
+      .leaflet-popup-content {
+        margin: 0 !important;
+        line-height: inherit !important;
+      }
 
-        .leaflet-popup-tip {
-            background: #FFFFFF !important;
-            box-shadow: 0 4px 6px -2px rgba(15, 23, 42, 0.05);
-        }
+      .leaflet-popup-tip {
+        background: #ffffff !important;
+        box-shadow: 0 4px 6px -2px rgba(15, 23, 42, 0.05);
+      }
 
-        .leaflet-container {
-            font-family: 'Inter', sans-serif !important;
-        }
+      .leaflet-container {
+        font-family: "Inter", sans-serif !important;
+      }
 
-        .custom-pin {
-            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
+      .custom-pin {
+        transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
 
-        .custom-pin:hover {
-            transform: scale(1.15) translateY(-4px);
-            z-index: 1000 !important;
-        }
+      .custom-pin:hover {
+        transform: scale(1.15) translateY(-4px);
+        z-index: 1000 !important;
+      }
 
-        /* ===== VisionGuard profile logout dropdown ===== */
-        .vg-nav-user-container {
-            position: relative;
-        }
+      /* ===== VisionGuard profile logout dropdown ===== */
+      .vg-nav-user-container {
+        position: relative;
+        z-index: 100;
+      }
 
-        #vg-profile-dropdown {
-            display: none;
-            position: absolute;
-            top: calc(100% + 8px);
-            right: 0;
-            width: 160px;
-            box-sizing: border-box;
-            padding: 6px;
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 10px;
-            box-shadow:
-                0 4px 6px -1px rgba(15, 23, 42, 0.08),
-                0 10px 24px rgba(15, 23, 42, 0.1);
-            z-index: 60;
-        }
+      #vg-profile-dropdown {
+        display: none;
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        width: 160px;
+        max-width: calc(100vw - 24px);
+        box-sizing: border-box;
+        padding: 6px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        box-shadow:
+          0 4px 6px -1px rgba(15, 23, 42, 0.08),
+          0 10px 24px rgba(15, 23, 42, 0.1);
+        z-index: 9999 !important;
+      }
 
-        #vg-profile-dropdown.vg-open {
-            display: block;
-        }
+      #vg-profile-dropdown.vg-open {
+        display: block !important;
+      }
 
-        #vg-logout-btn {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            width: 100%;
-            padding: 9px 10px;
-            border: 0;
-            border-radius: 8px;
-            background: transparent;
-            color: #dc2626;
-            font-family: 'Inter', sans-serif;
-            font-size: 14px;
-            font-weight: 600;
-            line-height: 1.2;
-            text-align: left;
-            cursor: pointer;
-            transition: background-color 0.15s ease;
-        }
+      #vg-logout-btn {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 9px 10px;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: #dc2626;
+        font-family: "Inter", sans-serif;
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 1.2;
+        text-align: left;
+        cursor: pointer;
+        transition: background-color 0.15s ease, color 0.15s ease;
+      }
 
-        #vg-logout-btn:hover,
-        #vg-logout-btn:focus-visible {
-            background: #fee2e2;
-            outline: none;
-        }
+      #vg-logout-btn:hover,
+      #vg-logout-btn:focus-visible {
+        background: #fee2e2;
+        color: #b91c1c;
+        outline: none;
+      }
 
-        #vg-logout-btn .material-symbols-outlined {
-            font-size: 18px;
-            color: #dc2626;
-        }
+      #vg-logout-btn .material-symbols-outlined {
+        font-size: 18px;
+        color: inherit;
+        line-height: 1;
+      }
 
-        #vg-logout-btn:disabled {
-            opacity: 0.6;
-            cursor: wait;
-        }
+      #vg-logout-btn:disabled {
+        opacity: 0.6;
+        cursor: wait;
+      }
     </style>
-</head>
+  </head>
 
-<body class="bg-[#F8FAFC] text-slate-900 antialiased min-h-screen flex flex-col justify-between overflow-x-hidden">
+  <body
+    class="bg-[#F8FAFC] text-slate-900 antialiased min-h-screen flex flex-col justify-between overflow-x-hidden"
+  >
     <!-- TOP RESPONSIVE LIGHT NAVBAR -->
-    <header class="sticky top-0 z-50 bg-white border-b border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] w-full">
-        <!-- Top Row -->
-        <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+    <header
+      class="sticky top-0 z-[1050] bg-white border-b border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] w-full"
+    >
+      <!-- Top Row -->
+      <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div
+          class="py-2.5 sm:py-0 sm:h-16 flex flex-wrap md:flex-nowrap items-center justify-between gap-2.5 sm:gap-4 md:gap-6"
+        >
+          <!-- Brand Section -->
+          <a
+            href="/"
+            class="flex items-center gap-2.5 sm:gap-3 shrink-0 hover:opacity-95 transition-opacity"
+          >
             <div
-                class="py-2.5 sm:py-0 sm:h-16 flex flex-wrap md:flex-nowrap items-center justify-between gap-2.5 sm:gap-4 md:gap-6">
-                <!-- Brand Section -->
-                <a href="/" class="flex items-center gap-2.5 sm:gap-3 shrink-0 hover:opacity-95 transition-opacity">
-                    <div
-                        class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shadow-xs">
-                        <span class="material-symbols-outlined text-[18px] sm:text-[20px]">shield</span>
-                    </div>
-                    <div>
-                        <div class="flex items-center gap-1.5 leading-none">
-                            <span class="font-bold text-sm sm:text-[16px] text-slate-900 tracking-tight">VisionGuard
-                                AI</span>
-                            <span
-                                class="px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 tracking-wider">CIVIL</span>
-                        </div>
-                        <p class="text-[10px] sm:text-[11px] text-slate-400 font-medium mt-0.5 leading-none">
-                            Infrastructure Inspection</p>
-                    </div>
-                </a>
-                <!-- Center Search Bar (Flexible on desktop, collapses or wraps safely) -->
-                <div class="order-3 md:order-2 w-full md:flex-1 md:max-w-md lg:max-w-lg md:mx-2 mt-1 md:mt-0">
-                    <div class="relative w-full">
-                        <span
-                            class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span>
-                        <input
-                            class="w-full pl-9 pr-3.5 py-2 text-xs font-normal text-slate-700 bg-slate-50/80 hover:bg-slate-100/70 focus:bg-white border border-slate-200/80 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
-                            placeholder="Search inspection IDs, asset tags, road segments..." type="text" />
-                    </div>
-                </div>
-                <!-- Right Quick Actions & Profile -->
-                <div class="order-2 md:order-3 flex items-center gap-2 sm:gap-3.5 shrink-0 ml-auto md:ml-0">
-                    <!-- + New Report Button -->
-                    <button onclick="window.location.href='/create_home'"
-                        class="inline-flex items-center justify-center gap-1.5 min-h-[38px] px-3.5 sm:px-4 py-1.5 rounded-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold shadow-xs hover:shadow transition-all"
-                        type="button">
-                        <span class="material-symbols-outlined text-[16px]">add</span>
-                        <span class="hidden xs:inline">New Report</span>
-                    </button>
-                    <!-- Help Button -->
-                    <button
-                        class="w-9 h-9 min-h-[36px] min-w-[36px] rounded-full border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 flex items-center justify-center transition-colors"
-                        title="Help and Documentation" type="button">
-                        <span class="material-symbols-outlined text-[18px]">help</span>
-                    </button>
-                    <!-- Divider -->
-                    <div class="h-6 w-px bg-slate-200 hidden sm:block"></div>
-                    <!-- User Profile -->
-                    <div class="flex items-center gap-2">
-                        <div class="hidden lg:block text-right">
-                            <div id="map-username" class="text-xs font-bold text-slate-900 leading-tight">Citizen
-                                Auditor</div>
-                            <div id="map-role" class="text-[10px] text-slate-500 font-medium">Municipal Portal</div>
-                        </div>
-                        <a href="/login" id="map-user-avatar"
-                            class="w-9 h-9 rounded-full bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center cursor-pointer shrink-0 hover:bg-blue-100 transition-colors"
-                            title="Account Status">
-                            <span class="material-symbols-outlined text-[18px]">person</span>
-                        </a>
-                        <div id="vg-profile-dropdown" role="menu" aria-label="Account menu">
-                            <button type="button" id="vg-logout-btn" role="menuitem">
-                                <span class="material-symbols-outlined">logout</span>
-                                <span>Logout</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
+              class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shadow-xs"
+            >
+              <span class="material-symbols-outlined text-[18px] sm:text-[20px]"
+                >shield</span
+              >
             </div>
-        </div>
-        <!-- Bottom Sub-Navigation Row with Smooth Horizontal Scrolling -->
-        <div class="border-t border-slate-100 bg-white">
-            <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-                <div class="flex items-center justify-between overflow-x-auto no-scrollbar py-0.5 gap-4">
-                    <!-- Navigation Tabs -->
-                    <div class="flex items-center gap-4 sm:gap-6 whitespace-nowrap shrink-0">
-                        <a class="inline-flex items-center gap-2 py-2.5 text-xs font-bold text-blue-600 border-b-2 border-blue-600"
-                            href="/map">
-                            <span class="material-symbols-outlined text-[17px]">map</span>
-                            <span>Geospatial Defect Map</span>
-                        </a>
-                        <a class="inline-flex items-center gap-2 py-2.5 text-xs font-medium text-slate-500 hover:text-slate-800 border-b-2 border-transparent transition-colors"
-                            href="/report">
-                            <span class="material-symbols-outlined text-[17px]">folder_open</span>
-                            <span>Inspection Records</span>
-                        </a>
-                        <a class="inline-flex items-center gap-2 py-2.5 text-xs font-medium text-slate-500 hover:text-slate-800 border-b-2 border-transparent transition-colors"
-                            href="/create_home">
-                            <span class="material-symbols-outlined text-[17px]">sensors</span>
-                            <span>Defect Ingestion</span>
-                        </a>
-                    </div>
-                    <!-- Telemetry Status Pill -->
-                    <div class="shrink-0 py-2 hidden sm:flex items-center whitespace-nowrap">
-                        <span
-                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200 uppercase tracking-wide">
-                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                            NODE ACTIVE - LIVE SYNC
-                        </span>
-                    </div>
-                </div>
+            <div>
+              <div class="flex items-center gap-1.5 leading-none">
+                <span
+                  class="font-bold text-sm sm:text-[16px] text-slate-900 tracking-tight"
+                  >VisionGuard AI</span
+                >
+                <span
+                  class="px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 tracking-wider"
+                  >CIVIL</span
+                >
+              </div>
+              <p
+                class="text-[10px] sm:text-[11px] text-slate-400 font-medium mt-0.5 leading-none"
+              >
+                Infrastructure Inspection
+              </p>
             </div>
+          </a>
+          <!-- Center Search Bar (Flexible on desktop, collapses or wraps safely) -->
+          <div
+            class="order-3 md:order-2 w-full md:flex-1 md:max-w-md lg:max-w-lg md:mx-2 mt-1 md:mt-0"
+          >
+            <div class="relative w-full">
+              <span
+                class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]"
+                >search</span
+              >
+              <input
+                class="w-full pl-9 pr-3.5 py-2 text-xs font-normal text-slate-700 bg-slate-50/80 hover:bg-slate-100/70 focus:bg-white border border-slate-200/80 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
+                placeholder="Search inspection IDs, asset tags, road segments..."
+                type="text"
+              />
+            </div>
+          </div>
+          <!-- Right Quick Actions & Profile -->
+          <div
+            class="order-2 md:order-3 flex items-center gap-2 sm:gap-3.5 shrink-0 ml-auto md:ml-0"
+          >
+            <!-- + New Report Button -->
+            <button
+              onclick="window.location.href = '/create_home'"
+              class="inline-flex items-center justify-center gap-1.5 min-h-[38px] px-3.5 sm:px-4 py-1.5 rounded-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold shadow-xs hover:shadow transition-all"
+              type="button"
+            >
+              <span class="material-symbols-outlined text-[16px]">add</span>
+              <span class="hidden xs:inline">New Report</span>
+            </button>
+            <!-- Help Button -->
+            <button
+              class="w-9 h-9 min-h-[36px] min-w-[36px] rounded-full border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 flex items-center justify-center transition-colors"
+              title="Help and Documentation"
+              type="button"
+            >
+              <span class="material-symbols-outlined text-[18px]">help</span>
+            </button>
+            <!-- Divider -->
+            <div class="h-6 w-px bg-slate-200 hidden sm:block"></div>
+            <!-- User Profile -->
+            <div class="flex items-center gap-2 vg-nav-user-container">
+              <div class="hidden sm:block text-right">
+                <div
+                  id="map-username"
+                  class="text-xs font-bold text-slate-900 leading-tight"
+                >
+                  Citizen Auditor
+                </div>
+                <div
+                  id="map-role"
+                  class="text-[10px] text-slate-500 font-medium"
+                >
+                  Municipal Portal
+                </div>
+              </div>
+              <a
+                href="/login"
+                id="map-user-avatar"
+                class="w-9 h-9 rounded-full bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center cursor-pointer shrink-0 hover:bg-blue-100 transition-colors"
+                title="Account Status"
+              >
+                <span class="material-symbols-outlined text-[18px]"
+                  >person</span
+                >
+              </a>
+              <div
+                id="vg-profile-dropdown"
+                role="menu"
+                aria-label="Account menu"
+              >
+                <button type="button" id="vg-logout-btn" role="menuitem">
+                  <span class="material-symbols-outlined">logout</span>
+                  <span>Logout</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
+      <!-- Bottom Sub-Navigation Row with Smooth Horizontal Scrolling -->
+      <div class="border-t border-slate-100 bg-white">
+        <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div
+            class="flex items-center justify-between overflow-x-auto no-scrollbar py-0.5 gap-4"
+          >
+            <!-- Navigation Tabs -->
+            <div
+              class="flex items-center gap-4 sm:gap-6 whitespace-nowrap shrink-0"
+            >
+              <a
+                class="inline-flex items-center gap-2 py-2.5 text-xs font-bold text-blue-600 border-b-2 border-blue-600"
+                href="/map"
+              >
+                <span class="material-symbols-outlined text-[17px]">map</span>
+                <span>Geospatial Defect Map</span>
+              </a>
+              <a
+                class="inline-flex items-center gap-2 py-2.5 text-xs font-medium text-slate-500 hover:text-slate-800 border-b-2 border-transparent transition-colors"
+                href="/report"
+              >
+                <span class="material-symbols-outlined text-[17px]"
+                  >folder_open</span
+                >
+                <span>Inspection Records</span>
+              </a>
+              <a
+                class="inline-flex items-center gap-2 py-2.5 text-xs font-medium text-slate-500 hover:text-slate-800 border-b-2 border-transparent transition-colors"
+                href="/create_home"
+              >
+                <span class="material-symbols-outlined text-[17px]"
+                  >sensors</span
+                >
+                <span>Defect Ingestion</span>
+              </a>
+            </div>
+            <!-- Telemetry Status Pill -->
+            <div
+              class="shrink-0 py-2 hidden sm:flex items-center whitespace-nowrap"
+            >
+              <span
+                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200 uppercase tracking-wide"
+              >
+                <span
+                  class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"
+                ></span>
+                NODE ACTIVE - LIVE SYNC
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
     </header>
     <!-- MAIN PAGE CONTENT -->
-    <main class="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6">
-        <!-- 1. Breadcrumbs, Header & Top Actions -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-            <div class="min-w-0">
-                <nav
-                    class="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-slate-400 uppercase mb-1 flex-wrap">
-                    <span class="hover:text-slate-700 transition-colors cursor-pointer">Home</span>
-                    <span class="material-symbols-outlined text-[13px] text-slate-400">chevron_right</span>
-                    <span class="text-blue-600 font-bold truncate">Geospatial Defect Map</span>
-                </nav>
-                <h1 class="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900 break-words">
-                    Interactive Infrastructure <span class="text-blue-600">Defect Map</span>
-                </h1>
-                <p class="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl break-words">
-                    Geospatial visualization of civic road defects, cracks, and asset telemetry across monitored
-                    inspection corridors.
-                </p>
-            </div>
-            <!-- Action Buttons -->
-            <div class="flex items-center gap-2 sm:gap-3 shrink-0 self-start sm:self-auto">
-                <!-- Layers Dropdown -->
-                <!-- <button
+    <main
+      class="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6"
+    >
+      <!-- 1. Breadcrumbs, Header & Top Actions -->
+      <div
+        class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4"
+      >
+        <div class="min-w-0">
+          <nav
+            class="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-slate-400 uppercase mb-1 flex-wrap"
+          >
+            <span class="hover:text-slate-700 transition-colors cursor-pointer"
+              >Home</span
+            >
+            <span class="material-symbols-outlined text-[13px] text-slate-400"
+              >chevron_right</span
+            >
+            <span class="text-blue-600 font-bold truncate"
+              >Geospatial Defect Map</span
+            >
+          </nav>
+          <h1
+            class="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900 break-words"
+          >
+            Interactive Infrastructure
+            <span class="text-blue-600">Defect Map</span>
+          </h1>
+          <p
+            class="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl break-words"
+          >
+            Geospatial visualization of civic road defects, cracks, and asset
+            telemetry across monitored inspection corridors.
+          </p>
+        </div>
+        <!-- Action Buttons -->
+        <div
+          class="flex items-center gap-2 sm:gap-3 shrink-0 self-start sm:self-auto"
+        >
+          <!-- Layers Dropdown -->
+          <!-- <button
                     class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-white text-slate-700 text-xs font-semibold rounded-full border border-slate-200 shadow-xs hover:bg-slate-50 hover:text-slate-900 min-h-[38px] transition-all"
                     id="layersBtn" type="button">
                     <span class="material-symbols-outlined text-[17px] text-slate-500">layers</span>
                     <span>Layers</span>
                     <span class="material-symbols-outlined text-[15px] text-slate-400">expand_more</span>
                 </button> -->
-                <!-- Sync Data Action -->
-                <button
-                    class="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold rounded-full shadow-xs hover:shadow min-h-[38px] transition-all"
-                    id="syncBtn" type="button">
-                    <span class="material-symbols-outlined text-[17px]" id="syncIcon">sync</span>
-                    <span>Sync Data</span>
-                </button>
-            </div>
+          <!-- Sync Data Action -->
+          <button
+            class="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold rounded-full shadow-xs hover:shadow min-h-[38px] transition-all"
+            id="syncBtn"
+            type="button"
+          >
+            <span class="material-symbols-outlined text-[17px]" id="syncIcon"
+              >sync</span
+            >
+            <span>Sync Data</span>
+          </button>
         </div>
-        <!-- 2. Dismissible System Alert Notice Banner -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-3.5 px-3.5 sm:px-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 shadow-xs"
-            id="systemAlert">
-            <div class="flex items-start sm:items-center gap-2.5 min-w-0">
+      </div>
+      <!-- 2. Dismissible System Alert Notice Banner -->
+      <div
+        class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-3.5 px-3.5 sm:px-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 shadow-xs"
+        id="systemAlert"
+      >
+        <div class="flex items-start sm:items-center gap-2.5 min-w-0">
+          <span
+            class="material-symbols-outlined text-amber-600 text-[20px] shrink-0 mt-0.5 sm:mt-0"
+            >sensors_krx</span
+          >
+          <div class="text-xs sm:text-sm break-words">
+            <strong class="font-bold text-amber-900">Map Sync Notice:</strong>
+            Live server synchronization active.
+            <span class="font-bold" id="alertCount">7</span> defect telemetry
+            records mapped.
+          </div>
+        </div>
+        <div
+          class="flex flex-wrap items-center gap-2 self-start sm:self-auto shrink-0"
+        >
+          <button
+            class="px-2.5 py-1 text-xs font-semibold bg-white hover:bg-amber-100/60 text-amber-900 rounded-lg border border-amber-200 transition-colors shadow-2xs"
+            type="button"
+          >
+            Retry Connection
+          </button>
+          <button
+            class="px-2.5 py-1 text-xs font-semibold bg-white hover:bg-amber-100/60 text-amber-900 rounded-lg border border-amber-200 transition-colors shadow-2xs"
+            type="button"
+          >
+            View Cached Data
+          </button>
+          <button
+            class="p-1 rounded-md text-amber-800/70 hover:text-amber-900 hover:bg-amber-200/50 transition-colors ml-0.5"
+            onclick="document.getElementById('systemAlert').remove()"
+            title="Dismiss"
+            type="button"
+          >
+            <span class="material-symbols-outlined text-[18px]">close</span>
+          </button>
+        </div>
+      </div>
+      <!-- 3. Responsive Main Card Layout (Desktop: 8-col map + 4-col sidebar, Tablet/Mobile: clean stack) -->
+      <div
+        class="w-full bg-white rounded-2xl border border-slate-200 shadow-sm p-3 sm:p-5 lg:p-6"
+      >
+        <div class="flex flex-col lg:grid lg:grid-cols-12 gap-5 sm:gap-6">
+          <!-- Interactive Map Container (8 columns on lg) -->
+          <div class="w-full lg:col-span-8 flex flex-col space-y-3">
+            <div
+              class="relative w-full h-[360px] sm:h-[460px] lg:h-[620px] rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shadow-inner select-none"
+            >
+              <!-- Leaflet Map Canvas -->
+              <div class="w-full h-full z-0" id="defect-map"></div>
+              <!-- Floating Top-Left Search Overlay Pill (Safe responsive width) -->
+              <div
+                class="absolute top-2.5 sm:top-4 left-2.5 sm:left-4 z-[400] flex items-center bg-white/95 backdrop-blur-md rounded-full shadow-md pl-3 pr-1 py-1 w-[calc(100%-80px)] sm:w-80 max-w-sm border border-slate-200"
+              >
                 <span
-                    class="material-symbols-outlined text-amber-600 text-[20px] shrink-0 mt-0.5 sm:mt-0">sensors_krx</span>
-                <div class="text-xs sm:text-sm break-words">
-                    <strong class="font-bold text-amber-900">Map Sync Notice:</strong> Live server synchronization
-                    active. <span class="font-bold" id="alertCount">7</span> defect telemetry records mapped.
+                  class="material-symbols-outlined text-[17px] text-slate-400 mr-1.5 shrink-0"
+                  >search</span
+                >
+                <input
+                  class="w-full min-w-0 text-xs font-medium text-slate-800 placeholder-slate-400 bg-transparent focus:outline-none"
+                  id="mapSearchInput"
+                  placeholder="Search location (Bandra...)"
+                  type="text"
+                />
+                <button
+                  class="px-2.5 sm:px-3 py-1 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-[11px] sm:text-xs font-semibold rounded-full shrink-0 shadow-xs transition-colors"
+                  id="mapSearchBtn"
+                  type="button"
+                >
+                  Search
+                </button>
+              </div>
+              <!-- Floating Top-Right Map Controls -->
+              <div
+                class="absolute top-2.5 sm:top-4 right-2.5 sm:right-4 z-[400] flex flex-col gap-1.5"
+              >
+                <button
+                  class="w-8 h-8 bg-white hover:bg-slate-50 text-slate-700 rounded-lg shadow-md flex items-center justify-center transition-colors border border-slate-200"
+                  id="zoomInBtn"
+                  title="Zoom In"
+                  type="button"
+                >
+                  <span class="material-symbols-outlined text-[18px]">add</span>
+                </button>
+                <button
+                  class="w-8 h-8 bg-white hover:bg-slate-50 text-slate-700 rounded-lg shadow-md flex items-center justify-center transition-colors border border-slate-200"
+                  id="zoomOutBtn"
+                  title="Zoom Out"
+                  type="button"
+                >
+                  <span class="material-symbols-outlined text-[18px]"
+                    >remove</span
+                  >
+                </button>
+                <button
+                  class="w-8 h-8 bg-white hover:bg-slate-50 text-blue-600 rounded-lg shadow-md flex items-center justify-center transition-colors border border-slate-200"
+                  id="recenterGpsBtn"
+                  title="Recenter GPS / Mumbai"
+                  type="button"
+                >
+                  <span class="material-symbols-outlined text-[18px]"
+                    >my_location</span
+                  >
+                </button>
+              </div>
+              <!-- Active Defect Callout Card (Bottom-Left) -->
+              <div
+                class="absolute bottom-2.5 sm:bottom-4 left-2.5 sm:left-4 z-[400] max-w-[calc(100%-1.25rem)] sm:max-w-xs bg-white/95 backdrop-blur-md p-2 sm:p-3 rounded-xl shadow-lg flex items-center gap-2.5 sm:gap-3 border border-slate-200 cursor-pointer hover:bg-white transition-all"
+                id="activeDefectCard"
+              >
+                <div
+                  class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-red-100 flex items-center justify-center text-red-600 shrink-0"
+                >
+                  <span
+                    class="material-symbols-outlined text-[18px] sm:text-[20px]"
+                    >error</span
+                  >
                 </div>
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center gap-1.5 flex-wrap">
+                    <span
+                      class="text-[9px] sm:text-[10px] font-bold text-red-700 bg-red-50 px-1.5 py-0.5 rounded border border-red-200"
+                      >D40 ACTIVE</span
+                    >
+                    <span
+                      class="text-[9px] sm:text-[10px] text-slate-400 font-mono truncate"
+                      >19.1136, 72.8697</span
+                    >
+                  </div>
+                  <div class="text-xs font-bold text-slate-900 truncate mt-0.5">
+                    Western Express Hwy, Pillar 42
+                  </div>
+                  <div
+                    class="text-[10px] sm:text-[11px] text-slate-500 truncate"
+                  >
+                    5 defects detected • Open Status
+                  </div>
+                </div>
+              </div>
+              <!-- Bottom-Right Live Pill Indicator -->
+              <div
+                class="absolute bottom-2.5 right-2.5 sm:bottom-3 sm:right-3 z-[400] hidden md:flex items-center gap-2 pointer-events-none"
+              >
+                <div
+                  class="px-2.5 py-1 rounded-full bg-white/95 backdrop-blur-md shadow-xs text-[11px] font-semibold text-slate-700 flex items-center gap-1.5 border border-slate-200 pointer-events-auto"
+                >
+                  <span
+                    class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"
+                  ></span>
+                  <span id="activeMarkerCounter"
+                    >GPS Active • 7 Sites Active</span
+                  >
+                </div>
+              </div>
             </div>
-            <div class="flex flex-wrap items-center gap-2 self-start sm:self-auto shrink-0">
-                <button
-                    class="px-2.5 py-1 text-xs font-semibold bg-white hover:bg-amber-100/60 text-amber-900 rounded-lg border border-amber-200 transition-colors shadow-2xs"
-                    type="button">
-                    Retry Connection
-                </button>
-                <button
-                    class="px-2.5 py-1 text-xs font-semibold bg-white hover:bg-amber-100/60 text-amber-900 rounded-lg border border-amber-200 transition-colors shadow-2xs"
-                    type="button">
-                    View Cached Data
-                </button>
-                <button
-                    class="p-1 rounded-md text-amber-800/70 hover:text-amber-900 hover:bg-amber-200/50 transition-colors ml-0.5"
-                    onclick="document.getElementById('systemAlert').remove()" title="Dismiss" type="button">
-                    <span class="material-symbols-outlined text-[18px]">close</span>
-                </button>
+          </div>
+          <!-- Filter & Legend Sidebar (4 columns on lg) -->
+          <div
+            class="w-full lg:col-span-4 flex flex-col justify-between space-y-4"
+          >
+            <div class="space-y-4">
+              <!-- Section Heading & Counter Pill -->
+              <div
+                class="flex items-center justify-between pb-2 border-b border-slate-100 gap-2 flex-wrap"
+              >
+                <div class="min-w-0">
+                  <h2 class="text-sm font-bold text-slate-900">
+                    Map Layers &amp; Distress Classes
+                  </h2>
+                  <p class="text-[11px] text-slate-500">
+                    Toggle telemetry classification layers
+                  </p>
+                </div>
+                <span
+                  class="px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-[11px] sm:text-xs font-bold border border-blue-100 shrink-0"
+                  id="mappedRecordCountBadge"
+                >
+                  Total Mapped: 7 Records
+                </span>
+              </div>
+              <!-- Distress Categories Checklist -->
+              <div
+                class="space-y-1.5 max-h-[320px] sm:max-h-[380px] overflow-y-auto pr-1"
+                id="distressCheckboxList"
+              >
+                <!-- Item 1: D00 -->
+                <label
+                  class="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors group gap-2"
+                >
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <input
+                      checked=""
+                      class="distress-filter w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500/20 cursor-pointer shrink-0"
+                      data-category="D00"
+                      type="checkbox"
+                    />
+                    <span
+                      class="w-2.5 h-2.5 rounded-full bg-[#2563EB] shrink-0"
+                    ></span>
+                    <span
+                      class="text-xs font-medium text-slate-700 group-hover:text-slate-900 truncate"
+                      >Longitudinal Crack (D00)</span
+                    >
+                  </div>
+                  <span
+                    class="text-[10px] sm:text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full shrink-0"
+                    >1 record</span
+                  >
+                </label>
+                <!-- Item 2: D10 -->
+                <label
+                  class="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors group gap-2"
+                >
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <input
+                      checked=""
+                      class="distress-filter w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500/20 cursor-pointer shrink-0"
+                      data-category="D10"
+                      type="checkbox"
+                    />
+                    <span
+                      class="w-2.5 h-2.5 rounded-full bg-[#4F46E5] shrink-0"
+                    ></span>
+                    <span
+                      class="text-xs font-medium text-slate-700 group-hover:text-slate-900 truncate"
+                      >Transverse Crack (D10)</span
+                    >
+                  </div>
+                  <span
+                    class="text-[10px] sm:text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full shrink-0"
+                    >1 record</span
+                  >
+                </label>
+                <!-- Item 3: D20 -->
+                <label
+                  class="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors group gap-2"
+                >
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <input
+                      checked=""
+                      class="distress-filter w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500/20 cursor-pointer shrink-0"
+                      data-category="D20"
+                      type="checkbox"
+                    />
+                    <span
+                      class="w-2.5 h-2.5 rounded-full bg-[#D97706] shrink-0"
+                    ></span>
+                    <span
+                      class="text-xs font-medium text-slate-700 group-hover:text-slate-900 truncate"
+                      >Alligator Crack (D20)</span
+                    >
+                  </div>
+                  <span
+                    class="text-[10px] sm:text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full shrink-0"
+                    >1 record</span
+                  >
+                </label>
+                <!-- Item 4: D40 -->
+                <label
+                  class="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors group gap-2"
+                >
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <input
+                      checked=""
+                      class="distress-filter w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500/20 cursor-pointer shrink-0"
+                      data-category="D40"
+                      type="checkbox"
+                    />
+                    <span
+                      class="w-2.5 h-2.5 rounded-full bg-[#DC2626] shrink-0"
+                    ></span>
+                    <span
+                      class="text-xs font-medium text-slate-700 group-hover:text-slate-900 truncate"
+                      >Pothole (D40)</span
+                    >
+                  </div>
+                  <span
+                    class="text-[10px] sm:text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full shrink-0"
+                    >1 record</span
+                  >
+                </label>
+                <!-- Item 5: WALL -->
+                <label
+                  class="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors group gap-2"
+                >
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <input
+                      checked=""
+                      class="distress-filter w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500/20 cursor-pointer shrink-0"
+                      data-category="WALL"
+                      type="checkbox"
+                    />
+                    <span
+                      class="w-2.5 h-2.5 rounded-full bg-[#0891B2] shrink-0"
+                    ></span>
+                    <span
+                      class="text-xs font-medium text-slate-700 group-hover:text-slate-900 truncate"
+                      >Wall Crack (WALL)</span
+                    >
+                  </div>
+                  <span
+                    class="text-[10px] sm:text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full shrink-0"
+                    >1 record</span
+                  >
+                </label>
+                <!-- Item 6: DAMP -->
+                <label
+                  class="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors group gap-2"
+                >
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <input
+                      checked=""
+                      class="distress-filter w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500/20 cursor-pointer shrink-0"
+                      data-category="DAMP"
+                      type="checkbox"
+                    />
+                    <span
+                      class="w-2.5 h-2.5 rounded-full bg-[#0D9488] shrink-0"
+                    ></span>
+                    <span
+                      class="text-xs font-medium text-slate-700 group-hover:text-slate-900 truncate"
+                      >Dampness / Water (DAMP)</span
+                    >
+                  </div>
+                  <span
+                    class="text-[10px] sm:text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full shrink-0"
+                    >1 record</span
+                  >
+                </label>
+                <!-- Item 7: PEEL -->
+                <label
+                  class="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors group gap-2"
+                >
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <input
+                      checked=""
+                      class="distress-filter w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500/20 cursor-pointer shrink-0"
+                      data-category="PEEL"
+                      type="checkbox"
+                    />
+                    <span
+                      class="w-2.5 h-2.5 rounded-full bg-[#EA580C] shrink-0"
+                    ></span>
+                    <span
+                      class="text-xs font-medium text-slate-700 group-hover:text-slate-900 truncate"
+                      >Peeling Paint (PEEL)</span
+                    >
+                  </div>
+                  <span
+                    class="text-[10px] sm:text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full shrink-0"
+                    >1 record</span
+                  >
+                </label>
+                <!-- Item 8: SPALL -->
+                <label
+                  class="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors group opacity-60 gap-2"
+                >
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <input
+                      class="distress-filter w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500/20 cursor-pointer shrink-0"
+                      data-category="SPALL"
+                      type="checkbox"
+                    />
+                    <span
+                      class="w-2.5 h-2.5 rounded-full bg-[#9333EA] shrink-0"
+                    ></span>
+                    <span
+                      class="text-xs font-medium text-slate-700 group-hover:text-slate-900 truncate"
+                      >Spalling / Damage (SPALL)</span
+                    >
+                  </div>
+                  <span
+                    class="text-[10px] sm:text-[11px] font-medium text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full shrink-0"
+                    >0 records</span
+                  >
+                </label>
+              </div>
+              <!-- Informational Geospatial Notice Card -->
+              <div
+                class="p-3 bg-blue-50/70 rounded-xl flex items-start gap-2.5 border border-blue-100"
+              >
+                <span
+                  class="material-symbols-outlined text-blue-600 text-[18px] shrink-0 mt-0.5"
+                  >info</span
+                >
+                <div>
+                  <h3 class="text-xs font-bold text-slate-900">
+                    Geospatial Notice
+                  </h3>
+                  <p class="text-[11px] text-slate-600 leading-relaxed mt-0.5">
+                    Map pins mark the capture GPS coordinates associated with
+                    uploaded inspection media. Ungeotagged reports are cataloged
+                    under municipal regional centroids.
+                  </p>
+                </div>
+              </div>
             </div>
+            <!-- Bottom Filter Buttons -->
+            <div
+              class="pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5"
+            >
+              <button
+                class="flex-1 py-2.5 px-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold rounded-xl shadow-2xs hover:shadow transition-all text-center min-h-[42px]"
+                id="applyFiltersBtn"
+                type="button"
+              >
+                Apply Filters
+              </button>
+              <button
+                class="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all inline-flex items-center justify-center gap-1.5 min-h-[42px]"
+                id="resetFiltersBtn"
+                title="Reset all category filters"
+                type="button"
+              >
+                <span class="material-symbols-outlined text-[16px]"
+                  >restart_alt</span
+                >
+                <span>Reset</span>
+              </button>
+            </div>
+          </div>
         </div>
-        <!-- 3. Responsive Main Card Layout (Desktop: 8-col map + 4-col sidebar, Tablet/Mobile: clean stack) -->
-        <div class="w-full bg-white rounded-2xl border border-slate-200 shadow-sm p-3 sm:p-5 lg:p-6">
-            <div class="flex flex-col lg:grid lg:grid-cols-12 gap-5 sm:gap-6">
-                <!-- Interactive Map Container (8 columns on lg) -->
-                <div class="w-full lg:col-span-8 flex flex-col space-y-3">
-                    <div
-                        class="relative w-full h-[360px] sm:h-[460px] lg:h-[620px] rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shadow-inner select-none">
-                        <!-- Leaflet Map Canvas -->
-                        <div class="w-full h-full z-0" id="defect-map"></div>
-                        <!-- Floating Top-Left Search Overlay Pill (Safe responsive width) -->
-                        <div
-                            class="absolute top-2.5 sm:top-4 left-2.5 sm:left-4 z-[400] flex items-center bg-white/95 backdrop-blur-md rounded-full shadow-md pl-3 pr-1 py-1 w-[calc(100%-80px)] sm:w-80 max-w-sm border border-slate-200">
-                            <span
-                                class="material-symbols-outlined text-[17px] text-slate-400 mr-1.5 shrink-0">search</span>
-                            <input
-                                class="w-full min-w-0 text-xs font-medium text-slate-800 placeholder-slate-400 bg-transparent focus:outline-none"
-                                id="mapSearchInput" placeholder="Search location (Bandra...)" type="text" />
-                            <button
-                                class="px-2.5 sm:px-3 py-1 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-[11px] sm:text-xs font-semibold rounded-full shrink-0 shadow-xs transition-colors"
-                                id="mapSearchBtn" type="button">
-                                Search
-                            </button>
-                        </div>
-                        <!-- Floating Top-Right Map Controls -->
-                        <div class="absolute top-2.5 sm:top-4 right-2.5 sm:right-4 z-[400] flex flex-col gap-1.5">
-                            <button
-                                class="w-8 h-8 bg-white hover:bg-slate-50 text-slate-700 rounded-lg shadow-md flex items-center justify-center transition-colors border border-slate-200"
-                                id="zoomInBtn" title="Zoom In" type="button">
-                                <span class="material-symbols-outlined text-[18px]">add</span>
-                            </button>
-                            <button
-                                class="w-8 h-8 bg-white hover:bg-slate-50 text-slate-700 rounded-lg shadow-md flex items-center justify-center transition-colors border border-slate-200"
-                                id="zoomOutBtn" title="Zoom Out" type="button">
-                                <span class="material-symbols-outlined text-[18px]">remove</span>
-                            </button>
-                            <button
-                                class="w-8 h-8 bg-white hover:bg-slate-50 text-blue-600 rounded-lg shadow-md flex items-center justify-center transition-colors border border-slate-200"
-                                id="recenterGpsBtn" title="Recenter GPS / Mumbai" type="button">
-                                <span class="material-symbols-outlined text-[18px]">my_location</span>
-                            </button>
-                        </div>
-                        <!-- Active Defect Callout Card (Bottom-Left) -->
-                        <div class="absolute bottom-2.5 sm:bottom-4 left-2.5 sm:left-4 z-[400] max-w-[calc(100%-1.25rem)] sm:max-w-xs bg-white/95 backdrop-blur-md p-2 sm:p-3 rounded-xl shadow-lg flex items-center gap-2.5 sm:gap-3 border border-slate-200 cursor-pointer hover:bg-white transition-all"
-                            id="activeDefectCard">
-                            <div
-                                class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-red-100 flex items-center justify-center text-red-600 shrink-0">
-                                <span class="material-symbols-outlined text-[18px] sm:text-[20px]">error</span>
-                            </div>
-                            <div class="min-w-0 flex-1">
-                                <div class="flex items-center gap-1.5 flex-wrap">
-                                    <span
-                                        class="text-[9px] sm:text-[10px] font-bold text-red-700 bg-red-50 px-1.5 py-0.5 rounded border border-red-200">D40
-                                        ACTIVE</span>
-                                    <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono truncate">19.1136,
-                                        72.8697</span>
-                                </div>
-                                <div class="text-xs font-bold text-slate-900 truncate mt-0.5">Western Express Hwy,
-                                    Pillar 42</div>
-                                <div class="text-[10px] sm:text-[11px] text-slate-500 truncate">5 defects detected •
-                                    Open Status</div>
-                            </div>
-                        </div>
-                        <!-- Bottom-Right Live Pill Indicator -->
-                        <div
-                            class="absolute bottom-2.5 right-2.5 sm:bottom-3 sm:right-3 z-[400] hidden md:flex items-center gap-2 pointer-events-none">
-                            <div
-                                class="px-2.5 py-1 rounded-full bg-white/95 backdrop-blur-md shadow-xs text-[11px] font-semibold text-slate-700 flex items-center gap-1.5 border border-slate-200 pointer-events-auto">
-                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                <span id="activeMarkerCounter">GPS Active • 7 Sites Active</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- Filter & Legend Sidebar (4 columns on lg) -->
-                <div class="w-full lg:col-span-4 flex flex-col justify-between space-y-4">
-                    <div class="space-y-4">
-                        <!-- Section Heading & Counter Pill -->
-                        <div class="flex items-center justify-between pb-2 border-b border-slate-100 gap-2 flex-wrap">
-                            <div class="min-w-0">
-                                <h2 class="text-sm font-bold text-slate-900">Map Layers &amp; Distress Classes</h2>
-                                <p class="text-[11px] text-slate-500">Toggle telemetry classification layers</p>
-                            </div>
-                            <span
-                                class="px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-[11px] sm:text-xs font-bold border border-blue-100 shrink-0"
-                                id="mappedRecordCountBadge">
-                                Total Mapped: 7 Records
-                            </span>
-                        </div>
-                        <!-- Distress Categories Checklist -->
-                        <div class="space-y-1.5 max-h-[320px] sm:max-h-[380px] overflow-y-auto pr-1"
-                            id="distressCheckboxList">
-                            <!-- Item 1: D00 -->
-                            <label
-                                class="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors group gap-2">
-                                <div class="flex items-center gap-2.5 min-w-0">
-                                    <input checked=""
-                                        class="distress-filter w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500/20 cursor-pointer shrink-0"
-                                        data-category="D00" type="checkbox" />
-                                    <span class="w-2.5 h-2.5 rounded-full bg-[#2563EB] shrink-0"></span>
-                                    <span
-                                        class="text-xs font-medium text-slate-700 group-hover:text-slate-900 truncate">Longitudinal
-                                        Crack (D00)</span>
-                                </div>
-                                <span
-                                    class="text-[10px] sm:text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full shrink-0">1
-                                    record</span>
-                            </label>
-                            <!-- Item 2: D10 -->
-                            <label
-                                class="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors group gap-2">
-                                <div class="flex items-center gap-2.5 min-w-0">
-                                    <input checked=""
-                                        class="distress-filter w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500/20 cursor-pointer shrink-0"
-                                        data-category="D10" type="checkbox" />
-                                    <span class="w-2.5 h-2.5 rounded-full bg-[#4F46E5] shrink-0"></span>
-                                    <span
-                                        class="text-xs font-medium text-slate-700 group-hover:text-slate-900 truncate">Transverse
-                                        Crack (D10)</span>
-                                </div>
-                                <span
-                                    class="text-[10px] sm:text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full shrink-0">1
-                                    record</span>
-                            </label>
-                            <!-- Item 3: D20 -->
-                            <label
-                                class="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors group gap-2">
-                                <div class="flex items-center gap-2.5 min-w-0">
-                                    <input checked=""
-                                        class="distress-filter w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500/20 cursor-pointer shrink-0"
-                                        data-category="D20" type="checkbox" />
-                                    <span class="w-2.5 h-2.5 rounded-full bg-[#D97706] shrink-0"></span>
-                                    <span
-                                        class="text-xs font-medium text-slate-700 group-hover:text-slate-900 truncate">Alligator
-                                        Crack (D20)</span>
-                                </div>
-                                <span
-                                    class="text-[10px] sm:text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full shrink-0">1
-                                    record</span>
-                            </label>
-                            <!-- Item 4: D40 -->
-                            <label
-                                class="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors group gap-2">
-                                <div class="flex items-center gap-2.5 min-w-0">
-                                    <input checked=""
-                                        class="distress-filter w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500/20 cursor-pointer shrink-0"
-                                        data-category="D40" type="checkbox" />
-                                    <span class="w-2.5 h-2.5 rounded-full bg-[#DC2626] shrink-0"></span>
-                                    <span
-                                        class="text-xs font-medium text-slate-700 group-hover:text-slate-900 truncate">Pothole
-                                        (D40)</span>
-                                </div>
-                                <span
-                                    class="text-[10px] sm:text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full shrink-0">1
-                                    record</span>
-                            </label>
-                            <!-- Item 5: WALL -->
-                            <label
-                                class="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors group gap-2">
-                                <div class="flex items-center gap-2.5 min-w-0">
-                                    <input checked=""
-                                        class="distress-filter w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500/20 cursor-pointer shrink-0"
-                                        data-category="WALL" type="checkbox" />
-                                    <span class="w-2.5 h-2.5 rounded-full bg-[#0891B2] shrink-0"></span>
-                                    <span
-                                        class="text-xs font-medium text-slate-700 group-hover:text-slate-900 truncate">Wall
-                                        Crack (WALL)</span>
-                                </div>
-                                <span
-                                    class="text-[10px] sm:text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full shrink-0">1
-                                    record</span>
-                            </label>
-                            <!-- Item 6: DAMP -->
-                            <label
-                                class="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors group gap-2">
-                                <div class="flex items-center gap-2.5 min-w-0">
-                                    <input checked=""
-                                        class="distress-filter w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500/20 cursor-pointer shrink-0"
-                                        data-category="DAMP" type="checkbox" />
-                                    <span class="w-2.5 h-2.5 rounded-full bg-[#0D9488] shrink-0"></span>
-                                    <span
-                                        class="text-xs font-medium text-slate-700 group-hover:text-slate-900 truncate">Dampness
-                                        / Water (DAMP)</span>
-                                </div>
-                                <span
-                                    class="text-[10px] sm:text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full shrink-0">1
-                                    record</span>
-                            </label>
-                            <!-- Item 7: PEEL -->
-                            <label
-                                class="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors group gap-2">
-                                <div class="flex items-center gap-2.5 min-w-0">
-                                    <input checked=""
-                                        class="distress-filter w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500/20 cursor-pointer shrink-0"
-                                        data-category="PEEL" type="checkbox" />
-                                    <span class="w-2.5 h-2.5 rounded-full bg-[#EA580C] shrink-0"></span>
-                                    <span
-                                        class="text-xs font-medium text-slate-700 group-hover:text-slate-900 truncate">Peeling
-                                        Paint (PEEL)</span>
-                                </div>
-                                <span
-                                    class="text-[10px] sm:text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full shrink-0">1
-                                    record</span>
-                            </label>
-                            <!-- Item 8: SPALL -->
-                            <label
-                                class="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors group opacity-60 gap-2">
-                                <div class="flex items-center gap-2.5 min-w-0">
-                                    <input
-                                        class="distress-filter w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500/20 cursor-pointer shrink-0"
-                                        data-category="SPALL" type="checkbox" />
-                                    <span class="w-2.5 h-2.5 rounded-full bg-[#9333EA] shrink-0"></span>
-                                    <span
-                                        class="text-xs font-medium text-slate-700 group-hover:text-slate-900 truncate">Spalling
-                                        / Damage (SPALL)</span>
-                                </div>
-                                <span
-                                    class="text-[10px] sm:text-[11px] font-medium text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full shrink-0">0
-                                    records</span>
-                            </label>
-                        </div>
-                        <!-- Informational Geospatial Notice Card -->
-                        <div class="p-3 bg-blue-50/70 rounded-xl flex items-start gap-2.5 border border-blue-100">
-                            <span
-                                class="material-symbols-outlined text-blue-600 text-[18px] shrink-0 mt-0.5">info</span>
-                            <div>
-                                <h3 class="text-xs font-bold text-slate-900">Geospatial Notice</h3>
-                                <p class="text-[11px] text-slate-600 leading-relaxed mt-0.5">
-                                    Map pins mark the capture GPS coordinates associated with uploaded inspection media.
-                                    Ungeotagged reports are cataloged under municipal regional centroids.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Bottom Filter Buttons -->
-                    <div
-                        class="pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-                        <button
-                            class="flex-1 py-2.5 px-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold rounded-xl shadow-2xs hover:shadow transition-all text-center min-h-[42px]"
-                            id="applyFiltersBtn" type="button">
-                            Apply Filters
-                        </button>
-                        <button
-                            class="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all inline-flex items-center justify-center gap-1.5 min-h-[42px]"
-                            id="resetFiltersBtn" title="Reset all category filters" type="button">
-                            <span class="material-symbols-outlined text-[16px]">restart_alt</span>
-                            <span>Reset</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
+      </div>
     </main>
     <!-- UNIFIED LIGHT MUNICIPAL COMPLIANCE FOOTER -->
     <footer class="w-full bg-white border-t border-slate-200 mt-6 sm:mt-8 py-5">
+      <div
+        class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-500"
+      >
         <div
-            class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-            <div class="flex flex-wrap items-center justify-center md:justify-start gap-2 text-center md:text-left">
-                <span
-                    class="px-2.5 py-1 rounded-full bg-slate-100 font-bold text-[10px] text-slate-700 border border-slate-200 tracking-wide uppercase">
-                    VISIONGUARD MULTIMODAL PLATFORM
-                </span>
-                <span>© 2024 VisionGuard AI Civil Intelligence. All rights reserved.</span>
-            </div>
-            <div class="flex flex-wrap items-center justify-center gap-4 sm:gap-6 font-medium text-slate-600">
-                <a class="hover:text-blue-600 transition-colors" href="#">Audit Logs</a>
-                <a class="hover:text-blue-600 transition-colors" href="#">Security Protocols</a>
-                <a class="hover:text-blue-600 transition-colors" href="#">ASTM Standards</a>
-                <a class="hover:text-blue-600 transition-colors" href="#">Terms</a>
-            </div>
+          class="flex flex-wrap items-center justify-center md:justify-start gap-2 text-center md:text-left"
+        >
+          <span
+            class="px-2.5 py-1 rounded-full bg-slate-100 font-bold text-[10px] text-slate-700 border border-slate-200 tracking-wide uppercase"
+          >
+            VISIONGUARD MULTIMODAL PLATFORM
+          </span>
+          <span
+            >© 2024 VisionGuard AI Civil Intelligence. All rights
+            reserved.</span
+          >
         </div>
+        <div
+          class="flex flex-wrap items-center justify-center gap-4 sm:gap-6 font-medium text-slate-600"
+        >
+          <a class="hover:text-blue-600 transition-colors" href="#"
+            >Audit Logs</a
+          >
+          <a class="hover:text-blue-600 transition-colors" href="#"
+            >Security Protocols</a
+          >
+          <a class="hover:text-blue-600 transition-colors" href="#"
+            >ASTM Standards</a
+          >
+          <a class="hover:text-blue-600 transition-colors" href="#">Terms</a>
+        </div>
+      </div>
     </footer>
     <!-- LEAFLET & LOGIC SCRIPT -->
     <script>
-        // Default baseline records if database has no geotagged inspections
-        const defaultDefectRecords = [
-            {
-                id: "PUB-SAMPLE-1092",
-                name: "Western Express Hwy, Pillar 42",
-                category: "D40",
-                categoryLabel: "Pothole (D40)",
-                coords: [19.1136, 72.8697],
-                defectsCount: 5,
-                status: "Open",
-                severityScore: 82,
-                severityLabel: "Critical",
-                domain: "road",
-                timeAgo: "14 mins ago",
-                icon: "error",
-                pinColor: "#DC2626"
-            },
-            {
-                id: "PUB-SAMPLE-1088",
-                name: "SV Road Junction 14, Bandra West",
-                category: "D20",
-                categoryLabel: "Alligator Crack (D20)",
-                coords: [19.0596, 72.8362],
-                defectsCount: 4,
-                status: "Open",
-                severityScore: 91,
-                severityLabel: "Critical",
-                domain: "road",
-                timeAgo: "32 mins ago",
-                icon: "broken_image",
-                pinColor: "#D97706"
-            },
-            {
-                id: "PUB-SAMPLE-1091",
-                name: "Block B, Apt 302 Exterior Facade",
-                category: "WALL",
-                categoryLabel: "Wall Crack (WALL)",
-                coords: [19.1363, 72.8277],
-                defectsCount: 3,
-                status: "Under Review",
-                severityScore: 54,
-                severityLabel: "Moderate",
-                domain: "home",
-                timeAgo: "1 hour ago",
-                icon: "domain",
-                pinColor: "#0891B2"
-            },
-            {
-                id: "PUB-SAMPLE-1087",
-                name: "Metro Tower B2 Parking, Pune Road Hub",
-                category: "DAMP",
-                categoryLabel: "Dampness / Water (DAMP)",
-                coords: [19.0728, 72.8998],
-                defectsCount: 2,
-                status: "Under Review",
-                severityScore: 64,
-                severityLabel: "Moderate",
-                domain: "home",
-                timeAgo: "2 hours ago",
-                icon: "water_drop",
-                pinColor: "#0D9488"
-            },
-            {
-                id: "PUB-SAMPLE-1089",
-                name: "Ring Road Flyover Span 4",
-                category: "D00",
-                categoryLabel: "Longitudinal Crack (D00)",
-                coords: [19.0880, 72.8550],
-                defectsCount: 1,
-                status: "Resolved",
-                severityScore: 38,
-                severityLabel: "Low",
-                domain: "road",
-                timeAgo: "3 hours ago",
-                icon: "linear_scale",
-                pinColor: "#2563EB"
-            },
-            {
-                id: "PUB-SAMPLE-1086",
-                name: "NH48 Toll Approach",
-                category: "D10",
-                categoryLabel: "Transverse Crack (D10)",
-                coords: [19.0330, 72.8570],
-                defectsCount: 2,
-                status: "Resolved",
-                severityScore: 76,
-                severityLabel: "High",
-                domain: "road",
-                timeAgo: "5 hours ago",
-                icon: "horizontal_rule",
-                pinColor: "#4F46E5"
-            },
-            {
-                id: "PUB-SAMPLE-1085",
-                name: "Civic Health Centre",
-                category: "PEEL",
-                categoryLabel: "Peeling Paint (PEEL)",
-                coords: [19.0410, 72.9020],
-                defectsCount: 1,
-                status: "Resolved",
-                severityScore: 25,
-                severityLabel: "Low",
-                domain: "home",
-                timeAgo: "8 hours ago",
-                icon: "format_paint",
-                pinColor: "#EA580C"
-            }
-        ];
+      // Default baseline records if database has no geotagged inspections
+      const defaultDefectRecords = [
+        {
+          id: "PUB-SAMPLE-1092",
+          name: "Western Express Hwy, Pillar 42",
+          category: "D40",
+          categoryLabel: "Pothole (D40)",
+          coords: [19.1136, 72.8697],
+          defectsCount: 5,
+          status: "Open",
+          severityScore: 82,
+          severityLabel: "Critical",
+          domain: "road",
+          timeAgo: "14 mins ago",
+          icon: "error",
+          pinColor: "#DC2626",
+        },
+        {
+          id: "PUB-SAMPLE-1088",
+          name: "SV Road Junction 14, Bandra West",
+          category: "D20",
+          categoryLabel: "Alligator Crack (D20)",
+          coords: [19.0596, 72.8362],
+          defectsCount: 4,
+          status: "Open",
+          severityScore: 91,
+          severityLabel: "Critical",
+          domain: "road",
+          timeAgo: "32 mins ago",
+          icon: "broken_image",
+          pinColor: "#D97706",
+        },
+        {
+          id: "PUB-SAMPLE-1091",
+          name: "Block B, Apt 302 Exterior Facade",
+          category: "WALL",
+          categoryLabel: "Wall Crack (WALL)",
+          coords: [19.1363, 72.8277],
+          defectsCount: 3,
+          status: "Under Review",
+          severityScore: 54,
+          severityLabel: "Moderate",
+          domain: "home",
+          timeAgo: "1 hour ago",
+          icon: "domain",
+          pinColor: "#0891B2",
+        },
+        {
+          id: "PUB-SAMPLE-1087",
+          name: "Metro Tower B2 Parking, Pune Road Hub",
+          category: "DAMP",
+          categoryLabel: "Dampness / Water (DAMP)",
+          coords: [19.0728, 72.8998],
+          defectsCount: 2,
+          status: "Under Review",
+          severityScore: 64,
+          severityLabel: "Moderate",
+          domain: "home",
+          timeAgo: "2 hours ago",
+          icon: "water_drop",
+          pinColor: "#0D9488",
+        },
+        {
+          id: "PUB-SAMPLE-1089",
+          name: "Ring Road Flyover Span 4",
+          category: "D00",
+          categoryLabel: "Longitudinal Crack (D00)",
+          coords: [19.088, 72.855],
+          defectsCount: 1,
+          status: "Resolved",
+          severityScore: 38,
+          severityLabel: "Low",
+          domain: "road",
+          timeAgo: "3 hours ago",
+          icon: "linear_scale",
+          pinColor: "#2563EB",
+        },
+        {
+          id: "PUB-SAMPLE-1086",
+          name: "NH48 Toll Approach",
+          category: "D10",
+          categoryLabel: "Transverse Crack (D10)",
+          coords: [19.033, 72.857],
+          defectsCount: 2,
+          status: "Resolved",
+          severityScore: 76,
+          severityLabel: "High",
+          domain: "road",
+          timeAgo: "5 hours ago",
+          icon: "horizontal_rule",
+          pinColor: "#4F46E5",
+        },
+        {
+          id: "PUB-SAMPLE-1085",
+          name: "Civic Health Centre",
+          category: "PEEL",
+          categoryLabel: "Peeling Paint (PEEL)",
+          coords: [19.041, 72.902],
+          defectsCount: 1,
+          status: "Resolved",
+          severityScore: 25,
+          severityLabel: "Low",
+          domain: "home",
+          timeAgo: "8 hours ago",
+          icon: "format_paint",
+          pinColor: "#EA580C",
+        },
+      ];
 
-        let defectRecords = [...defaultDefectRecords];
-        let map;
-        const markerMap = new Map();
-        const markersLayer = L.layerGroup();
+      let defectRecords = [...defaultDefectRecords];
+      let map;
+      const markerMap = new Map();
+      const markersLayer = L.layerGroup();
 
-        function getCategoryMeta(catStr) {
-            const c = (catStr || '').toUpperCase();
-            if (c.includes('D40') || c.includes('POTHOLE')) {
-                return { cat: 'D40', label: 'Pothole (D40)', color: '#DC2626', icon: 'error' };
-            }
-            if (c.includes('D20') || c.includes('ALLIGATOR')) {
-                return { cat: 'D20', label: 'Alligator Crack (D20)', color: '#D97706', icon: 'broken_image' };
-            }
-            if (c.includes('D10') || c.includes('TRANSVERSE')) {
-                return { cat: 'D10', label: 'Transverse Crack (D10)', color: '#4F46E5', icon: 'horizontal_rule' };
-            }
-            if (c.includes('WALL') || c.includes('CRACK')) {
-                return { cat: 'WALL', label: 'Wall Crack (WALL)', color: '#0891B2', icon: 'domain' };
-            }
-            if (c.includes('DAMP') || c.includes('MOISTURE') || c.includes('WATER')) {
-                return { cat: 'DAMP', label: 'Dampness / Water (DAMP)', color: '#0D9488', icon: 'water_drop' };
-            }
-            if (c.includes('PEEL') || c.includes('PAINT')) {
-                return { cat: 'PEEL', label: 'Peeling Paint (PEEL)', color: '#EA580C', icon: 'format_paint' };
-            }
-            return { cat: 'D00', label: 'Longitudinal Crack (D00)', color: '#2563EB', icon: 'linear_scale' };
+      function getCategoryMeta(catStr) {
+        const c = (catStr || "").toUpperCase();
+        if (c.includes("D40") || c.includes("POTHOLE")) {
+          return {
+            cat: "D40",
+            label: "Pothole (D40)",
+            color: "#DC2626",
+            icon: "error",
+          };
         }
-
-        function initMap() {
-            map = L.map('defect-map', {
-                center: [19.0760, 72.8777],
-                zoom: 12,
-                zoomControl: false
-            });
-
-            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors'
-            }).addTo(map);
-
-            markersLayer.addTo(map);
-
-            renderMarkers();
-            loadBackendInspections();
+        if (c.includes("D20") || c.includes("ALLIGATOR")) {
+          return {
+            cat: "D20",
+            label: "Alligator Crack (D20)",
+            color: "#D97706",
+            icon: "broken_image",
+          };
         }
+        if (c.includes("D10") || c.includes("TRANSVERSE")) {
+          return {
+            cat: "D10",
+            label: "Transverse Crack (D10)",
+            color: "#4F46E5",
+            icon: "horizontal_rule",
+          };
+        }
+        if (c.includes("WALL") || c.includes("CRACK")) {
+          return {
+            cat: "WALL",
+            label: "Wall Crack (WALL)",
+            color: "#0891B2",
+            icon: "domain",
+          };
+        }
+        if (
+          c.includes("DAMP") ||
+          c.includes("MOISTURE") ||
+          c.includes("WATER")
+        ) {
+          return {
+            cat: "DAMP",
+            label: "Dampness / Water (DAMP)",
+            color: "#0D9488",
+            icon: "water_drop",
+          };
+        }
+        if (c.includes("PEEL") || c.includes("PAINT")) {
+          return {
+            cat: "PEEL",
+            label: "Peeling Paint (PEEL)",
+            color: "#EA580C",
+            icon: "format_paint",
+          };
+        }
+        return {
+          cat: "D00",
+          label: "Longitudinal Crack (D00)",
+          color: "#2563EB",
+          icon: "linear_scale",
+        };
+      }
 
-        function renderMarkers() {
-            markersLayer.clearLayers();
-            markerMap.clear();
+      function initMap() {
+        map = L.map("defect-map", {
+          center: [19.076, 72.8777],
+          zoom: 12,
+          zoomControl: false,
+        });
 
-            defectRecords.forEach(record => {
-                const customIcon = L.divIcon({
-                    className: 'custom-pin',
-                    html: `
+        L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 19,
+          attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors',
+        }).addTo(map);
+
+        markersLayer.addTo(map);
+
+        renderMarkers();
+        loadBackendInspections();
+      }
+
+      function renderMarkers() {
+        markersLayer.clearLayers();
+        markerMap.clear();
+
+        defectRecords.forEach((record) => {
+          const customIcon = L.divIcon({
+            className: "custom-pin",
+            html: `
             <div style="display:flex; flex-direction:column; align-items:center;">
               <div style="background-color: ${record.pinColor}; width: 34px; height: 34px; border-radius: 9999px; display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 4px 12px rgba(15,23,42,0.25); border: 2.5px solid white;">
                 <span class="material-symbols-outlined" style="font-size: 19px; line-height: 1;">${record.icon}</span>
@@ -780,12 +1088,12 @@
               <div style="width: 7px; height: 7px; background-color: ${record.pinColor}; transform: rotate(45deg); margin-top: -3px; box-shadow: 0 2px 4px rgba(0,0,0,0.15);"></div>
             </div>
           `,
-                    iconSize: [34, 40],
-                    iconAnchor: [17, 38],
-                    popupAnchor: [0, -38]
-                });
+            iconSize: [34, 40],
+            iconAnchor: [17, 38],
+            popupAnchor: [0, -38],
+          });
 
-                const popupHtml = `
+          const popupHtml = `
           <div class="w-64 sm:w-72 bg-white text-slate-800 font-sans rounded-xl overflow-hidden shadow-lg border border-slate-200">
             <div class="relative h-16 sm:h-20 w-full flex items-center justify-between px-4" style="background: linear-gradient(135deg, ${record.pinColor}18 0%, ${record.pinColor}30 100%); border-bottom: 2px solid ${record.pinColor};">
               <div class="flex items-center gap-2.5">
@@ -793,13 +1101,13 @@
                   <span class="material-symbols-outlined text-[20px]">${record.icon}</span>
                 </div>
                 <div>
-                  <span class="text-[11px] font-bold uppercase tracking-wider text-slate-700">${record.domain === 'home' ? 'Building Structure' : 'Civic Roadway'}</span>
+                  <span class="text-[11px] font-bold uppercase tracking-wider text-slate-700">${record.domain === "home" ? "Building Structure" : "Civic Roadway"}</span>
                   <div class="text-[10px] font-mono text-slate-500">${record.id}</div>
                 </div>
               </div>
               <div class="text-right">
                 <span class="px-2 py-0.5 rounded-full text-[10px] font-bold text-white shadow-xs" style="background-color: ${record.pinColor};">
-                  ${record.severityLabel || 'Verified'}
+                  ${record.severityLabel || "Verified"}
                 </span>
               </div>
             </div>
@@ -826,89 +1134,113 @@
           </div>
         `;
 
-                const marker = L.marker(record.coords, { icon: customIcon });
-                marker.bindPopup(popupHtml, { maxWidth: 300, minWidth: 240 });
-                marker.on('click', () => {
-                    updateActiveCard(record);
-                });
+          const marker = L.marker(record.coords, { icon: customIcon });
+          marker.bindPopup(popupHtml, { maxWidth: 300, minWidth: 240 });
+          marker.on("click", () => {
+            updateActiveCard(record);
+          });
 
-                markerMap.set(record.id, { marker, record });
-                markersLayer.addLayer(marker);
+          markerMap.set(record.id, { marker, record });
+          markersLayer.addLayer(marker);
+        });
+
+        updateCounters();
+        if (defectRecords.length > 0) {
+          updateActiveCard(defectRecords[0]);
+        }
+      }
+
+      async function loadBackendInspections() {
+        try {
+          const res = await fetch("/api/public/defects");
+          if (!res.ok) return;
+          const data = await res.json();
+          if (
+            data.status === "success" &&
+            data.defects &&
+            data.defects.length > 0
+          ) {
+            const realMapped = [];
+            data.defects.forEach((item) => {
+              const lat = parseFloat(item.latitude);
+              const lng = parseFloat(item.longitude);
+              if (isNaN(lat) || isNaN(lng) || (lat === 0 && lng === 0)) {
+                return;
+              }
+
+              const meta = getCategoryMeta(
+                item.defect_category || item.domain || "D00",
+              );
+              const count = item.defect_count || 1;
+              const sevStr = (
+                item.preliminary_severity || "Moderate"
+              ).toLowerCase();
+              const severityScore = sevStr.includes("critical")
+                ? 95
+                : sevStr.includes("high")
+                  ? 80
+                  : sevStr.includes("moderate")
+                    ? 55
+                    : 30;
+
+              realMapped.push({
+                id: item.marker_id,
+                name: item.location_summary || "Municipal Asset Corridor",
+                category: meta.cat,
+                categoryLabel: item.defect_category || meta.label,
+                coords: [lat, lng],
+                defectsCount: count,
+                status: item.status || "Open",
+                severityScore: severityScore,
+                severityLabel: item.preliminary_severity || "Moderate",
+                domain: item.domain || "road",
+                timeAgo: item.inspection_date || "Recorded",
+                icon: meta.icon,
+                pinColor: meta.color,
+              });
             });
 
-            updateCounters();
-            if (defectRecords.length > 0) {
-                updateActiveCard(defectRecords[0]);
+            if (realMapped.length > 0) {
+              defectRecords = realMapped;
+              renderMarkers();
             }
-        }
 
-        async function loadBackendInspections() {
-            try {
-                const res = await fetch('/api/public/defects');
-                if (!res.ok) return;
-                const data = await res.json();
-                if (data.status === 'success' && data.defects && data.defects.length > 0) {
-                    const realMapped = [];
-                    data.defects.forEach(item => {
-                        const lat = parseFloat(item.latitude);
-                        const lng = parseFloat(item.longitude);
-                        if (isNaN(lat) || isNaN(lng) || (lat === 0 && lng === 0)) {
-                            return;
-                        }
-
-                        const meta = getCategoryMeta(item.defect_category || item.domain || 'D00');
-                        const count = item.defect_count || 1;
-                        const sevStr = (item.preliminary_severity || 'Moderate').toLowerCase();
-                        const severityScore = sevStr.includes('critical') ? 95 :
-                            sevStr.includes('high') ? 80 :
-                                sevStr.includes('moderate') ? 55 : 30;
-
-                        realMapped.push({
-                            id: item.marker_id,
-                            name: item.location_summary || 'Municipal Asset Corridor',
-                            category: meta.cat,
-                            categoryLabel: item.defect_category || meta.label,
-                            coords: [lat, lng],
-                            defectsCount: count,
-                            status: item.status || 'Open',
-                            severityScore: severityScore,
-                            severityLabel: item.preliminary_severity || 'Moderate',
-                            domain: item.domain || 'road',
-                            timeAgo: item.inspection_date || 'Recorded',
-                            icon: meta.icon,
-                            pinColor: meta.color,
-                        });
-                    });
-
-                    if (realMapped.length > 0) {
-                        defectRecords = realMapped;
-                        renderMarkers();
-                    }
-
-                    // If URL parameter specifies an inspection, marker, or highlight ID, focus map on it
-                    const urlParams = new URLSearchParams(window.location.search);
-                    const targetId = urlParams.get('marker') || urlParams.get('id') || urlParams.get('highlight') || urlParams.get('ref');
-                    if (targetId) {
-                        const cleanTarget = targetId.trim().toUpperCase();
-                        for (const [id, { marker, record }] of markerMap.entries()) {
-                            if (id.toUpperCase() === cleanTarget || id.toUpperCase().includes(cleanTarget) || (record.name && record.name.toUpperCase().includes(cleanTarget))) {
-                                map.flyTo(record.coords, 14, { animate: true, duration: 1.2 });
-                                marker.openPopup();
-                                updateActiveCard(record);
-                                break;
-                            }
-                        }
-                    }
+            // If URL parameter specifies an inspection, marker, or highlight ID, focus map on it
+            const urlParams = new URLSearchParams(window.location.search);
+            const targetId =
+              urlParams.get("marker") ||
+              urlParams.get("id") ||
+              urlParams.get("highlight") ||
+              urlParams.get("ref");
+            if (targetId) {
+              const cleanTarget = targetId.trim().toUpperCase();
+              for (const [id, { marker, record }] of markerMap.entries()) {
+                if (
+                  id.toUpperCase() === cleanTarget ||
+                  id.toUpperCase().includes(cleanTarget) ||
+                  (record.name &&
+                    record.name.toUpperCase().includes(cleanTarget))
+                ) {
+                  map.flyTo(record.coords, 14, {
+                    animate: true,
+                    duration: 1.2,
+                  });
+                  marker.openPopup();
+                  updateActiveCard(record);
+                  break;
                 }
-            } catch (err) {
-                console.warn('Failed to load public defect markers for map:', err);
+              }
             }
+          }
+        } catch (err) {
+          console.warn("Failed to load public defect markers for map:", err);
         }
+      }
 
-        function updateActiveCard(record) {
-            const card = document.getElementById('activeDefectCard');
-            if (!card) return;
-            card.innerHTML = `
+      function updateActiveCard(record) {
+        const card = document.getElementById("activeDefectCard");
+        if (!card) return;
+        card.innerHTML = `
         <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center shrink-0" style="background-color: ${record.pinColor}18; color: ${record.pinColor}">
           <span class="material-symbols-outlined text-[18px] sm:text-[20px]">${record.icon}</span>
         </div>
@@ -918,160 +1250,188 @@
             <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono truncate">${record.coords[0].toFixed(4)}, ${record.coords[1].toFixed(4)}</span>
           </div>
           <div class="text-xs font-bold text-slate-900 truncate mt-0.5">${record.name}</div>
-          <div class="text-[10px] sm:text-[11px] text-slate-500 truncate">${record.defectsCount} defect${record.defectsCount === 1 ? '' : 's'} • Status: ${record.status}</div>
+          <div class="text-[10px] sm:text-[11px] text-slate-500 truncate">${record.defectsCount} defect${record.defectsCount === 1 ? "" : "s"} • Status: ${record.status}</div>
         </div>
       `;
-            card.onclick = () => {
-                map.flyTo(record.coords, 14, { animate: true, duration: 1 });
-                const m = markerMap.get(record.id)?.marker;
-                if (m) m.openPopup();
-            };
-        }
-
-        function getActiveCategories() {
-            const checked = [];
-            document.querySelectorAll('.distress-filter:checked').forEach(cb => {
-                checked.push(cb.getAttribute('data-category'));
-            });
-            return checked;
-        }
-
-        function applyCategoryFilter() {
-            const activeCats = getActiveCategories();
-            let visibleCount = 0;
-
-            markerMap.forEach(({ marker, record }) => {
-                if (activeCats.includes(record.category)) {
-                    if (!markersLayer.hasLayer(marker)) {
-                        markersLayer.addLayer(marker);
-                    }
-                    visibleCount++;
-                } else {
-                    if (markersLayer.hasLayer(marker)) {
-                        markersLayer.removeLayer(marker);
-                    }
-                }
-            });
-
-            updateCounters(visibleCount);
-        }
-
-        function updateCounters(count) {
-            const activeCount = count !== undefined ? count : markersLayer.getLayers().length;
-            const badge = document.getElementById('mappedRecordCountBadge');
-            const alertCount = document.getElementById('alertCount');
-            const counterBadge = document.getElementById('activeMarkerCounter');
-
-            if (badge) badge.innerText = `Total Mapped: ${activeCount} Records`;
-            if (alertCount) alertCount.innerText = activeCount;
-            if (counterBadge) counterBadge.innerText = `GPS Active • ${activeCount} Sites Active`;
-        }
-
-        const localLocations = {
-            'bandra': [19.0596, 72.8362],
-            'andheri': [19.1136, 72.8697],
-            'worli': [19.0176, 72.8181],
-            'dadar': [19.0178, 72.8478],
-            'powai': [19.1176, 72.9060],
-            'borivali': [19.2307, 72.8567],
-            'kurla': [19.0726, 72.8845],
-            'colaba': [18.9067, 72.8147],
-            'thane': [19.2183, 72.9781]
+        card.onclick = () => {
+          map.flyTo(record.coords, 14, { animate: true, duration: 1 });
+          const m = markerMap.get(record.id)?.marker;
+          if (m) m.openPopup();
         };
+      }
 
-        function handleSearch() {
-            const input = document.getElementById('mapSearchInput');
-            if (!input) return;
-            const query = input.value.trim().toLowerCase();
-            if (!query) return;
+      function getActiveCategories() {
+        const checked = [];
+        document.querySelectorAll(".distress-filter:checked").forEach((cb) => {
+          checked.push(cb.getAttribute("data-category"));
+        });
+        return checked;
+      }
 
-            // Check if query matches an existing marker ID or name
-            for (const [id, { marker, record }] of markerMap.entries()) {
-                if (id.toLowerCase().includes(query) || record.name.toLowerCase().includes(query)) {
-                    map.flyTo(record.coords, 14, { animate: true, duration: 1.2 });
-                    marker.openPopup();
-                    updateActiveCard(record);
-                    return;
-                }
+      function applyCategoryFilter() {
+        const activeCats = getActiveCategories();
+        let visibleCount = 0;
+
+        markerMap.forEach(({ marker, record }) => {
+          if (activeCats.includes(record.category)) {
+            if (!markersLayer.hasLayer(marker)) {
+              markersLayer.addLayer(marker);
             }
-
-            for (const [key, coords] of Object.entries(localLocations)) {
-                if (query.includes(key)) {
-                    map.flyTo(coords, 14, { animate: true, duration: 1.2 });
-                    return;
-                }
+            visibleCount++;
+          } else {
+            if (markersLayer.hasLayer(marker)) {
+              markersLayer.removeLayer(marker);
             }
-
-            // Fallback pan
-            map.flyTo([19.0760, 72.8777], 13, { animate: true, duration: 1 });
-        }
-
-        window.addEventListener('resize', () => {
-            if (map) {
-                map.invalidateSize();
-            }
+          }
         });
 
-        document.addEventListener('DOMContentLoaded', () => {
-            initMap();
+        updateCounters(visibleCount);
+      }
 
-            document.getElementById('zoomInBtn')?.addEventListener('click', () => map.zoomIn());
-            document.getElementById('zoomOutBtn')?.addEventListener('click', () => map.zoomOut());
+      function updateCounters(count) {
+        const activeCount =
+          count !== undefined ? count : markersLayer.getLayers().length;
+        const badge = document.getElementById("mappedRecordCountBadge");
+        const alertCount = document.getElementById("alertCount");
+        const counterBadge = document.getElementById("activeMarkerCounter");
 
-            document.getElementById('recenterGpsBtn')?.addEventListener('click', () => {
-                if ("geolocation" in navigator) {
-                    navigator.geolocation.getCurrentPosition(
-                        pos => {
-                            const userCoords = [pos.coords.latitude, pos.coords.longitude];
-                            map.flyTo(userCoords, 14, { animate: true, duration: 1.2 });
-                            L.circleMarker(userCoords, {
-                                radius: 8,
-                                fillColor: '#2563EB',
-                                color: '#ffffff',
-                                weight: 3,
-                                opacity: 1,
-                                fillOpacity: 0.95
-                            }).addTo(map).bindPopup("<b>Your Current Inspection Location</b>").openPopup();
-                        },
-                        () => {
-                            map.flyTo([19.0760, 72.8777], 12, { animate: true, duration: 1 });
-                        }
-                    );
-                } else {
-                    map.flyTo([19.0760, 72.8777], 12, { animate: true, duration: 1 });
-                }
-            });
+        if (badge) badge.innerText = `Total Mapped: ${activeCount} Records`;
+        if (alertCount) alertCount.innerText = activeCount;
+        if (counterBadge)
+          counterBadge.innerText = `GPS Active • ${activeCount} Sites Active`;
+      }
 
-            document.getElementById('mapSearchBtn')?.addEventListener('click', handleSearch);
-            document.getElementById('mapSearchInput')?.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') handleSearch();
-            });
+      const localLocations = {
+        bandra: [19.0596, 72.8362],
+        andheri: [19.1136, 72.8697],
+        worli: [19.0176, 72.8181],
+        dadar: [19.0178, 72.8478],
+        powai: [19.1176, 72.906],
+        borivali: [19.2307, 72.8567],
+        kurla: [19.0726, 72.8845],
+        colaba: [18.9067, 72.8147],
+        thane: [19.2183, 72.9781],
+      };
 
-            document.querySelectorAll('.distress-filter').forEach(cb => {
-                cb.addEventListener('change', applyCategoryFilter);
-            });
+      function handleSearch() {
+        const input = document.getElementById("mapSearchInput");
+        if (!input) return;
+        const query = input.value.trim().toLowerCase();
+        if (!query) return;
 
-            document.getElementById('applyFiltersBtn')?.addEventListener('click', applyCategoryFilter);
+        // Check if query matches an existing marker ID or name
+        for (const [id, { marker, record }] of markerMap.entries()) {
+          if (
+            id.toLowerCase().includes(query) ||
+            record.name.toLowerCase().includes(query)
+          ) {
+            map.flyTo(record.coords, 14, { animate: true, duration: 1.2 });
+            marker.openPopup();
+            updateActiveCard(record);
+            return;
+          }
+        }
 
-            document.getElementById('resetFiltersBtn')?.addEventListener('click', () => {
-                document.querySelectorAll('.distress-filter').forEach(cb => {
-                    cb.checked = true;
-                });
-                applyCategoryFilter();
-            });
+        for (const [key, coords] of Object.entries(localLocations)) {
+          if (query.includes(key)) {
+            map.flyTo(coords, 14, { animate: true, duration: 1.2 });
+            return;
+          }
+        }
 
-            const syncBtn = document.getElementById('syncBtn');
-            const syncIcon = document.getElementById('syncIcon');
-            if (syncBtn && syncIcon) {
-                syncBtn.addEventListener('click', () => {
-                    syncIcon.classList.add('animate-spin');
-                    loadBackendInspections().finally(() => {
-                        setTimeout(() => {
-                            syncIcon.classList.remove('animate-spin');
-                        }, 600);
-                    });
-                });
+        // Fallback pan
+        map.flyTo([19.076, 72.8777], 13, { animate: true, duration: 1 });
+      }
+
+      window.addEventListener("resize", () => {
+        if (map) {
+          map.invalidateSize();
+        }
+      });
+
+      document.addEventListener("DOMContentLoaded", () => {
+        initMap();
+
+        document
+          .getElementById("zoomInBtn")
+          ?.addEventListener("click", () => map.zoomIn());
+        document
+          .getElementById("zoomOutBtn")
+          ?.addEventListener("click", () => map.zoomOut());
+
+        document
+          .getElementById("recenterGpsBtn")
+          ?.addEventListener("click", () => {
+            if ("geolocation" in navigator) {
+              navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                  const userCoords = [
+                    pos.coords.latitude,
+                    pos.coords.longitude,
+                  ];
+                  map.flyTo(userCoords, 14, { animate: true, duration: 1.2 });
+                  L.circleMarker(userCoords, {
+                    radius: 8,
+                    fillColor: "#2563EB",
+                    color: "#ffffff",
+                    weight: 3,
+                    opacity: 1,
+                    fillOpacity: 0.95,
+                  })
+                    .addTo(map)
+                    .bindPopup("<b>Your Current Inspection Location</b>")
+                    .openPopup();
+                },
+                () => {
+                  map.flyTo([19.076, 72.8777], 12, {
+                    animate: true,
+                    duration: 1,
+                  });
+                },
+              );
+            } else {
+              map.flyTo([19.076, 72.8777], 12, { animate: true, duration: 1 });
             }
+          });
+
+        document
+          .getElementById("mapSearchBtn")
+          ?.addEventListener("click", handleSearch);
+        document
+          .getElementById("mapSearchInput")
+          ?.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") handleSearch();
+          });
+
+        document.querySelectorAll(".distress-filter").forEach((cb) => {
+          cb.addEventListener("change", applyCategoryFilter);
+        });
+
+        document
+          .getElementById("applyFiltersBtn")
+          ?.addEventListener("click", applyCategoryFilter);
+
+        document
+          .getElementById("resetFiltersBtn")
+          ?.addEventListener("click", () => {
+            document.querySelectorAll(".distress-filter").forEach((cb) => {
+              cb.checked = true;
+            });
+            applyCategoryFilter();
+          });
+
+        const syncBtn = document.getElementById("syncBtn");
+        const syncIcon = document.getElementById("syncIcon");
+        if (syncBtn && syncIcon) {
+          syncBtn.addEventListener("click", () => {
+            syncIcon.classList.add("animate-spin");
+            loadBackendInspections().finally(() => {
+              setTimeout(() => {
+                syncIcon.classList.remove("animate-spin");
+              }, 600);
+            });
+          });
+        }
 
             // Sync user auth status in header & CSRF token
             fetch('/api/auth/status')
@@ -1090,7 +1450,7 @@
                         if (roleEl) roleEl.innerText = (data.user.role || 'citizen').toUpperCase();
                         if (avatarEl) {
                             const isStaff = (data.user.role === 'admin' || data.user.role === 'inspector' || data.user.role === 'maintenance');
-                            avatarEl.href = isStaff ? '/dashboard' : '/report';
+                            avatarEl.href = isStaff ? '/app' : '/report';
                             avatarEl.title = `${data.user.username} (${data.user.role}) - Click for ${isStaff ? 'Operations Dashboard' : 'My Reports'}`;
                         }
                     } else {
@@ -1105,96 +1465,123 @@
                 .catch(() => { });
         });
 
-        function getCsrfToken() {
-            return (
-                document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
-                sessionStorage.getItem('vg_csrf_token') ||
-                ''
-            );
+      function getCsrfToken() {
+        return (
+          document
+            .querySelector('meta[name="csrf-token"]')
+            ?.getAttribute("content") ||
+          sessionStorage.getItem("vg_csrf_token") ||
+          ""
+        );
+      }
+
+      // ===== VisionGuard profile logout dropdown =====
+      (function () {
+        const VG_LOGOUT_URL = "/api/auth/logout";
+        const VG_LOGOUT_METHOD = "POST";
+        const VG_AFTER_LOGOUT_URL = "/login";
+
+        const avatar = document.getElementById("map-user-avatar");
+        const dropdown = document.getElementById("vg-profile-dropdown");
+        const logoutBtn = document.getElementById("vg-logout-btn");
+        if (!avatar || !dropdown || !logoutBtn) return;
+
+        function openDropdown() {
+          dropdown.classList.add("vg-open");
+        }
+        function closeDropdown() {
+          dropdown.classList.remove("vg-open");
         }
 
-        // ===== VisionGuard profile logout dropdown =====
-        (function () {
-            const VG_LOGOUT_URL = '/api/auth/logout';
-            const VG_LOGOUT_METHOD = 'POST';
-            const VG_AFTER_LOGOUT_URL = '/login';
+        // Avatar click: toggle for signed-in users, normal link for guests
+        avatar.addEventListener("click", async function (e) {
+          e.preventDefault();
+          e.stopPropagation();
 
-            const avatar = document.getElementById('map-user-avatar');
-            const dropdown = document.getElementById('vg-profile-dropdown');
-            const logoutBtn = document.getElementById('vg-logout-btn');
-            if (!avatar || !dropdown || !logoutBtn) return;
-
-            function openDropdown() {
-                dropdown.classList.add('vg-open');
+          let isAuth = avatar.getAttribute("data-authenticated") === "true";
+          if (!isAuth && window.__vgAuthPromise) {
+            try {
+              const data = await window.__vgAuthPromise;
+              isAuth = !!(data && data.authenticated);
+            } catch (_) {
+              isAuth = false;
             }
-            function closeDropdown() {
-                dropdown.classList.remove('vg-open');
+          }
+
+          if (!isAuth) {
+            const targetHref = avatar.getAttribute("href");
+            if (
+              targetHref &&
+              targetHref !== "javascript:void(0)" &&
+              targetHref !== "#"
+            ) {
+              window.location.href = targetHref;
+            } else {
+              window.location.href = "/login?return=/map";
             }
+            return;
+          }
 
-            // Avatar click: toggle for signed-in users, normal link for guests
-            avatar.addEventListener('click', function (e) {
-                const href = avatar.getAttribute('href') || '';
-                const isGuest = href.indexOf('/login') !== -1;
-                if (isGuest) return; // guests still go to the login page as before
-                e.preventDefault();
-                e.stopPropagation();
-                dropdown.classList.contains('vg-open')
-                    ? closeDropdown()
-                    : openDropdown();
+          dropdown.classList.contains("vg-open")
+            ? closeDropdown()
+            : openDropdown();
+        });
+
+        // Click anywhere outside closes it
+        document.addEventListener("click", function (e) {
+          if (!dropdown.classList.contains("vg-open")) return;
+          if (dropdown.contains(e.target) || avatar.contains(e.target)) return;
+          closeDropdown();
+        });
+
+        // Escape closes it
+        document.addEventListener("keydown", function (e) {
+          if (e.key === "Escape") closeDropdown();
+        });
+
+        // Logout: use the existing backend logout
+        logoutBtn.addEventListener("click", async function () {
+          const existingFn =
+            window.vgLogout || window.handleLogout || window.logout;
+          if (typeof existingFn === "function") {
+            closeDropdown();
+            existingFn();
+            return;
+          }
+
+          if (!VG_LOGOUT_URL) {
+            closeDropdown();
+            alert(
+              "Logout Not Configured: Set VG_LOGOUT_URL to your existing backend logout route.",
+            );
+            return;
+          }
+
+          logoutBtn.disabled = true;
+          try {
+            const csrfTok =
+              typeof getCsrfToken === "function" ? getCsrfToken() : "";
+            const res = await fetch(VG_LOGOUT_URL, {
+              method: VG_LOGOUT_METHOD,
+              headers: csrfTok ? { "X-CSRF-Token": csrfTok } : {},
+              credentials: "same-origin",
             });
-
-            // Click anywhere outside closes it
-            document.addEventListener('click', function (e) {
-                if (!dropdown.classList.contains('vg-open')) return;
-                if (dropdown.contains(e.target) || avatar.contains(e.target))
-                    return;
-                closeDropdown();
-            });
-
-            // Escape closes it
-            document.addEventListener('keydown', function (e) {
-                if (e.key === 'Escape') closeDropdown();
-            });
-
-            // Logout: use the existing backend logout
-            logoutBtn.addEventListener('click', async function () {
-                const existingFn =
-                    window.vgLogout || window.handleLogout || window.logout;
-                if (typeof existingFn === 'function') {
-                    closeDropdown();
-                    existingFn();
-                    return;
-                }
-
-                if (!VG_LOGOUT_URL) {
-                    closeDropdown();
-                    alert('Logout Not Configured: Set VG_LOGOUT_URL to your existing backend logout route.');
-                    return;
-                }
-
-                logoutBtn.disabled = true;
-                try {
-                    const csrfTok =
-                        typeof getCsrfToken === 'function' ? getCsrfToken() : '';
-                    const res = await fetch(VG_LOGOUT_URL, {
-                        method: VG_LOGOUT_METHOD,
-                        headers: csrfTok ? { 'X-CSRF-Token': csrfTok } : {},
-                        credentials: 'same-origin',
-                    });
-                    if (!res.ok) throw new Error('HTTP ' + res.status);
-                    try {
-                        sessionStorage.removeItem('vg_csrf_token');
-                    } catch (_) {}
-                    window.location.href = VG_AFTER_LOGOUT_URL;
-                } catch (err) {
-                    closeDropdown();
-                    alert('Logout Failed: ' + (err.message || 'Could not log out. Please try again.'));
-                } finally {
-                    logoutBtn.disabled = false;
-                }
-            });
-        })();
+            if (!res.ok) throw new Error("HTTP " + res.status);
+            try {
+              sessionStorage.removeItem("vg_csrf_token");
+            } catch (_) {}
+            window.location.href = VG_AFTER_LOGOUT_URL;
+          } catch (err) {
+            closeDropdown();
+            alert(
+              "Logout Failed: " +
+                (err.message || "Could not log out. Please try again."),
+            );
+          } finally {
+            logoutBtn.disabled = false;
+          }
+        });
+      })();
     </script>
-</body>
-
+  </body>
 </html>
