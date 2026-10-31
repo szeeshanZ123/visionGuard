@@ -156,11 +156,13 @@
                     <!-- User Profile -->
                     <div class="flex items-center gap-2">
                         <div class="hidden lg:block text-right">
-                            <div id="map-username" class="text-xs font-bold text-slate-900 leading-tight">Citizen Auditor</div>
+                            <div id="map-username" class="text-xs font-bold text-slate-900 leading-tight">Citizen
+                                Auditor</div>
                             <div id="map-role" class="text-[10px] text-slate-500 font-medium">Municipal Portal</div>
                         </div>
                         <a href="/login" id="map-user-avatar"
-                            class="w-9 h-9 rounded-full bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center cursor-pointer shrink-0 hover:bg-blue-100 transition-colors" title="Account Status">
+                            class="w-9 h-9 rounded-full bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center cursor-pointer shrink-0 hover:bg-blue-100 transition-colors"
+                            title="Account Status">
                             <span class="material-symbols-outlined text-[18px]">person</span>
                         </a>
                     </div>
@@ -223,13 +225,13 @@
             <!-- Action Buttons -->
             <div class="flex items-center gap-2 sm:gap-3 shrink-0 self-start sm:self-auto">
                 <!-- Layers Dropdown -->
-                <button
+                <!-- <button
                     class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-white text-slate-700 text-xs font-semibold rounded-full border border-slate-200 shadow-xs hover:bg-slate-50 hover:text-slate-900 min-h-[38px] transition-all"
                     id="layersBtn" type="button">
                     <span class="material-symbols-outlined text-[17px] text-slate-500">layers</span>
                     <span>Layers</span>
                     <span class="material-symbols-outlined text-[15px] text-slate-400">expand_more</span>
-                </button>
+                </button> -->
                 <!-- Sync Data Action -->
                 <button
                     class="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold rounded-full shadow-xs hover:shadow min-h-[38px] transition-all"
@@ -791,8 +793,8 @@
                         const count = item.defect_count || 1;
                         const sevStr = (item.preliminary_severity || 'Moderate').toLowerCase();
                         const severityScore = sevStr.includes('critical') ? 95 :
-                                              sevStr.includes('high') ? 80 :
-                                              sevStr.includes('moderate') ? 55 : 30;
+                            sevStr.includes('high') ? 80 :
+                                sevStr.includes('moderate') ? 55 : 30;
 
                         realMapped.push({
                             id: item.marker_id,
@@ -1009,7 +1011,7 @@
                 .then(r => r.json())
                 .then(data => {
                     if (data && data.csrf_token) {
-                        try { sessionStorage.setItem('vg_csrf_token', data.csrf_token); } catch (e) {}
+                        try { sessionStorage.setItem('vg_csrf_token', data.csrf_token); } catch (e) { }
                         const m = document.querySelector('meta[name="csrf-token"]');
                         if (m) m.setAttribute('content', data.csrf_token);
                     }
@@ -1033,7 +1035,7 @@
                         if (avatarEl) avatarEl.href = '/login?return=/map';
                     }
                 })
-                .catch(() => {});
+                .catch(() => { });
         });
     </script>
 </body>
