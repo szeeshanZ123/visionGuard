@@ -157,7 +157,9 @@
         line-height: 1.2;
         text-align: left;
         cursor: pointer;
-        transition: background-color 0.15s ease, color 0.15s ease;
+        transition:
+          background-color 0.15s ease,
+          color 0.15s ease;
       }
 
       #vg-logout-btn:hover,
@@ -252,15 +254,7 @@
               <span class="hidden xs:inline">New Report</span>
             </button>
             <!-- Help Button -->
-            <button
-              class="w-9 h-9 min-h-[36px] min-w-[36px] rounded-full border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 flex items-center justify-center transition-colors"
-              title="Help and Documentation"
-              type="button"
-            >
-              <span class="material-symbols-outlined text-[18px]">help</span>
-            </button>
             <!-- Divider -->
-            <div class="h-6 w-px bg-slate-200 hidden sm:block"></div>
             <!-- User Profile -->
             <div class="flex items-center gap-2 vg-nav-user-container">
               <div class="hidden sm:block text-right">
@@ -862,18 +856,7 @@
         </div>
         <div
           class="flex flex-wrap items-center justify-center gap-4 sm:gap-6 font-medium text-slate-600"
-        >
-          <a class="hover:text-blue-600 transition-colors" href="#"
-            >Audit Logs</a
-          >
-          <a class="hover:text-blue-600 transition-colors" href="#"
-            >Security Protocols</a
-          >
-          <a class="hover:text-blue-600 transition-colors" href="#"
-            >ASTM Standards</a
-          >
-          <a class="hover:text-blue-600 transition-colors" href="#">Terms</a>
-        </div>
+        ></div>
       </div>
     </footer>
     <!-- LEAFLET & LOGIC SCRIPT -->
