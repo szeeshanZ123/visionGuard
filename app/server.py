@@ -357,6 +357,8 @@ def create_app(
         or os.environ.get("GEMINI_MODEL")
         or DEFAULT_GEMINI_MODEL
     ).strip()
+    if gemini_model_name in ("gemini-1.5-flash", "gemini-1.5-pro", "models/gemini-1.5-flash", "models/gemini-1.5-pro", "gemini-2.0-flash", "models/gemini-2.0-flash"):
+        gemini_model_name = "gemini-3.5-flash-lite"
     app.gemini_model = gemini_model_name
 
     if test_config and "gemini_service" in test_config:
@@ -2860,6 +2862,24 @@ def create_app(
             conn.close()
             if existing:
                 existing_dict = row_to_dict(existing)
+                curr_user = get_current_user_record()
+                # If existing record belongs to the same user, synchronize updated location/notes
+                if curr_user and (not existing_dict.get("created_by_user_id") or int(existing_dict.get("created_by_user_id")) == int(curr_user.get("id"))):
+                    try:
+                        conn = get_db_connection(db_path)
+                        cursor = conn.cursor()
+                        cursor.execute(
+                            "UPDATE defect_inspections SET road_name = COALESCE(NULLIF(?, ''), road_name), area = COALESCE(NULLIF(?, ''), area), city = COALESCE(NULLIF(?, ''), city), notes = COALESCE(NULLIF(?, ''), notes) WHERE id = ?;",
+                            (road_name, area, city, payload.get("notes", ""), existing_dict["id"])
+                        )
+                        conn.commit()
+                        cursor.execute("SELECT * FROM defect_inspections WHERE id = ?;", (existing_dict["id"],))
+                        up_row = cursor.fetchone()
+                        if up_row:
+                            existing_dict = row_to_dict(up_row)
+                        conn.close()
+                    except Exception as e_dup_up:
+                        logger.warning("Could not sync duplicate inspection fields: %s", e_dup_up)
                 return jsonify({
                     "status": "error",
                     "error_code": "DUPLICATE_INSPECTION",

@@ -29,14 +29,12 @@ except ImportError:
     GENAI_AVAILABLE = False
 
 # Default configurable image-capable model eligible for Google AI Studio free tier
-DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite"
+DEFAULT_GEMINI_MODEL = "gemini-3.5-flash-lite"
 FALLBACK_GEMINI_MODELS = [
-    "gemini-3.1-flash-lite",
+    "gemini-3.5-flash-lite",
     "gemini-flash-latest",
-    "gemini-3.8-flash",
-    "gemini-2.5-flash",
 ]
-FALLBACK_GEMINI_MODEL = "gemini-flash-latest"
+FALLBACK_GEMINI_MODEL = "gemini-3.5-flash-lite"
 
 # Standard distress categories
 ROAD_DEFECT_TYPES = {
@@ -95,7 +93,10 @@ class GeminiInspectionService:
     def model_name(self) -> str:
         # Dynamically read GEMINI_MODEL from container environment
         env_model = os.environ.get("GEMINI_MODEL", "").strip().strip("'\"").strip()
-        return env_model or self._model_name or DEFAULT_GEMINI_MODEL
+        m = env_model or self._model_name or DEFAULT_GEMINI_MODEL
+        if m in ("gemini-1.5-flash", "gemini-1.5-pro", "models/gemini-1.5-flash", "models/gemini-1.5-pro", "gemini-2.0-flash", "models/gemini-2.0-flash"):
+            m = "gemini-3.5-flash-lite"
+        return m
 
     def is_configured(self) -> bool:
         """Returns True if the Google Gen AI SDK is installed and an API key is available."""
@@ -251,7 +252,9 @@ INSPECTION RULES:
             temperature=0.2,
         )
 
-        model_to_use = self._model_name
+        model_to_use = self.model_name
+        if model_to_use in ("gemini-1.5-flash", "gemini-1.5-pro", "models/gemini-1.5-flash", "models/gemini-1.5-pro", "gemini-2.0-flash", "models/gemini-2.0-flash"):
+            model_to_use = "gemini-3.5-flash-lite"
         response_text = ""
 
         try:

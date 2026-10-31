@@ -632,6 +632,11 @@ def update_complaint_draft(
         new_loc = str(updates["location_address"]).strip()
         cursor.execute("UPDATE defect_inspections SET road_name = ? WHERE id = ?;", (new_loc[:200], inspection_id))
 
+    if "location_notes" in updates or "notes" in updates:
+        n_val = str(updates.get("location_notes") or updates.get("notes") or "").strip()
+        if n_val:
+            cursor.execute("UPDATE defect_inspections SET notes = ?, location_notes = ? WHERE id = ?;", (n_val, n_val, inspection_id))
+
     # 6. Status and Submission Lifecycle Handling
     if "status" in updates:
         st = str(updates["status"]).strip().lower()

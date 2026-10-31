@@ -2554,6 +2554,55 @@
           }
         }
 
+        function showModalAlert(type, title, message) {
+          const box = document.getElementById("modal-comp-alert");
+          const icon = document.getElementById("modal-comp-alert-icon");
+          const titleEl = document.getElementById("modal-comp-alert-title");
+          const msgEl = document.getElementById("modal-comp-alert-msg");
+          if (!box) return;
+
+          box.className =
+            "p-3.5 rounded-xl border text-xs flex items-start gap-2.5 transition-all";
+          if (type === "error") {
+            box.classList.add("bg-rose-50", "border-rose-200", "text-rose-900");
+            if (icon) {
+              icon.className =
+                "material-symbols-outlined text-[18px] text-rose-600 shrink-0";
+              icon.innerText = "error";
+            }
+          } else if (type === "success") {
+            box.classList.add(
+              "bg-emerald-50",
+              "border-emerald-200",
+              "text-emerald-900",
+            );
+            if (icon) {
+              icon.className =
+                "material-symbols-outlined text-[18px] text-emerald-600 shrink-0";
+              icon.innerText = "check_circle";
+            }
+          } else {
+            box.classList.add(
+              "bg-amber-50",
+              "border-amber-200",
+              "text-amber-900",
+            );
+            if (icon) {
+              icon.className =
+                "material-symbols-outlined text-[18px] text-amber-600 shrink-0";
+              icon.innerText = "warning";
+            }
+          }
+          if (titleEl) titleEl.innerText = title;
+          if (msgEl) msgEl.innerText = message;
+          box.classList.remove("hidden");
+        }
+
+        function dismissModalAlert() {
+          const box = document.getElementById("modal-comp-alert");
+          if (box) box.classList.add("hidden");
+        }
+
         function openComplaintReviewModal() {
           if (!lastInspectionResult) {
             showStudioAlert(
@@ -2565,6 +2614,8 @@
           }
           const modal = document.getElementById("complaint-review-modal");
           if (!modal) return;
+
+          dismissModalAlert();
 
           const building =
             document.getElementById("loc-building")?.value.trim() || "";
@@ -2588,6 +2639,21 @@
           document.getElementById("modal-comp-coords").value = `${lat}, ${lng}`;
           document.getElementById("modal-comp-notes").value = notes;
 
+          // Pre-populate citizen details from session if available and empty
+          if (window.vgCurrentUser) {
+            const nameInput = document.getElementById("modal-comp-name");
+            if (nameInput && !nameInput.value.trim()) {
+              nameInput.value =
+                window.vgCurrentUser.full_name ||
+                window.vgCurrentUser.username ||
+                "";
+            }
+            const contactInput = document.getElementById("modal-comp-contact");
+            if (contactInput && !contactInput.value.trim()) {
+              contactInput.value = window.vgCurrentUser.email || "";
+            }
+          }
+
           const defectCount = lastInspectionResult.defect_count || 0;
           document.getElementById("modal-comp-defect-summary").innerText =
             `${defectCount} Candidate Defect${defectCount === 1 ? "" : "s"} Detected`;
@@ -2604,127 +2670,249 @@
         }
 
         function closeComplaintReviewModal() {
+          dismissModalAlert();
           const modal = document.getElementById("complaint-review-modal");
           if (modal) modal.classList.add("hidden");
         }
 
-        function executeComplaintSubmission() {
-          if (!lastInspectionResult) return;
+        async function executeComplaintSubmission() {
+          if (!lastInspectionResult) {
+            showModalAlert(
+              "error",
+              "No Active Inspection",
+              "Please run defect detection first.",
+            );
+            return;
+          }
 
           const btn = document.getElementById("btn-confirm-complaint-submit");
           const label = document.getElementById("btn-confirm-complaint-label");
+          const icon = document.getElementById("btn-confirm-complaint-icon");
+          const cancelBtn = document.getElementById("btn-cancel-complaint-modal");
+
+          dismissModalAlert();
           btn.disabled = true;
-          label.innerText = "Submitting Complaint Draft...";
+          if (cancelBtn) cancelBtn.disabled = true;
+          if (icon) {
+            icon.innerText = "progress_activity";
+            icon.classList.add("animate-spin");
+          }
+          label.innerText = "Saving Inspection...";
 
-          const roadName = document
-            .getElementById("modal-comp-road")
-            .value.trim();
-          const area = document.getElementById("modal-comp-area").value.trim();
-          const city = document.getElementById("modal-comp-city").value.trim();
-          const coordsStr = document.getElementById("modal-comp-coords").value;
-          const [latStr, lngStr] = coordsStr.split(",").map((s) => s.trim());
-          const lat = parseFloat(latStr) || 19.07609;
-          const lng = parseFloat(lngStr) || 72.877426;
+          try {
+            const roadName =
+              document.getElementById("modal-comp-road")?.value.trim() ||
+              "Municipal Asset";
+            const area =
+              document.getElementById("modal-comp-area")?.value.trim() || "";
+            const city =
+              document.getElementById("modal-comp-city")?.value.trim() || "Mumbai";
+            const coordsStr =
+              document.getElementById("modal-comp-coords")?.value ||
+              "19.07609, 72.877426";
+            const [latStr, lngStr] = coordsStr.split(",").map((s) => s.trim());
+            const lat = parseFloat(latStr) || 19.07609;
+            const lng = parseFloat(lngStr) || 72.877426;
 
-          const compName = document
-            .getElementById("modal-comp-name")
-            .value.trim();
-          const compContact = document
-            .getElementById("modal-comp-contact")
-            .value.trim();
-          const notes = document
-            .getElementById("modal-comp-notes")
-            .value.trim();
+            const compName =
+              document.getElementById("modal-comp-name")?.value.trim() || "";
+            const compContact =
+              document.getElementById("modal-comp-contact")?.value.trim() || "";
+            const notes =
+              document.getElementById("modal-comp-notes")?.value.trim() || "";
 
-          const csrfTok = getCsrfToken();
-          const payload = {
-            image_name:
-              lastInspectionResult.filename ||
-              (selectedFile ? selectedFile.name : "inspection.jpg"),
-            domain: activeWorkflow === "building" ? "home" : "road",
-            road_name: roadName,
-            area: area,
-            city: city,
-            latitude: lat,
-            longitude: lng,
-            notes: notes,
-            defect_count: lastInspectionResult.defect_count || 0,
-            detections: lastInspectionResult.detections || [],
-            original_image_path: lastInspectionResult.original_file_path || "",
-            annotated_image_path:
-              lastInspectionResult.processed_file_path || "",
-            status: "Open",
-            publication_status: "published",
-            csrf_token: csrfTok,
-          };
+            // 1. Get or refresh CSRF token
+            let csrfTok = getCsrfToken();
+            if (!csrfTok) {
+              try {
+                const authRes = await fetch("/api/auth/status");
+                const authData = await authRes.json();
+                if (authData?.csrf_token) {
+                  csrfTok = authData.csrf_token;
+                  sessionStorage.setItem("vg_csrf_token", csrfTok);
+                  const m = document.querySelector('meta[name="csrf-token"]');
+                  if (m) m.setAttribute("content", csrfTok);
+                }
+              } catch (_) {}
+            }
 
-          fetch("/api/inspections", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              ...(csrfTok ? { "X-CSRF-Token": csrfTok } : {}),
-            },
-            body: JSON.stringify(payload),
-          })
-            .then(async (res) => {
-              const data = await res.json().catch(() => ({}));
-              if (!res.ok || data.status !== "success") {
-                throw new Error(data.message || "Failed to save inspection.");
-              }
-              const inspId = data.inspection?.id || data.id;
+            const payload = {
+              image_name:
+                lastInspectionResult.filename ||
+                (selectedFile ? selectedFile.name : "inspection.jpg"),
+              domain: activeWorkflow === "building" ? "home" : "road",
+              road_name: roadName,
+              area: area,
+              city: city,
+              latitude: lat,
+              longitude: lng,
+              notes: notes,
+              defect_count: lastInspectionResult.defect_count || 0,
+              detections: lastInspectionResult.detections || [],
+              original_image_path:
+                lastInspectionResult.original_file_path || "",
+              annotated_image_path:
+                lastInspectionResult.processed_file_path || "",
+              status: "Open",
+              publication_status: "published",
+              csrf_token: csrfTok,
+            };
 
-              return fetch(`/api/inspections/${inspId}/complaint-draft`)
-                .then((r) => r.json())
-                .then((draftData) => {
-                  const patchPayload = {
-                    complainant_name: compName,
-                    complainant_contact: compContact,
-                    complaint_body: notes || draftData.draft?.complaint_body,
-                    status: "draft",
-                    csrf_token: csrfTok,
-                  };
-                  return fetch(`/api/inspections/${inspId}/complaint-draft`, {
-                    method: "PUT",
+            // 2. Persist inspection record
+            let res = await fetch("/api/inspections", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                ...(csrfTok ? { "X-CSRF-Token": csrfTok } : {}),
+              },
+              body: JSON.stringify(payload),
+            });
+
+            let data = await res.json().catch(() => ({}));
+
+            // Auto-heal session if CSRF token expired
+            if (
+              res.status === 403 &&
+              (data?.error_code === "CSRF_TOKEN_INVALID" ||
+                data?.message?.includes("CSRF"))
+            ) {
+              try {
+                const authRes = await fetch("/api/auth/status");
+                const authData = await authRes.json();
+                if (authData?.csrf_token) {
+                  csrfTok = authData.csrf_token;
+                  sessionStorage.setItem("vg_csrf_token", csrfTok);
+                  payload.csrf_token = csrfTok;
+                  res = await fetch("/api/inspections", {
+                    method: "POST",
                     headers: {
                       "Content-Type": "application/json",
-                      ...(csrfTok ? { "X-CSRF-Token": csrfTok } : {}),
+                      "X-CSRF-Token": csrfTok,
                     },
-                    body: JSON.stringify(patchPayload),
-                  })
-                    .then((r) => r.json().catch(() => ({})))
-                    .then((patchRes) => ({ inspId, draft: patchRes?.draft }));
-                });
-            })
-            .then(({ inspId, draft }) => {
-              closeComplaintReviewModal();
-              const successModal = document.getElementById(
-                "complaint-success-modal",
+                    body: JSON.stringify(payload),
+                  });
+                  data = await res.json().catch(() => ({}));
+                }
+              } catch (_) {}
+            }
+
+            let inspId = null;
+            if (res.status === 409 && (data.inspection?.id || data.id)) {
+              // Gracefully reuse existing inspection record
+              inspId = data.inspection?.id || data.id;
+            } else if (!res.ok || (data.status !== "success" && !data.inspection?.id)) {
+              throw new Error(
+                data.message || `Failed to save inspection (HTTP ${res.status}).`,
               );
-              const refCode =
-                draft?.submission_reference ||
-                draft?.reference_id ||
-                `VG-CMP-${String(inspId).padStart(4, "0")}`;
-              document.getElementById("success-comp-ref").innerText =
-                `Grievance Reference: #${refCode}`;
-              document.getElementById("success-link-pdf").href =
-                `/api/inspections/${inspId}/complaint-draft/export/pdf`;
-              document.getElementById("success-link-txt").href =
-                `/api/inspections/${inspId}/complaint-draft/export/txt`;
-              const mapLink = document.getElementById("success-link-map");
-              if (mapLink) mapLink.href = `/map?id=${inspId}`;
-              successModal.classList.remove("hidden");
-            })
-            .catch((err) => {
-              showStudioAlert(
-                "error",
-                "Complaint Submission Error",
-                err.message || "Failed to submit complaint.",
+            } else {
+              inspId = data.inspection?.id || data.id;
+            }
+
+            if (!inspId) {
+              throw new Error("Unable to obtain inspection reference ID from server.");
+            }
+
+            label.innerText = "Generating Complaint Draft...";
+
+            // 3. Ensure complaint draft is initialized
+            let draftData = null;
+            try {
+              const draftRes = await fetch(
+                `/api/inspections/${inspId}/complaint-draft`,
               );
-            })
-            .finally(() => {
-              btn.disabled = false;
-              label.innerText = "Confirm & Submit Complaint Draft";
-            });
+              draftData = await draftRes.json().catch(() => ({}));
+            } catch (_) {}
+
+            // 4. Update complaint draft with citizen's specific contact details and notes
+            const patchPayload = {
+              status: "draft",
+              csrf_token: csrfTok,
+            };
+            if (compName) patchPayload.complainant_name = compName;
+            if (compContact) patchPayload.complainant_contact = compContact;
+            if (notes) {
+              patchPayload.location_notes = notes;
+              patchPayload.notes = notes;
+            }
+
+            let updatedDraft = draftData?.draft;
+            try {
+              const putRes = await fetch(
+                `/api/inspections/${inspId}/complaint-draft`,
+                {
+                  method: "PUT",
+                  headers: {
+                    "Content-Type": "application/json",
+                    ...(csrfTok ? { "X-CSRF-Token": csrfTok } : {}),
+                  },
+                  body: JSON.stringify(patchPayload),
+                },
+              );
+              const putData = await putRes.json().catch(() => ({}));
+              if (putRes.ok && putData?.draft) {
+                updatedDraft = putData.draft;
+              }
+            } catch (putErr) {
+              console.warn("Non-fatal complaint draft update notice:", putErr);
+            }
+
+            // 5. Close review modal and display verified success modal with download links
+            closeComplaintReviewModal();
+            const successModal = document.getElementById(
+              "complaint-success-modal",
+            );
+            const refCode =
+              updatedDraft?.submission_reference ||
+              updatedDraft?.reference_id ||
+              `VG-CMP-${String(inspId).padStart(4, "0")}`;
+
+            document.getElementById(
+              "success-comp-ref",
+            ).innerText = `Grievance Reference: #${refCode}`;
+
+            const pdfLink = document.getElementById("success-link-pdf");
+            if (pdfLink) {
+              pdfLink.href = `/api/inspections/${inspId}/complaint-draft/export/pdf`;
+              pdfLink.setAttribute(
+                "download",
+                `visionguard_complaint_draft_insp_${inspId}.pdf`,
+              );
+            }
+
+            const txtLink = document.getElementById("success-link-txt");
+            if (txtLink) {
+              txtLink.href = `/api/inspections/${inspId}/complaint-draft/export/txt`;
+              txtLink.setAttribute(
+                "download",
+                `visionguard_complaint_draft_insp_${inspId}.txt`,
+              );
+            }
+
+            const mapLink = document.getElementById("success-link-map");
+            if (mapLink) mapLink.href = `/map?id=${inspId}`;
+
+            successModal.classList.remove("hidden");
+            showStudioAlert(
+              "success",
+              "Civic Complaint Draft Ready",
+              `Inspection #${inspId} and Complaint #${refCode} created. You can download the PDF report now.`,
+            );
+          } catch (err) {
+            console.error("Complaint Submission Error:", err);
+            showModalAlert(
+              "error",
+              "Submission Error",
+              err.message || "Failed to submit civic complaint draft.",
+            );
+          } finally {
+            btn.disabled = false;
+            if (cancelBtn) cancelBtn.disabled = false;
+            if (icon) {
+              icon.innerText = "send";
+              icon.classList.remove("animate-spin");
+            }
+            label.innerText = "Confirm & Submit Complaint Draft";
+          }
         }
 
         function triggerInspection() {
@@ -3174,6 +3362,7 @@
                 if (m) m.setAttribute("content", data.csrf_token);
               }
               if (data && data.authenticated && data.user) {
+                window.vgCurrentUser = data.user;
                 const nameEl = document.getElementById("nav-username");
                 const roleEl = document.getElementById("nav-role");
                 const avatarEl = document.getElementById("nav-user-avatar");
@@ -3390,6 +3579,31 @@
         </div>
 
         <div class="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+          <div
+            id="modal-comp-alert"
+            class="hidden p-3.5 rounded-xl border text-xs flex items-start gap-2.5 transition-all"
+          >
+            <span
+              id="modal-comp-alert-icon"
+              class="material-symbols-outlined text-[18px] shrink-0"
+              >error</span
+            >
+            <div class="flex-1">
+              <h4 id="modal-comp-alert-title" class="font-bold">Error</h4>
+              <p
+                id="modal-comp-alert-msg"
+                class="text-[11px] mt-0.5 leading-relaxed"
+              ></p>
+            </div>
+            <button
+              type="button"
+              onclick="dismissModalAlert()"
+              class="text-slate-400 hover:text-slate-600 p-0.5"
+            >
+              <span class="material-symbols-outlined text-[16px]">close</span>
+            </button>
+          </div>
+
           <div class="space-y-2">
             <h4
               class="text-xs font-bold text-slate-700 uppercase tracking-wider"
@@ -3528,6 +3742,7 @@
         >
           <button
             type="button"
+            id="btn-cancel-complaint-modal"
             onclick="closeComplaintReviewModal()"
             class="w-full sm:w-auto h-10 px-4 rounded-full bg-white border border-slate-300 text-slate-700 font-semibold text-xs hover:bg-slate-100 transition-colors"
           >
@@ -3537,9 +3752,13 @@
             type="button"
             id="btn-confirm-complaint-submit"
             onclick="executeComplaintSubmission()"
-            class="w-full sm:w-auto h-10 px-6 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs flex items-center justify-center gap-2 transition-all shadow-md shadow-emerald-600/20"
+            class="w-full sm:w-auto h-10 px-6 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs flex items-center justify-center gap-2 transition-all shadow-md shadow-emerald-600/20 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            <span class="material-symbols-outlined text-[18px]">send</span>
+            <span
+              id="btn-confirm-complaint-icon"
+              class="material-symbols-outlined text-[18px]"
+              >send</span
+            >
             <span id="btn-confirm-complaint-label"
               >Confirm & Submit Complaint Draft</span
             >

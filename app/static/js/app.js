@@ -409,7 +409,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (provider === "gemini" || provider === "google_gemini") {
             const geminiInfo = lastHealthData.gemini || {};
             const isConfigured = Boolean(geminiInfo.configured);
-            const modelName = geminiInfo.model || "gemini-1.5-flash";
+            const modelName = geminiInfo.model || "gemini-3.5-flash-lite";
 
             if (isConfigured) {
                 modelStatusBadge.textContent = `Model: Google Gemini Vision (${modelName})`;
