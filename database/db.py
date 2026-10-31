@@ -304,6 +304,10 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
     conn.commit()
     conn.close()
 
+    # For default production/application database, run one-time auto-publish migration on eligible geotagged records
+    if db_path == DEFAULT_DB_PATH:
+        migrate_publish_eligible_historical_inspections(db_path)
+
 
 
 def migrate_historical_report_ownership(db_path: str = DEFAULT_DB_PATH) -> int:
@@ -381,6 +385,46 @@ def migrate_historical_report_ownership(db_path: str = DEFAULT_DB_PATH) -> int:
     finally:
         conn.close()
 
+    return migrated_count
+
+
+def migrate_publish_eligible_historical_inspections(db_path: str = DEFAULT_DB_PATH) -> int:
+    """
+    Publishes authentic geotagged historical inspection records that were stuck in pending_review
+    so they reflect accurately on the Geospatial Defect Map across local and cloud environments.
+    Strictly excludes records lacking valid coordinates or marked as 'hidden'.
+    """
+    if is_postgres_backend(db_path):
+        import database.postgres as pg
+        return pg.migrate_publish_eligible_historical_inspections()
+
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+    migrated_count = 0
+    try:
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='defect_inspections';")
+        if not cursor.fetchone():
+            return 0
+
+        cursor.execute("""
+            UPDATE defect_inspections
+            SET publication_status = 'published',
+                published_at = COALESCE(published_at, CURRENT_TIMESTAMP)
+            WHERE (publication_status IS NULL OR LOWER(publication_status) = 'pending_review')
+              AND latitude IS NOT NULL
+              AND longitude IS NOT NULL
+              AND (latitude != 0.0 OR longitude != 0.0)
+              AND (latitude BETWEEN -90.0 AND 90.0)
+              AND (longitude BETWEEN -180.0 AND 180.0)
+              AND LOWER(COALESCE(publication_status, '')) != 'hidden';
+        """)
+        rc = getattr(cursor, "rowcount", 0)
+        migrated_count = rc if rc and rc > 0 else 0
+        conn.commit()
+    except Exception as e:
+        logger.warning(f"Failed to auto-publish eligible historical inspections: {e}")
+    finally:
+        conn.close()
     return migrated_count
 
 
@@ -647,6 +691,44 @@ def get_inspection_update_by_id(
         item["created_at"] = item["created_at"].isoformat()
     item["update_type_label"] = ALLOWED_CITIZEN_UPDATE_TYPES.get(item.get("update_type"), item.get("update_type"))
     return item
+
+
+def get_latest_updates_for_inspections(
+    inspection_ids: List[int],
+    db_path: str = DEFAULT_DB_PATH
+) -> Dict[int, Dict[str, Any]]:
+    """
+    Retrieves the most recent citizen progress update for a list of inspection IDs.
+    Returns a dictionary mapping inspection_id -> latest_update_dict.
+    """
+    if not inspection_ids:
+        return {}
+    init_db(db_path)
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+    placeholders = ",".join("?" for _ in inspection_ids)
+    query = f"""
+    SELECT id, inspection_id, user_id, username, update_type,
+           comment, image_path, verification_status, created_at
+    FROM inspection_updates
+    WHERE inspection_id IN ({placeholders})
+    ORDER BY id ASC;
+    """
+    result = {}
+    try:
+        cursor.execute(query, tuple(inspection_ids))
+        rows = cursor.fetchall()
+        for r in rows:
+            d = dict(r)
+            if isinstance(d.get("created_at"), (datetime.datetime, datetime.date)):
+                d["created_at"] = d["created_at"].isoformat()
+            d["update_type_label"] = ALLOWED_CITIZEN_UPDATE_TYPES.get(d.get("update_type"), d.get("update_type"))
+            result[d["inspection_id"]] = d
+    except Exception as e:
+        logger.warning(f"Could not fetch batch updates: {e}")
+    finally:
+        conn.close()
+    return result
 
 
 def row_to_dict(row: Any, ref_date: Optional[datetime.date] = None) -> Dict[str, Any]:

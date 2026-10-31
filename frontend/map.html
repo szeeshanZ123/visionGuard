@@ -252,14 +252,7 @@
               <span class="hidden xs:inline">New Report</span>
             </button>
             <!-- Help Button -->
-            <button
-              class="w-9 h-9 min-h-[36px] min-w-[36px] rounded-full border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 flex items-center justify-center transition-colors"
-              title="Help and Documentation"
-              type="button"
-            >
-              <span class="material-symbols-outlined text-[18px]">help</span>
-            </button>
-            <!-- Divider -->
+                      <!-- Divider -->
             <div class="h-6 w-px bg-slate-200 hidden sm:block"></div>
             <!-- User Profile -->
             <div class="flex items-center gap-2 vg-nav-user-container">
@@ -839,22 +832,7 @@
             >© 2024 VisionGuard AI Civil Intelligence. All rights
             reserved.</span
           >
-        </div>
-        <div
-          class="flex flex-wrap items-center justify-center gap-4 sm:gap-6 font-medium text-slate-600"
-        >
-          <a class="hover:text-blue-600 transition-colors" href="#"
-            >Audit Logs</a
-          >
-          <a class="hover:text-blue-600 transition-colors" href="#"
-            >Security Protocols</a
-          >
-          <a class="hover:text-blue-600 transition-colors" href="#"
-            >ASTM Standards</a
-          >
-          <a class="hover:text-blue-600 transition-colors" href="#">Terms</a>
-        </div>
-      </div>
+        
     </footer>
     <!-- LEAFLET & LOGIC SCRIPT -->
     <script>
@@ -1092,13 +1070,16 @@
               </div>
             </div>
             <div class="p-3 sm:p-3.5 space-y-2">
-              <div class="flex items-center justify-between">
+              <div class="flex items-center justify-between gap-1 flex-wrap">
                 <span class="px-2 py-0.5 rounded text-[10px] font-bold" style="background-color: ${record.pinColor}15; color: ${record.pinColor};">
                   ${record.categoryLabel}
                 </span>
-                <span class="text-[11px] font-semibold text-slate-600">
-                  Status: <strong class="text-slate-900">${record.status}</strong>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold border ${record.progressBadgeClass || 'bg-slate-100 text-slate-700 border-slate-200'}">
+                  ${record.progressLabel || 'Reported'}
                 </span>
+              </div>
+              <div class="text-[11px] font-medium text-slate-600">
+                Official Status: <strong class="text-slate-900">${record.status}</strong>
               </div>
               <div>
                 <h4 class="text-xs font-bold text-slate-900 leading-snug">${record.name}</h4>
@@ -1171,6 +1152,10 @@
                 coords: [lat, lng],
                 defectsCount: count,
                 status: item.status || "Open",
+                progressLabel: item.progress_label || "Reported",
+                progressColor: item.progress_color || meta.color,
+                progressBadgeClass: item.progress_badge_class || "bg-slate-100 text-slate-700 border-slate-200",
+                hasUpdates: Boolean(item.has_updates),
                 severityScore: severityScore,
                 severityLabel: item.preliminary_severity || "Moderate",
                 domain: item.domain || "road",
@@ -1180,9 +1165,17 @@
               });
             });
 
-            if (realMapped.length > 0) {
-              defectRecords = realMapped;
-              renderMarkers();
+            defectRecords = realMapped;
+            renderMarkers();
+
+            const noticeBanner = document.getElementById("system-status-notice");
+            const bannerText = document.getElementById("system-status-text");
+            if (bannerText) {
+              if (realMapped.length > 0) {
+                bannerText.innerHTML = `Live Synchronization Active — Displaying <strong>${realMapped.length} verified public defect marker${realMapped.length === 1 ? '' : 's'}</strong> from database.`;
+              } else {
+                bannerText.innerHTML = `Municipal Registry Active — 0 public defect records currently eligible for public display.`;
+              }
             }
 
             // If URL parameter specifies an inspection, marker, or highlight ID, focus map on it
@@ -1230,7 +1223,7 @@
             <span class="text-[9px] sm:text-[10px] text-slate-400 font-mono truncate">${record.coords[0].toFixed(4)}, ${record.coords[1].toFixed(4)}</span>
           </div>
           <div class="text-xs font-bold text-slate-900 truncate mt-0.5">${record.name}</div>
-          <div class="text-[10px] sm:text-[11px] text-slate-500 truncate">${record.defectsCount} defect${record.defectsCount === 1 ? "" : "s"} • Status: ${record.status}</div>
+          <div class="text-[10px] sm:text-[11px] text-slate-500 truncate">${record.defectsCount} defect${record.defectsCount === 1 ? "" : "s"} • <span class="font-semibold px-1.5 py-0.2 rounded border ${record.progressBadgeClass || 'bg-slate-100 text-slate-700 border-slate-200'}">${record.progressLabel || 'Reported'}</span> • Status: ${record.status}</div>
         </div>
       `;
         card.onclick = () => {
@@ -1402,14 +1395,31 @@
 
         const syncBtn = document.getElementById("syncBtn");
         const syncIcon = document.getElementById("syncIcon");
+        const syncLabel = syncBtn?.querySelector("span:not(#syncIcon)");
         if (syncBtn && syncIcon) {
           syncBtn.addEventListener("click", () => {
             syncIcon.classList.add("animate-spin");
-            loadBackendInspections().finally(() => {
-              setTimeout(() => {
-                syncIcon.classList.remove("animate-spin");
-              }, 600);
-            });
+            if (syncLabel) syncLabel.innerText = "Syncing...";
+            syncBtn.disabled = true;
+            loadBackendInspections()
+              .then(() => {
+                if (syncLabel) syncLabel.innerText = `Synced (${defectRecords.length})`;
+                setTimeout(() => {
+                  if (syncLabel) syncLabel.innerText = "Sync Data";
+                }, 2200);
+              })
+              .catch(() => {
+                if (syncLabel) syncLabel.innerText = "Sync Failed";
+                setTimeout(() => {
+                  if (syncLabel) syncLabel.innerText = "Sync Data";
+                }, 2200);
+              })
+              .finally(() => {
+                setTimeout(() => {
+                  syncIcon.classList.remove("animate-spin");
+                  syncBtn.disabled = false;
+                }, 400);
+              });
           });
         }
 

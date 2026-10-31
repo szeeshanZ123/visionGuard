@@ -1081,16 +1081,8 @@
         <div
           class="order-2 md:order-3 flex items-center gap-2 sm:gap-3 shrink-0"
         >
-          <button
-            class="w-9 h-9 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] text-[#64748B] hover:text-[#0F172A] hover:bg-slate-100 flex items-center justify-center transition-colors"
-            title="Help and Documentation"
-            type="button"
-          >
-            <span class="material-symbols-outlined text-[18px]"
-              >help</span
-            ></button
-          ><button
-            class="inline-flex items-center gap-1.5 h-9 px-3 sm:px-4 rounded-full bg-primary-container text-white font-label-md text-label-md hover:bg-blue-600 transition-colors shadow-sm shadow-blue-500/20 shrink-0"
+      
+          <button class="inline-flex items-center gap-1.5 h-9 px-3 sm:px-4 rounded-full bg-primary-container text-white font-label-md text-label-md hover:bg-blue-600 transition-colors shadow-sm shadow-blue-500/20 shrink-0"
             type="button"
           >
             <span class="material-symbols-outlined text-[18px]">add</span
@@ -2662,6 +2654,7 @@
             annotated_image_path:
               lastInspectionResult.processed_file_path || "",
             status: "Open",
+            publication_status: "published",
             csrf_token: csrfTok,
           };
 
@@ -3328,23 +3321,7 @@
           class="flex flex-wrap items-center justify-center gap-4 sm:gap-6"
           data-active-classes="text-primary-container font-semibold"
         >
-          <a
-            aria-current="page"
-            class="transition-colors text-primary-container font-semibold"
-            data-path="security-protocol"
-            href="#"
-            >Security Protocol</a
-          ><a
-            class="text-[#64748B] hover:text-[#0F172A] transition-colors"
-            data-path="audit-logs"
-            href="#"
-            >Audit Logs</a
-          ><a
-            class="text-[#64748B] hover:text-[#0F172A] transition-colors"
-            data-path="terms-of-service"
-            href="#"
-            >Terms</a
-          >
+        
         </nav>
       </div>
     </footer>

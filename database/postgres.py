@@ -532,3 +532,41 @@ def init_postgres_db(conn) -> None:
     conn.commit()
     cursor.close()
     logger.info("Verified PostgreSQL schema tables and indexes.")
+
+    # Auto-publish authentic historical geotagged records that were stuck in pending_review
+    try:
+        migrate_publish_eligible_historical_inspections()
+    except Exception as e:
+        logger.warning(f"Could not auto-publish historical PostgreSQL records: {e}")
+
+
+def migrate_publish_eligible_historical_inspections() -> int:
+    """
+    Auto-publishes authentic geotagged records in PostgreSQL that were previously stuck in pending_review.
+    Strictly excludes records lacking valid coordinates or marked as 'hidden'.
+    """
+    conn = get_postgres_connection()
+    cursor = conn.cursor()
+    migrated_count = 0
+    try:
+        cursor.execute("""
+            UPDATE defect_inspections
+            SET publication_status = 'published',
+                published_at = COALESCE(published_at, CURRENT_TIMESTAMP)
+            WHERE (publication_status IS NULL OR LOWER(publication_status) = 'pending_review')
+              AND latitude IS NOT NULL
+              AND longitude IS NOT NULL
+              AND (latitude != 0.0 OR longitude != 0.0)
+              AND (latitude BETWEEN -90.0 AND 90.0)
+              AND (longitude BETWEEN -180.0 AND 180.0)
+              AND LOWER(COALESCE(publication_status, '')) != 'hidden';
+        """)
+        rc = getattr(cursor, "rowcount", 0)
+        migrated_count = rc if rc and rc > 0 else 0
+        conn.commit()
+    except Exception as e:
+        logger.warning(f"Failed to auto-publish PostgreSQL historical inspections: {e}")
+    finally:
+        cursor.close()
+        conn.close()
+    return migrated_count

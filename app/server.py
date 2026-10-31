@@ -111,6 +111,7 @@ from database.db import (
     add_inspection_update,
     get_inspection_updates,
     get_inspection_update_by_id,
+    get_latest_updates_for_inspections,
     ALLOWED_CITIZEN_UPDATE_TYPES,
     ALLOWED_STATUSES,
     DEFAULT_DB_PATH,
@@ -2471,6 +2472,10 @@ def create_app(
             db_path=db_path
         )
 
+        # Batch-fetch latest citizen progress updates for published records
+        record_ids = [r["id"] for r in published_records if "id" in r]
+        latest_updates = get_latest_updates_for_inspections(record_ids, db_path=db_path) if record_ids else {}
+
         defects_list = []
         for r in published_records:
             lat = r.get("latitude")
@@ -2503,12 +2508,52 @@ def create_app(
 
             marker_id = generate_public_marker_id(r["id"], r.get("uploaded_at"))
 
+            # Derive sanitized citizen progress indicator
+            official_status = str(r.get("status") or "Open").strip()
+            insp_id = r["id"]
+            latest_upd = latest_updates.get(insp_id)
+
+            if official_status.lower() == "resolved":
+                progress_label = "Verified Resolved"
+                progress_color = "#16A34A"
+                progress_badge_class = "bg-emerald-50 text-emerald-700 border-emerald-200"
+            elif latest_upd:
+                ut = (latest_upd.get("update_type") or "").strip().lower()
+                if ut == "work_started":
+                    progress_label = "Work Started — Citizen Reported"
+                    progress_color = "#D97706"
+                    progress_badge_class = "bg-amber-50 text-amber-700 border-amber-200"
+                elif ut == "road_repaired":
+                    progress_label = "Repair Reported — Awaiting Verification"
+                    progress_color = "#2563EB"
+                    progress_badge_class = "bg-blue-50 text-blue-700 border-blue-200"
+                elif ut in ("issue_worse", "issue_has_become_worse", "condition_worsened"):
+                    progress_label = "Condition Worsened"
+                    progress_color = "#DC2626"
+                    progress_badge_class = "bg-rose-50 text-rose-700 border-rose-200"
+                elif ut == "issue_still_exists":
+                    progress_label = "Issue Still Exists"
+                    progress_color = "#EA580C"
+                    progress_badge_class = "bg-orange-50 text-orange-700 border-orange-200"
+                else:
+                    progress_label = "Reported"
+                    progress_color = "#475569"
+                    progress_badge_class = "bg-slate-100 text-slate-700 border-slate-200"
+            else:
+                progress_label = "Reported"
+                progress_color = "#475569"
+                progress_badge_class = "bg-slate-100 text-slate-700 border-slate-200"
+
             defects_list.append({
                 "marker_id": marker_id,
                 "domain": dom,
                 "defect_category": cat_display,
                 "preliminary_severity": sev_display,
-                "status": r.get("status") or "Open",
+                "status": official_status,
+                "progress_label": progress_label,
+                "progress_color": progress_color,
+                "progress_badge_class": progress_badge_class,
+                "has_updates": bool(latest_upd),
                 "inspection_date": str(r.get("uploaded_at") or r.get("created_at") or "")[:10] or datetime.date.today().isoformat(),
                 "latitude": round(f_lat, 6),
                 "longitude": round(f_lon, 6),
@@ -2516,10 +2561,33 @@ def create_app(
                 "defect_count": int(r.get("defect_count") or (len(r.get("detections", [])) if r.get("detections") else 1)),
             })
 
+        # Calculate diagnostics on dataset exclusions for transparency
+        conn_diag = get_db_connection(db_path)
+        cur_diag = conn_diag.cursor()
+        try:
+            cur_diag.execute("SELECT count(*) FROM defect_inspections;")
+            total_db_records = cur_diag.fetchone()[0]
+            cur_diag.execute("SELECT count(*) FROM defect_inspections WHERE latitude IS NULL OR longitude IS NULL OR (latitude = 0.0 AND longitude = 0.0);")
+            excluded_no_coords = cur_diag.fetchone()[0]
+            cur_diag.execute("SELECT count(*) FROM defect_inspections WHERE LOWER(COALESCE(publication_status, 'pending_review')) != 'published';")
+            excluded_unapproved = cur_diag.fetchone()[0]
+        except Exception:
+            total_db_records = len(defects_list)
+            excluded_no_coords = 0
+            excluded_unapproved = 0
+        finally:
+            conn_diag.close()
+
         return jsonify({
             "status": "success",
             "count": len(defects_list),
             "defects": defects_list,
+            "diagnostics": {
+                "total_persisted_inspections": total_db_records,
+                "public_markers_displayed": len(defects_list),
+                "excluded_lacking_coordinates": excluded_no_coords,
+                "excluded_unapproved_or_hidden": excluded_unapproved,
+            }
         }), 200
 
     @app.route("/api/inspections", methods=["GET"])
@@ -2804,6 +2872,13 @@ def create_app(
             if curr_user:
                 payload["created_by_user_id"] = curr_user["id"]
                 payload["created_by_username"] = curr_user["username"]
+
+            pub_status_req = (payload.get("publication_status") or "").strip().lower()
+            if pub_status_req in ("published", "pending_review", "hidden"):
+                payload["publication_status"] = pub_status_req
+                if pub_status_req == "published":
+                    payload["published_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
             t_db_start = time.perf_counter()
             record = save_inspection(payload, db_path=db_path)
             t_db_ms = (time.perf_counter() - t_db_start) * 1000
