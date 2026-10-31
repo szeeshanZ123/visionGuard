@@ -225,6 +225,375 @@
           animation: none;
         }
       }
+
+      /* ===== VisionGuard guidance drawer & cards (visual only) ===== */
+
+      /* Outer container (display is untouched so the existing "hidden" toggle still works) */
+      #guidance-drawer.vg-gdrawer {
+        padding: 0;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow:
+          0 1px 2px rgba(15, 23, 42, 0.04),
+          0 8px 24px rgba(15, 23, 42, 0.05);
+      }
+      #guidance-drawer.vg-gdrawer > * + * {
+        margin-top: 0;
+      }
+
+      /* Drawer header bar */
+      #guidance-drawer .vg-gdrawer__head {
+        padding: 16px 24px;
+        background: #f1f5f9;
+        border-bottom: 1px solid #e2e8f0;
+        gap: 12px;
+      }
+      #guidance-drawer .vg-gdrawer__title {
+        gap: 10px;
+        min-width: 0;
+        font-size: 17px;
+        line-height: 1.3;
+        font-weight: 700;
+        color: #0f172a;
+      }
+      #guidance-drawer .vg-gdrawer__title .material-symbols-outlined {
+        font-size: 26px;
+        color: #2563eb;
+        flex-shrink: 0;
+      }
+      #guidance-drawer .vg-gdrawer__close {
+        padding: 4px;
+        border-radius: 9999px;
+        color: #64748b;
+        line-height: 0;
+        flex-shrink: 0;
+      }
+      #guidance-drawer .vg-gdrawer__close:hover {
+        background: #e2e8f0;
+        color: #0f172a;
+      }
+      #guidance-drawer .vg-gdrawer__close .material-symbols-outlined {
+        font-size: 24px;
+      }
+
+      /* Body */
+      #guidance-drawer .vg-gdrawer__body {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding: 20px 24px 24px;
+      }
+      #guidance-drawer .vg-gcards {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      #guidance-drawer .vg-gcards > * + * {
+        margin-top: 0;
+      }
+
+      /* Defect card */
+      #guidance-drawer .vg-gcard {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 20px;
+        padding: 24px;
+        color: #475569;
+      }
+      #guidance-drawer .vg-gcard__head {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        padding-bottom: 22px;
+      }
+      #guidance-drawer .vg-gcard__thumb {
+        width: 168px;
+        height: 124px;
+        border-radius: 12px;
+        object-fit: cover;
+        border: 1px solid #e2e8f0;
+        background: #f1f5f9;
+        flex-shrink: 0;
+      }
+      #guidance-drawer .vg-gcard__titles {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        flex: 1 1 0;
+        min-width: 0;
+      }
+      #guidance-drawer .vg-gcard__title {
+        margin: 0;
+        font-size: 22px;
+        line-height: 1.25;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        color: #0f172a;
+        overflow-wrap: anywhere;
+      }
+
+      /* Severity pill */
+      #guidance-drawer .vg-gcard__sev {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        max-width: 100%;
+        padding: 8px 18px;
+        border-radius: 9999px;
+        font-size: 15px;
+        line-height: 1.2;
+        font-weight: 700;
+      }
+      #guidance-drawer .vg-gcard__sev .material-symbols-outlined {
+        font-size: 20px;
+        flex-shrink: 0;
+        font-variation-settings: "FILL" 1;
+      }
+      #guidance-drawer .vg-sev--critical {
+        background: #fecaca;
+        color: #7f1d1d;
+      }
+      #guidance-drawer .vg-sev--critical .material-symbols-outlined {
+        color: #dc2626;
+      }
+      #guidance-drawer .vg-sev--high {
+        background: #ffd9c2;
+        color: #9a3412;
+      }
+      #guidance-drawer .vg-sev--high .material-symbols-outlined {
+        color: #ea580c;
+      }
+      #guidance-drawer .vg-sev--moderate {
+        background: #fdebd0;
+        color: #c2410c;
+      }
+      #guidance-drawer .vg-sev--moderate .material-symbols-outlined {
+        color: #f97316;
+      }
+      #guidance-drawer .vg-sev--low {
+        background: #dbeafe;
+        color: #1d4ed8;
+      }
+      #guidance-drawer .vg-sev--low .material-symbols-outlined {
+        color: #2563eb;
+      }
+      #guidance-drawer .vg-sev--uncertain {
+        background: #f1f5f9;
+        color: #475569;
+      }
+      #guidance-drawer .vg-sev--uncertain .material-symbols-outlined {
+        color: #64748b;
+      }
+
+      /* Two-column information grid */
+      #guidance-drawer .vg-gcard__grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 26px 48px;
+        border-top: 1px solid #e2e8f0;
+        padding-top: 26px;
+      }
+      #guidance-drawer .vg-gsec {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        min-width: 0;
+      }
+      #guidance-drawer .vg-gsec__icon {
+        width: 48px;
+        height: 48px;
+        flex-shrink: 0;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #guidance-drawer .vg-gsec__icon .material-symbols-outlined {
+        font-size: 26px;
+        font-variation-settings:
+          "FILL" 0,
+          "wght" 500;
+      }
+      #guidance-drawer .vg-tone--blue {
+        background: #e3edff;
+        color: #2563eb;
+      }
+      #guidance-drawer .vg-tone--purple {
+        background: #eee8fb;
+        color: #6d28d9;
+      }
+      #guidance-drawer .vg-tone--green {
+        background: #d8f5e7;
+        color: #059669;
+      }
+      #guidance-drawer .vg-tone--orange {
+        background: #fdebdd;
+        color: #ea580c;
+      }
+      #guidance-drawer .vg-tone--indigo {
+        background: #e8e7fb;
+        color: #4338ca;
+      }
+      #guidance-drawer .vg-gsec__body {
+        flex: 1;
+        min-width: 0;
+      }
+      #guidance-drawer .vg-gsec__heading {
+        margin: 0 0 4px;
+        font-size: 16px;
+        line-height: 1.3;
+        font-weight: 700;
+        color: #0f172a;
+      }
+      #guidance-drawer .vg-gsec__text {
+        margin: 0;
+        font-size: 15px;
+        line-height: 1.55;
+        color: #475569;
+        overflow-wrap: anywhere;
+      }
+      #guidance-drawer .vg-gsec__list {
+        margin: 0;
+        padding-left: 18px;
+        list-style: disc;
+        font-size: 15px;
+        line-height: 1.55;
+        color: #475569;
+      }
+
+      /* Next Step for Citizens banner */
+      #guidance-drawer .vg-citizen-note {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 16px 22px;
+        background: #e8eefc;
+        border: 0;
+        border-radius: 16px;
+        color: #1e3a8a;
+        font-size: 15px;
+        line-height: 1.5;
+      }
+      #guidance-drawer .vg-citizen-note strong {
+        font-weight: 700;
+        color: #1e40af;
+      }
+      #guidance-drawer .vg-citizen-note__icon {
+        font-size: 32px;
+        line-height: 1;
+        color: #2563eb;
+        flex-shrink: 0;
+      }
+
+      /* Tablet */
+      @media (max-width: 1024px) {
+        #guidance-drawer .vg-gdrawer__body {
+          padding: 18px 18px 20px;
+        }
+        #guidance-drawer .vg-gcard {
+          padding: 20px;
+        }
+        #guidance-drawer .vg-gcard__head {
+          gap: 18px;
+          padding-bottom: 18px;
+        }
+        #guidance-drawer .vg-gcard__thumb {
+          width: 140px;
+          height: 104px;
+        }
+        #guidance-drawer .vg-gcard__title {
+          font-size: 20px;
+        }
+        #guidance-drawer .vg-gcard__grid {
+          gap: 22px 32px;
+          padding-top: 22px;
+        }
+        #guidance-drawer .vg-gsec__icon {
+          width: 44px;
+          height: 44px;
+        }
+      }
+
+      /* Mobile: single column */
+      @media (max-width: 767px) {
+        #guidance-drawer.vg-gdrawer {
+          border-radius: 16px;
+        }
+        #guidance-drawer .vg-gdrawer__head {
+          padding: 14px 16px;
+        }
+        #guidance-drawer .vg-gdrawer__title {
+          font-size: 15px;
+        }
+        #guidance-drawer .vg-gdrawer__title .material-symbols-outlined {
+          font-size: 22px;
+        }
+        #guidance-drawer .vg-gdrawer__body {
+          padding: 12px 12px 16px;
+          gap: 12px;
+        }
+        #guidance-drawer .vg-gcard {
+          padding: 16px;
+          border-radius: 16px;
+        }
+        #guidance-drawer .vg-gcard__head {
+          gap: 14px;
+          padding-bottom: 16px;
+        }
+        #guidance-drawer .vg-gcard__thumb {
+          width: 92px;
+          height: 72px;
+          border-radius: 10px;
+        }
+        #guidance-drawer .vg-gcard__titles {
+          gap: 10px;
+        }
+        #guidance-drawer .vg-gcard__title {
+          font-size: 17px;
+        }
+        #guidance-drawer .vg-gcard__sev {
+          font-size: 13px;
+          padding: 6px 12px;
+          gap: 6px;
+        }
+        #guidance-drawer .vg-gcard__sev .material-symbols-outlined {
+          font-size: 18px;
+        }
+        #guidance-drawer .vg-gcard__grid {
+          grid-template-columns: minmax(0, 1fr);
+          gap: 18px;
+          padding-top: 18px;
+        }
+        #guidance-drawer .vg-gsec {
+          gap: 12px;
+        }
+        #guidance-drawer .vg-gsec__icon {
+          width: 40px;
+          height: 40px;
+          border-radius: 12px;
+        }
+        #guidance-drawer .vg-gsec__icon .material-symbols-outlined {
+          font-size: 22px;
+        }
+        #guidance-drawer .vg-gsec__heading {
+          font-size: 15px;
+        }
+        #guidance-drawer .vg-gsec__text,
+        #guidance-drawer .vg-gsec__list {
+          font-size: 14px;
+        }
+        #guidance-drawer .vg-citizen-note {
+          padding: 14px 16px;
+          font-size: 14px;
+          align-items: flex-start;
+        }
+        #guidance-drawer .vg-citizen-note__icon {
+          font-size: 28px;
+        }
+      }
     </style>
     <script src="https://cdn.tailwindcss.com"></script>
     <script id="tailwind-config">
@@ -1307,13 +1676,13 @@
               <!-- Expandable Guidance Drawer (Option A Content) -->
               <div
                 id="guidance-drawer"
-                class="hidden p-5 sm:p-6 rounded-xl bg-slate-50 border border-slate-200 space-y-4 transition-all"
+                class="vg-gdrawer hidden p-5 sm:p-6 rounded-xl bg-slate-50 border border-slate-200 space-y-4 transition-all"
               >
                 <div
-                  class="flex items-center justify-between pb-2 border-b border-slate-200"
+                  class="vg-gdrawer__head flex items-center justify-between pb-2 border-b border-slate-200"
                 >
                   <div
-                    class="flex items-center gap-2 text-slate-900 font-bold text-sm"
+                    class="vg-gdrawer__title flex items-center gap-2 text-slate-900 font-bold text-sm"
                   >
                     <span
                       class="material-symbols-outlined text-[20px] text-blue-600"
@@ -1327,25 +1696,34 @@
                   <button
                     type="button"
                     onclick="toggleGuidanceDrawer()"
-                    class="text-slate-400 hover:text-slate-600 p-1"
+                    class="vg-gdrawer__close text-slate-400 hover:text-slate-600 p-1"
                   >
                     <span class="material-symbols-outlined text-[18px]"
                       >close</span
                     >
                   </button>
                 </div>
-                <div
-                  id="guidance-cards-container"
-                  class="space-y-3 text-xs text-slate-700"
-                >
-                  <!-- Populated dynamically based on inspection defects -->
-                </div>
-                <div
-                  class="p-3 rounded-lg bg-blue-100/70 text-blue-900 text-xs"
-                >
-                  <strong>Next Step for Citizens:</strong> If this defect
-                  obstructs traffic or risks pedestrian falls, consider using
-                  Option B above to generate a municipal work-order notice.
+                <div class="vg-gdrawer__body">
+                  <div
+                    id="guidance-cards-container"
+                    class="vg-gcards space-y-3 text-xs text-slate-700"
+                  >
+                    <!-- Populated dynamically based on inspection defects -->
+                  </div>
+                  <div
+                    class="vg-citizen-note p-3 rounded-lg bg-blue-100/70 text-blue-900 text-xs"
+                  >
+                    <span
+                      class="material-symbols-outlined vg-citizen-note__icon"
+                      >groups</span
+                    >
+                    <div>
+                      <strong>Next Step for Citizens:</strong> If this defect
+                      obstructs traffic or risks pedestrian falls, consider
+                      using Option B above to generate a municipal work-order
+                      notice.
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -1492,12 +1870,64 @@
           );
         }
 
-        // NEW: keeps backend text free of the old vendor name in anything shown to the user
+        // Keeps backend text free of the old vendor name in anything shown to the user
         function vgCleanText(value) {
           return String(value == null ? "" : value).replace(
             /Google Gemini Vision|Gemini Vision|Google Gemini|Gemini/gi,
             "AI Vision",
           );
+        }
+
+        // ----- Guidance card helpers -----
+        // true  = if the API sends no per-defect image, show the user's own uploaded photo as the thumbnail
+        // false = show a thumbnail only when the API provides one
+        const VG_THUMB_FALLBACK_TO_UPLOAD = true;
+
+        const VG_SEV_META = {
+          critical: { cls: "critical", icon: "warning" },
+          high: { cls: "high", icon: "warning" },
+          moderate: { cls: "moderate", icon: "warning" },
+          low: { cls: "low", icon: "info" },
+          uncertain: { cls: "uncertain", icon: "help" },
+        };
+
+        function vgEsc(s) {
+          return String(s == null ? "" : s)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+        }
+
+        function vgSafeImgSrc(v) {
+          if (typeof v !== "string") return "";
+          v = v.trim();
+          return /^(data:image\/|blob:|https?:\/\/|\/)/i.test(v) ? v : "";
+        }
+
+        // Returns '' when the value is missing or empty, so that section is hidden
+        function vgGuidanceSection(icon, tone, heading, value) {
+          let body = "";
+          if (Array.isArray(value)) {
+            const items = value
+              .map((v) => vgCleanText(v).trim())
+              .filter(Boolean);
+            if (!items.length) return "";
+            body = `<ul class="vg-gsec__list">${items.map((i) => `<li>${vgEsc(i)}</li>`).join("")}</ul>`;
+          } else {
+            const text = vgCleanText(value).trim();
+            if (!text) return "";
+            body = `<p class="vg-gsec__text">${vgEsc(text)}</p>`;
+          }
+          return `
+                    <div class="vg-gsec">
+                        <span class="vg-gsec__icon vg-tone--${tone}"><span class="material-symbols-outlined">${icon}</span></span>
+                        <div class="vg-gsec__body">
+                            <h5 class="vg-gsec__heading">${vgEsc(heading)}</h5>
+                            ${body}
+                        </div>
+                    </div>`;
         }
 
         let activeWorkflow = "building";
@@ -1692,10 +2122,10 @@
         let currentAnnotatedImageUri = "";
         let activeImageView = "annotated";
         let stepInterval = null;
-        let currentProgressStep = 1; // NEW: remembers which step is showing
+        let currentProgressStep = 1; // remembers which step is showing
 
         function setProgressStep(stepNum, label) {
-          currentProgressStep = stepNum; // NEW
+          currentProgressStep = stepNum;
           const card = document.getElementById("inspection-progress-card");
           if (card) card.classList.remove("hidden");
 
@@ -1720,7 +2150,7 @@
           }
         }
 
-        // NEW: when the server answers early, quickly walk through the remaining
+        // When the server answers early, quickly walk through the remaining
         // steps so the stepper always reaches the last step (all green) before
         // the results are shown.
         function completeProgressSteps() {
@@ -2073,7 +2503,7 @@
           })
             .then(async (res) => {
               clearTimeout(timeoutId);
-              // NEW: stop the timed auto-advance; the stepper is finished below
+              // stop the timed auto-advance; the stepper is finished below
               if (stepInterval) {
                 clearInterval(stepInterval);
                 stepInterval = null;
@@ -2084,7 +2514,7 @@
                 data = await res.json();
               } catch (_) {}
 
-              // NEW: on success, let the stepper reach the last step first
+              // on success, let the stepper reach the last step first
               if (res.ok && data && data.status === "success") {
                 await completeProgressSteps();
               }
@@ -2289,21 +2719,76 @@
             `;
               listContainer.appendChild(card);
 
+              // ----- Redesigned guidance card -----
+              const vgSev = VG_SEV_META[detSev] || VG_SEV_META.moderate;
+              const vgSevLabel =
+                detSev.charAt(0).toUpperCase() + detSev.slice(1);
+              const rawAction =
+                det.recommendations || det.recommended_action || det.action;
+              const rawObserved =
+                det.observations || det.evidence || det.description;
+              const thumb =
+                vgSafeImgSrc(
+                  det.thumbnail ||
+                    det.thumbnail_url ||
+                    det.crop_image ||
+                    det.image_url,
+                ) ||
+                (VG_THUMB_FALLBACK_TO_UPLOAD ? currentOriginalImageUri : "");
+
+              const sectionsHtml = [
+                vgGuidanceSection(
+                  "layers",
+                  "blue",
+                  "Defect Type",
+                  rawType ? defectType : "",
+                ),
+                vgGuidanceSection(
+                  "visibility",
+                  "purple",
+                  "What Was Observed",
+                  rawObserved,
+                ),
+                vgGuidanceSection(
+                  "build",
+                  "green",
+                  "Recommended Action",
+                  rawAction,
+                ),
+                vgGuidanceSection(
+                  "warning",
+                  "orange",
+                  "Why Is This a Problem?",
+                  det.why_problem,
+                ),
+                vgGuidanceSection(
+                  "verified_user",
+                  "indigo",
+                  "Safety Precautions",
+                  det.safety_guidance,
+                ),
+                vgGuidanceSection(
+                  "assignment",
+                  "green",
+                  "What Should Maintenance Inspect?",
+                  det.inspection_points,
+                ),
+              ].join("");
+
               const gCard = document.createElement("div");
-              gCard.className =
-                "p-3.5 rounded-xl bg-white border border-slate-200 space-y-1.5";
+              gCard.className = "vg-gcard";
               gCard.innerHTML = `
-                <div class="flex items-center justify-between font-bold text-slate-900">
-                    <span>[${detId}] ${title}</span>
-                    <span class="text-slate-500 uppercase font-mono text-[10px]">${detSev} Severity</span>
-                </div>
-                <p><strong>Defect Type:</strong> ${defectType}</p>
-                <p><strong>Observations:</strong> ${evidence}</p>
-                <p><strong>Recommendations:</strong> ${action}</p>
-                <p><strong>Why is this a problem?</strong> ${vgCleanText(det.why_problem || "Surface distress accelerates under moisture intrusion and traffic loading.")}</p>
-                <p><strong>Safety Precaution:</strong> ${vgCleanText(det.safety_guidance || "Maintain safe distance and avoid mechanical impact over the damaged area.")}</p>
-                <p><strong>What Maintenance Should Inspect:</strong> ${vgCleanText(det.inspection_points || "Subgrade integrity, cavity depth, and perimeter fracture propagation.")}</p>
-            `;
+                            <div class="vg-gcard__head">
+                                ${thumb ? `<img class="vg-gcard__thumb" src="${vgEsc(thumb)}" alt="${vgEsc(title)}" loading="lazy" onerror="this.remove()">` : ""}
+                                <div class="vg-gcard__titles">
+                                    <h4 class="vg-gcard__title">[${vgEsc(detId)}] ${vgEsc(title)}</h4>
+                                    <span class="vg-gcard__sev vg-sev--${vgSev.cls}">
+                                        <span class="material-symbols-outlined">${vgSev.icon}</span>Severity: ${vgEsc(vgSevLabel)}
+                                    </span>
+                                </div>
+                            </div>
+                            ${sectionsHtml ? `<div class="vg-gcard__grid">${sectionsHtml}</div>` : ""}
+                        `;
               guidanceContainer.appendChild(gCard);
             });
           } else {
