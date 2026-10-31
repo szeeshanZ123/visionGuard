@@ -44,13 +44,29 @@
         display: none;
       }
 
-      /* ===== VisionGuard connected circular stepper (visual only) ===== */
+      /* ===== VisionGuard connected circular stepper (compact, visual only) ===== */
+
+      /* Shrunk card: narrower, centered, tighter spacing */
+      #inspection-progress-card {
+        max-width: 640px;
+        margin-left: auto;
+        margin-right: auto;
+        padding: 12px 16px !important;
+        border-radius: 14px !important;
+      }
+      #inspection-progress-card > * + * {
+        margin-top: 10px !important;
+      }
+      #inspection-progress-card #progress-step-title {
+        font-size: 13px;
+      }
+
       #inspection-progress-card .vg-stepper {
         display: grid;
         grid-template-columns: repeat(5, 1fr);
         gap: 0;
         position: relative;
-        padding-top: 4px;
+        padding-top: 0;
       }
 
       /* Reset the box look of each step; keep IDs and the state classes JS sets */
@@ -60,17 +76,18 @@
         flex-direction: column;
         align-items: center;
         justify-content: flex-start;
-        gap: 8px;
-        padding: 0 !important;
+        gap: 5px;
+        padding: 0 2px !important;
         border: 0 !important;
         background: transparent !important;
         border-radius: 0 !important;
         text-align: center;
-        font-size: 11px;
+        font-size: 10px;
         line-height: 1.2;
         font-weight: 500;
         color: #64748b;
         grid-column: auto !important;
+        word-break: break-word;
       }
 
       /* Connector line (drawn from this step's circle to the next one) */
@@ -79,9 +96,9 @@
         > [id^="prog-step-"]:not(:last-child)::after {
         content: "";
         position: absolute;
-        top: 18px;
-        left: calc(50% + 22px);
-        width: calc(100% - 44px);
+        top: 12px;
+        left: calc(50% + 17px);
+        width: calc(100% - 34px);
         height: 2px;
         background: #e2e8f0;
         border-radius: 2px;
@@ -93,13 +110,13 @@
         .vg-stepper
         > [id^="prog-step-"]
         > .material-symbols-outlined {
-        width: 36px;
-        height: 36px;
+        width: 26px;
+        height: 26px;
         border-radius: 9999px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 18px !important;
+        font-size: 14px !important;
         background: #f1f5f9;
         color: #94a3b8;
         border: 2px solid #e2e8f0;
@@ -130,7 +147,7 @@
         > .material-symbols-outlined::before {
         content: "check";
         font-family: "Material Symbols Outlined";
-        font-size: 20px;
+        font-size: 16px;
         font-weight: 600;
         line-height: 1;
       }
@@ -158,7 +175,7 @@
           box-shadow: 0 0 0 0 rgba(77, 142, 255, 0.45);
         }
         70% {
-          box-shadow: 0 0 0 9px rgba(77, 142, 255, 0);
+          box-shadow: 0 0 0 7px rgba(77, 142, 255, 0);
         }
         100% {
           box-shadow: 0 0 0 0 rgba(77, 142, 255, 0);
@@ -167,54 +184,36 @@
 
       /* UPCOMING (JS applies bg-slate-50 ...) keeps the light-grey defaults above */
 
-      /* Tablet */
-      @media (max-width: 768px) {
-        #inspection-progress-card .vg-stepper > [id^="prog-step-"] {
-          font-size: 10.5px;
-        }
-        #inspection-progress-card
-          .vg-stepper
-          > [id^="prog-step-"]
-          > .material-symbols-outlined {
-          width: 32px;
-          height: 32px;
-          font-size: 16px !important;
-        }
-        #inspection-progress-card
-          .vg-stepper
-          > [id^="prog-step-"]:not(:last-child)::after {
-          top: 16px;
-          left: calc(50% + 20px);
-          width: calc(100% - 40px);
-        }
-      }
-
       /* Mobile */
       @media (max-width: 480px) {
+        #inspection-progress-card {
+          padding: 10px 10px !important;
+        }
         #inspection-progress-card .vg-stepper > [id^="prog-step-"] {
-          font-size: 9.5px;
-          gap: 6px;
+          font-size: 9px;
+          gap: 4px;
+          padding: 0 1px !important;
         }
         #inspection-progress-card
           .vg-stepper
           > [id^="prog-step-"]
           > .material-symbols-outlined {
-          width: 28px;
-          height: 28px;
-          font-size: 14px !important;
+          width: 24px;
+          height: 24px;
+          font-size: 13px !important;
         }
         #inspection-progress-card
           .vg-stepper
           > .bg-emerald-50
           > .material-symbols-outlined::before {
-          font-size: 16px;
+          font-size: 14px;
         }
         #inspection-progress-card
           .vg-stepper
           > [id^="prog-step-"]:not(:last-child)::after {
-          top: 14px;
-          left: calc(50% + 17px);
-          width: calc(100% - 34px);
+          top: 11px;
+          left: calc(50% + 15px);
+          width: calc(100% - 30px);
         }
       }
 
@@ -1159,7 +1158,7 @@
                   >
                     <span class="w-2 h-2 rounded-full bg-blue-400"></span>
                     <span id="result-image-meta"
-                      >OpenCV Visual Overlay & Gemini Localization</span
+                      >OpenCV Visual Overlay & AI Localization</span
                     >
                   </div>
                 </div>
@@ -1210,10 +1209,10 @@
                     >verified_user</span
                   >
                   <p id="result-safety-disclaimer">
-                    Notice: Preliminary visual assessment generated by Google
-                    Gemini Vision. This assessment does not replace an on-site
-                    structural engineering certification or municipal inspection
-                    warranty.
+                    Notice: Preliminary visual assessment generated by
+                    VisionGuard AI Vision. This assessment does not replace an
+                    on-site structural engineering certification or municipal
+                    inspection warranty.
                   </p>
                 </div>
               </div>
@@ -1418,7 +1417,7 @@
                 <span class="material-symbols-outlined text-[15px]"
                   >auto_awesome</span
                 >
-                Gemini Vision
+                AI Vision
               </div>
               <div
                 id="prog-step-3"
@@ -1490,6 +1489,14 @@
               ?.getAttribute("content") ||
             sessionStorage.getItem("vg_csrf_token") ||
             ""
+          );
+        }
+
+        // NEW: keeps backend text free of the old vendor name in anything shown to the user
+        function vgCleanText(value) {
+          return String(value == null ? "" : value).replace(
+            /Google Gemini Vision|Gemini Vision|Google Gemini|Gemini/gi,
+            "AI Vision",
           );
         }
 
@@ -1669,7 +1676,7 @@
           }
 
           titleEl.innerText = title;
-          msgEl.innerText = message;
+          msgEl.innerText = vgCleanText(message);
           box.classList.remove("hidden");
         }
 
@@ -1685,8 +1692,10 @@
         let currentAnnotatedImageUri = "";
         let activeImageView = "annotated";
         let stepInterval = null;
+        let currentProgressStep = 1; // NEW: remembers which step is showing
 
         function setProgressStep(stepNum, label) {
+          currentProgressStep = stepNum; // NEW
           const card = document.getElementById("inspection-progress-card");
           if (card) card.classList.remove("hidden");
 
@@ -1711,6 +1720,47 @@
           }
         }
 
+        // NEW: when the server answers early, quickly walk through the remaining
+        // steps so the stepper always reaches the last step (all green) before
+        // the results are shown.
+        function completeProgressSteps() {
+          return new Promise((resolve) => {
+            if (stepInterval) {
+              clearInterval(stepInterval);
+              stepInterval = null;
+            }
+
+            const stepLabels = {
+              2: "Analysing photograph with AI Vision...",
+              3: "Identifying visible defects & severity...",
+              4: "Generating visual bounding boxes (OpenCV)...",
+              5: "Preparing inspection report...",
+            };
+            let step = currentProgressStep;
+
+            const advance = () => {
+              if (step < 5) {
+                step++;
+                setProgressStep(step, stepLabels[step]);
+                setTimeout(advance, 450);
+              } else {
+                // all five stages done: mark the last one completed too
+                const last = document.getElementById("prog-step-5");
+                if (last) {
+                  last.className =
+                    "p-2 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1.5 font-medium";
+                }
+                const titleEl = document.getElementById("progress-step-title");
+                if (titleEl) titleEl.innerText = "Inspection complete";
+                const cta = document.getElementById("cta-label");
+                if (cta) cta.innerText = "Inspection complete";
+                setTimeout(resolve, 700);
+              }
+            };
+            advance();
+          });
+        }
+
         function clearProgressSteps() {
           if (stepInterval) clearInterval(stepInterval);
           const card = document.getElementById("inspection-progress-card");
@@ -1730,7 +1780,7 @@
               "px-3 py-1 rounded-lg bg-white text-slate-900 shadow-xs transition-all flex items-center gap-1.5";
             btnOrig.className =
               "px-3 py-1 rounded-lg text-slate-600 hover:text-slate-900 transition-all flex items-center gap-1.5";
-            metaEl.innerText = "OpenCV Visual Overlay & Gemini Localization";
+            metaEl.innerText = "OpenCV Visual Overlay & AI Localization";
           } else {
             imgEl.src = currentOriginalImageUri;
             btnOrig.className =
@@ -1818,8 +1868,10 @@
             lastInspectionResult.preliminary_severity || "Moderate"
           ).toUpperCase();
           document.getElementById("modal-comp-evidence").innerText =
-            lastInspectionResult.summary ||
-            "Surface defect visual evidence attached.";
+            vgCleanText(
+              lastInspectionResult.summary ||
+                "Surface defect visual evidence attached.",
+            );
 
           modal.classList.remove("hidden");
         }
@@ -1979,8 +2031,8 @@
           stepInterval = setInterval(() => {
             currentStep++;
             if (currentStep === 2) {
-              setProgressStep(2, "Analysing photograph with Gemini Vision...");
-              label.innerText = "Analysing photograph with Gemini Vision...";
+              setProgressStep(2, "Analysing photograph with AI Vision...");
+              label.innerText = "Analysing photograph with AI Vision...";
             } else if (currentStep === 3) {
               setProgressStep(3, "Identifying visible defects & severity...");
               label.innerText = "Identifying visible defects & severity...";
@@ -2021,12 +2073,22 @@
           })
             .then(async (res) => {
               clearTimeout(timeoutId);
-              clearProgressSteps();
+              // NEW: stop the timed auto-advance; the stepper is finished below
+              if (stepInterval) {
+                clearInterval(stepInterval);
+                stepInterval = null;
+              }
 
               let data = null;
               try {
                 data = await res.json();
               } catch (_) {}
+
+              // NEW: on success, let the stepper reach the last step first
+              if (res.ok && data && data.status === "success") {
+                await completeProgressSteps();
+              }
+              clearProgressSteps();
 
               if (!res.ok || !data || data.status !== "success") {
                 let errorTitle = "Inspection Failed";
@@ -2035,16 +2097,16 @@
                     ? data.message
                     : `Server responded with HTTP ${res.status}.`;
                 if (data?.error_code === "GEMINI_NOT_CONFIGURED") {
-                  errorTitle = "Gemini API Key Required";
+                  errorTitle = "AI Vision API Key Required";
                   errorMsg =
-                    "Google Gemini Vision API key is not configured. Please set GEMINI_API_KEY in your .env file or server deployment settings.";
+                    "The AI Vision API key is not configured. Please set the vision API key in your .env file or server deployment settings.";
                 } else if (
                   res.status === 429 ||
                   data?.error_code === "QUOTA_EXHAUSTED"
                 ) {
                   errorTitle = "API Free-Tier Rate Limit";
                   errorMsg =
-                    "Google Gemini Vision free-tier rate limit reached. Please wait a moment and try again, or check your API quota in Google AI Studio.";
+                    "The AI Vision free-tier rate limit was reached. Please wait a moment and try again, or check your API quota.";
                 } else if (
                   res.status === 403 &&
                   (data?.error_code === "CSRF_TOKEN_INVALID" ||
@@ -2151,13 +2213,14 @@
           sevBadge.className = `inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${sevColors[severity] || sevColors.moderate}`;
 
           const summaryEl = document.getElementById("result-summary-text");
-          summaryEl.innerText =
+          summaryEl.innerText = vgCleanText(
             data.summary ||
-            `Preliminary visual inspection identified ${defectCount} candidate defect(s).`;
+              `Preliminary visual inspection identified ${defectCount} candidate defect(s).`,
+          );
 
           if (data.safety_disclaimer || data.disclaimer) {
             document.getElementById("result-safety-disclaimer").innerText =
-              data.safety_disclaimer || data.disclaimer;
+              vgCleanText(data.safety_disclaimer || data.disclaimer);
           }
 
           const listContainer = document.getElementById(
@@ -2181,18 +2244,20 @@
                     .replace(/_/g, " ")
                     .replace(/\b\w/g, (l) => l.toUpperCase())
                 : "Infrastructure Distress";
-              const title = det.title || defectType;
+              const title = vgCleanText(det.title || defectType);
               const detSev = (det.severity || "moderate").toLowerCase();
-              const action =
+              const action = vgCleanText(
                 det.recommendations ||
-                det.recommended_action ||
-                det.action ||
-                "Arrange on-site inspection.";
-              const evidence =
+                  det.recommended_action ||
+                  det.action ||
+                  "Arrange on-site inspection.",
+              );
+              const evidence = vgCleanText(
                 det.observations ||
-                det.evidence ||
-                det.description ||
-                "Observed surface distress.";
+                  det.evidence ||
+                  det.description ||
+                  "Observed surface distress.",
+              );
               const hasBox =
                 det.has_bounding_box !== false && det.bounding_box !== null;
 
@@ -2235,9 +2300,9 @@
                 <p><strong>Defect Type:</strong> ${defectType}</p>
                 <p><strong>Observations:</strong> ${evidence}</p>
                 <p><strong>Recommendations:</strong> ${action}</p>
-                <p><strong>Why is this a problem?</strong> ${det.why_problem || "Surface distress accelerates under moisture intrusion and traffic loading."}</p>
-                <p><strong>Safety Precaution:</strong> ${det.safety_guidance || "Maintain safe distance and avoid mechanical impact over the damaged area."}</p>
-                <p><strong>What Maintenance Should Inspect:</strong> ${det.inspection_points || "Subgrade integrity, cavity depth, and perimeter fracture propagation."}</p>
+                <p><strong>Why is this a problem?</strong> ${vgCleanText(det.why_problem || "Surface distress accelerates under moisture intrusion and traffic loading.")}</p>
+                <p><strong>Safety Precaution:</strong> ${vgCleanText(det.safety_guidance || "Maintain safe distance and avoid mechanical impact over the damaged area.")}</p>
+                <p><strong>What Maintenance Should Inspect:</strong> ${vgCleanText(det.inspection_points || "Subgrade integrity, cavity depth, and perimeter fracture propagation.")}</p>
             `;
               guidanceContainer.appendChild(gCard);
             });
